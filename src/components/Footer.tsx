@@ -52,6 +52,7 @@ export default function Footer() {
             <Link to="/policies/privacy-policy" className="text-gray-400 hover:text-white hover:translate-x-1 transition-all text-sm w-fit">Privacy Policy</Link>
             <Link to="/policies/terms-and-conditions" className="text-gray-400 hover:text-white hover:translate-x-1 transition-all text-sm w-fit">Terms & Conditions</Link>
             <Link to="/policies/shipping-policy" className="text-gray-400 hover:text-white hover:translate-x-1 transition-all text-sm w-fit">Shipping Policy</Link>
+            <Link to="/policies/return-refund-policy" className="text-gray-400 hover:text-white hover:translate-x-1 transition-all text-sm w-fit">Return &amp; Refund Policy</Link>
             <Link to="/contact" className="text-gray-400 hover:text-white hover:translate-x-1 transition-all text-sm w-fit">Contact Us</Link>
             <Link to="/about" className="text-gray-400 hover:text-white hover:translate-x-1 transition-all text-sm w-fit">About Us</Link>
           </div>

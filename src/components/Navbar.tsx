@@ -4,7 +4,6 @@ import { Search, Heart, ShoppingBag, User, Menu, X, LogOut, MapPin, Package } fr
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import AnnouncementBar from './AnnouncementBar';
-import MiniCartDrawer from './MiniCartDrawer';
 import MobileNavDrawer from './MobileNavDrawer';
 
 export default function Navbar() {
@@ -15,7 +14,6 @@ export default function Navbar() {
   const [lastScrollY, setLastScrollY] = useState(0);
 
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   const profileRef = useRef<HTMLDivElement>(null);
@@ -86,6 +84,7 @@ export default function Navbar() {
     { label: 'Men', path: '/collection?category=men' },
     { label: 'Women', path: '/collection?category=women' },
     { label: 'Tech & Kitchen', path: '/collection?category=tech-kitchen' },
+    { label: 'New Arrivals', path: '/new-arrivals' },
     { label: 'Sale', path: '/sale', isRed: true },
     { label: 'About', path: '/about' },
     { label: 'Contact', path: '/contact' },
@@ -150,41 +149,19 @@ export default function Navbar() {
               <Search className="w-5 h-5" />
             </button>
 
-            {/* Profile Dropdown */}
-            <div className="hidden md:block relative" ref={profileRef}>
+            {/* Profile Link */}
+            <div className="hidden md:block relative">
               {isLoggedIn ? (
-                <button 
-                  onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                <Link 
+                  to="/profile"
                   className="w-8 h-8 rounded-full bg-charcoal-stone text-white flex items-center justify-center font-bold text-sm hover:bg-black transition-colors"
                 >
                   {avatarLetter}
-                </button>
+                </Link>
               ) : (
                 <Link to="/login" className="text-xs font-bold uppercase tracking-widest hover:opacity-70 transition-opacity">
                   Log In
                 </Link>
-              )}
-
-              {/* Dropdown Menu */}
-              {isLoggedIn && isProfileDropdownOpen && (
-                <div className="absolute right-0 top-[120%] w-48 bg-white border border-gray-100 shadow-[0_10px_40px_rgb(0,0,0,0.08)] rounded-md py-2 z-50 animate-fade-in-up origin-top-right">
-                  <Link to="/profile" onClick={() => setIsProfileDropdownOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-charcoal-stone hover:bg-gray-50 transition-colors">
-                    <User className="w-4 h-4 text-gray-400" /> My Profile
-                  </Link>
-                  <Link to="/orders" onClick={() => setIsProfileDropdownOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-charcoal-stone hover:bg-gray-50 transition-colors">
-                    <Package className="w-4 h-4 text-gray-400" /> My Orders
-                  </Link>
-                  <Link to="/addresses" onClick={() => setIsProfileDropdownOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-charcoal-stone hover:bg-gray-50 transition-colors">
-                    <MapPin className="w-4 h-4 text-gray-400" /> Saved Addresses
-                  </Link>
-                  <Link to="/wishlist" onClick={() => setIsProfileDropdownOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-charcoal-stone hover:bg-gray-50 transition-colors">
-                    <Heart className="w-4 h-4 text-gray-400" /> Wishlist
-                  </Link>
-                  <div className="border-t border-gray-100 my-1"></div>
-                  <button onClick={handleLogout} className="flex items-center gap-3 w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-gray-50 transition-colors">
-                    <LogOut className="w-4 h-4" /> Logout
-                  </button>
-                </div>
               )}
             </div>
 
@@ -199,14 +176,14 @@ export default function Navbar() {
             </Link>
 
             {/* Cart */}
-            <button onClick={() => setIsCartDrawerOpen(true)} className="hover:opacity-70 transition-opacity relative">
+            <Link to="/cart" className="hover:opacity-70 transition-opacity relative">
               <ShoppingBag className="w-5 h-5" />
               {cartCount > 0 && (
                 <span className="absolute -top-1.5 -right-2 bg-charcoal-stone text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                   {cartCount}
                 </span>
               )}
-            </button>
+            </Link>
           </div>
         </div>
       </header>
@@ -255,7 +232,6 @@ export default function Navbar() {
       />
 
       {/* Drawers */}
-      <MiniCartDrawer isOpen={isCartDrawerOpen} onClose={() => setIsCartDrawerOpen(false)} />
       <MobileNavDrawer 
         isOpen={isMobileDrawerOpen} 
         onClose={() => setIsMobileDrawerOpen(false)} 

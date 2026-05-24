@@ -398,7 +398,7 @@ export default function Product() {
       {/* Size Guide Modal */}
       {isSizeGuideOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsSizeGuideOpen(false)}>
-          <div className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-10 shadow-2xl relative rounded-sm" onClick={e => e.stopPropagation()}>
+          <div className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-10 shadow-2xl relative rounded-sm" onClick={e => e.stopPropagation()} data-lenis-prevent="true">
             <button 
               onClick={() => setIsSizeGuideOpen(false)}
               className="absolute top-4 right-4 text-on-surface-variant hover:text-primary p-2 transition-colors"
@@ -466,7 +466,7 @@ export default function Product() {
       {/* All Reviews Modal */}
       {isReviewsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsReviewsModalOpen(false)}>
-          <div className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-10 shadow-2xl relative rounded-sm" onClick={e => e.stopPropagation()}>
+          <div className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-10 shadow-2xl relative rounded-sm" onClick={e => e.stopPropagation()} data-lenis-prevent="true">
             <button 
               onClick={() => setIsReviewsModalOpen(false)}
               className="absolute top-4 right-4 text-on-surface-variant hover:text-primary p-2 transition-colors"

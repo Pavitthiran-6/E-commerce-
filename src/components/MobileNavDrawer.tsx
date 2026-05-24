@@ -22,6 +22,7 @@ export default function MobileNavDrawer({ isOpen, onClose, isLoggedIn, avatarLet
     { label: 'Men', path: '/collection?category=men' },
     { label: 'Women', path: '/collection?category=women' },
     { label: 'Tech & Kitchen', path: '/collection?category=tech-kitchen' },
+    { label: 'New Arrivals', path: '/new-arrivals' },
     { label: 'Sale', path: '/sale', isRed: true },
     { label: 'About Us', path: '/about' },
     { label: 'Contact Us', path: '/contact' },

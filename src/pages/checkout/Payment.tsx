@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { CheckCircle2, Lock, ShieldCheck, ChevronDown, Check } from 'lucide-react';
 import { LoadingButton } from '../../components/LoadingButton';
+import { coupons, calculateDiscount } from '../../utils/couponLogic';
 
 /* ─── Custom Dropdown ─── */
 interface CustomDropdownProps {
@@ -147,11 +148,16 @@ export default function CheckoutPayment() {
 
   const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
+  const appliedCoupon = sessionStorage.getItem('appliedCoupon');
+
   const subtotal = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
-  const shipping = subtotal > 5000 ? 0 : 250;
-  const tax = Math.round(subtotal * 0.18);
+  const discountAmount = appliedCoupon ? calculateDiscount(appliedCoupon, subtotal) : 0;
+  const isFreeShipping = appliedCoupon ? coupons.find(c => c.code === appliedCoupon)?.type === 'freeshipping' : false;
+
+  const shipping = isFreeShipping ? 0 : (subtotal > 5000 ? 0 : 250);
+  const tax = Math.round((subtotal - discountAmount) * 0.18);
   const codFee = method === 'cod' ? 49 : 0;
-  const total = subtotal + shipping + tax + codFee;
+  const total = (subtotal - discountAmount) + shipping + tax + codFee;
 
   const cardType = detectCardType(card.number.replace(/\s/g, ''));
 
@@ -371,6 +377,9 @@ export default function CheckoutPayment() {
                 <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
                 <div className="flex justify-between text-gray-500"><span>Shipping</span><span>{shipping === 0 ? <span className="text-emerald-600 font-medium">Free</span> : fmt(shipping)}</span></div>
                 <div className="flex justify-between text-gray-500"><span>GST (18%)</span><span>{fmt(tax)}</span></div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-emerald-600 font-medium"><span>Discount ({appliedCoupon})</span><span>- {fmt(discountAmount)}</span></div>
+                )}
                 {codFee > 0 && <div className="flex justify-between text-orange-500"><span>COD Fee</span><span>+₹49</span></div>}
                 <div className="flex justify-between font-semibold text-charcoal-stone text-base border-t border-gray-100 pt-2.5 mt-1">
                   <span className="font-serif">Total</span>

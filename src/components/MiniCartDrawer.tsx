@@ -60,14 +60,14 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
                   
                   <div className="flex items-center gap-3 mt-3 border border-gray-200 w-fit rounded">
                     <button 
-                      onClick={() => updateQuantity(item.id, item.size, item.color, item.quantity - 1)}
+                      onClick={() => updateQuantity(item.id, item.size, item.color, -1)}
                       className="p-1.5 hover:bg-gray-100 transition-colors text-charcoal-stone"
                     >
                       <Minus className="w-3 h-3" />
                     </button>
                     <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
                     <button 
-                      onClick={() => updateQuantity(item.id, item.size, item.color, item.quantity + 1)}
+                      onClick={() => updateQuantity(item.id, item.size, item.color, 1)}
                       className="p-1.5 hover:bg-gray-100 transition-colors text-charcoal-stone"
                     >
                       <Plus className="w-3 h-3" />

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { CheckCircle2, ChevronDown, ChevronUp, MapPin, Plus } from 'lucide-react';
 import { LoadingButton } from '../../components/LoadingButton';
+import { coupons, calculateDiscount } from '../../utils/couponLogic';
 
 const STEPS = ['Address', 'Payment', 'Confirmation'];
 
@@ -69,10 +70,15 @@ export default function CheckoutAddress() {
 
   const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
+  const appliedCoupon = sessionStorage.getItem('appliedCoupon');
+  
   const subtotal = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
-  const shipping = subtotal > 5000 ? 0 : 250;
-  const tax = Math.round(subtotal * 0.18);
-  const total = subtotal + shipping + tax;
+  const discountAmount = appliedCoupon ? calculateDiscount(appliedCoupon, subtotal) : 0;
+  const isFreeShipping = appliedCoupon ? coupons.find(c => c.code === appliedCoupon)?.type === 'freeshipping' : false;
+
+  const shipping = isFreeShipping ? 0 : (subtotal > 5000 ? 0 : 250);
+  const tax = Math.round((subtotal - discountAmount) * 0.18);
+  const total = (subtotal - discountAmount) + shipping + tax;
 
   return (
     <main className="min-h-screen bg-[#f7f6f2] pt-28 pb-20 px-4 sm:px-8">
@@ -174,14 +180,14 @@ export default function CheckoutAddress() {
           </div>
 
           {/* ── Right: Order Summary ── */}
-          <OrderSummary items={cartItems} subtotal={subtotal} shipping={shipping} tax={tax} total={total} fmt={fmt} />
+          <OrderSummary items={cartItems} subtotal={subtotal} discountAmount={discountAmount} appliedCoupon={appliedCoupon} shipping={shipping} tax={tax} total={total} fmt={fmt} />
         </div>
       </div>
     </main>
   );
 }
 
-function OrderSummary({ items, subtotal, shipping, tax, total, fmt }: any) {
+function OrderSummary({ items, subtotal, discountAmount, appliedCoupon, shipping, tax, total, fmt }: any) {
   return (
     <div className="w-full lg:w-80 xl:w-96 flex-shrink-0">
       <div className="sticky top-28 bg-white border border-gray-200 rounded-sm overflow-hidden shadow-sm">
@@ -211,6 +217,9 @@ function OrderSummary({ items, subtotal, shipping, tax, total, fmt }: any) {
           <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
           <div className="flex justify-between text-gray-500"><span>Shipping</span><span>{shipping === 0 ? <span className="text-emerald-600 font-medium">Free</span> : fmt(shipping)}</span></div>
           <div className="flex justify-between text-gray-500"><span>GST (18%)</span><span>{fmt(tax)}</span></div>
+          {appliedCoupon && (
+            <div className="flex justify-between text-emerald-600 font-medium"><span>Discount ({appliedCoupon})</span><span>- {fmt(discountAmount)}</span></div>
+          )}
           <div className="flex justify-between font-semibold text-charcoal-stone text-base border-t border-gray-100 pt-2.5 mt-1">
             <span className="font-serif">Total</span>
             <span>{fmt(total)}</span>

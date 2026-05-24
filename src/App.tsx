@@ -18,12 +18,18 @@ import Wishlist from './pages/Wishlist';
 import CheckoutAddress from './pages/checkout/Address';
 import CheckoutPayment from './pages/checkout/Payment';
 import CheckoutConfirmation from './pages/checkout/Confirmation';
+import TrackOrder from './pages/TrackOrder';
 import NotFound from './pages/NotFound';
 
 import FAQ from './pages/policies/FAQ';
 import PrivacyPolicy from './pages/policies/PrivacyPolicy';
 import Terms from './pages/policies/Terms';
 import ShippingPolicy from './pages/policies/ShippingPolicy';
+import ReturnRefundPolicy from './pages/policies/ReturnRefundPolicy';
+
+import Sale from './pages/Sale';
+import NewArrivals from './pages/NewArrivals';
+import ComingSoon from './pages/ComingSoon';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -52,6 +58,10 @@ function App() {
     <div className="min-h-screen flex flex-col font-body-md">
       <ScrollToTop />
       <Routes>
+        {/* Standalone Route for Coming Soon */}
+        <Route path="/coming-soon" element={<ComingSoon />} />
+        <Route path="/pages/coming-soon/index.html" element={<ComingSoon />} />
+
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
           <Route path="/collection" element={<Collection />} />
@@ -75,9 +85,20 @@ function App() {
           <Route path="/policies/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/policies/terms-and-conditions" element={<Terms />} />
           <Route path="/policies/shipping-policy" element={<ShippingPolicy />} />
+          <Route path="/policies/return-refund-policy" element={<ReturnRefundPolicy />} />
+          <Route path="/pages/policies/return-refund-policy.html" element={<ReturnRefundPolicy />} />
 
-          <Route path="*" element={<NotFound />} />
+          {/* New Pages */}
+          <Route path="/sale" element={<Sale />} />
+          <Route path="/pages/sale/index.html" element={<Sale />} />
+          <Route path="/new-arrivals" element={<NewArrivals />} />
+          <Route path="/pages/new-arrivals/index.html" element={<NewArrivals />} />
+          <Route path="/track-order" element={<TrackOrder />} />
+          <Route path="/pages/track-order/index.html" element={<TrackOrder />} />
+
         </Route>
+
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </div>
   );
