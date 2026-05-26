@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Package, Truck, XCircle, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getOrders, type Order } from '../../services/orderService';
-import SkeletonLoader from '../../components/common/SkeletonLoader';
+import { Skeleton } from '../../components/common/SkeletonLoader';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorState from '../../components/common/ErrorState';
 
@@ -49,7 +49,7 @@ export default function ProfileOrders() {
       <div className="flex flex-col gap-6">
         <h2 className="font-headline-md text-2xl mb-2">My Orders</h2>
         {[...Array(3)].map((_, i) => (
-          <SkeletonLoader key={i} className="h-64 rounded-xl" />
+          <Skeleton key={i} className="h-64 rounded-xl" />
         ))}
       </div>
     );
@@ -64,8 +64,8 @@ export default function ProfileOrders() {
       <EmptyState
         title="No orders yet"
         message="You have not placed any orders yet. Start exploring our collection to find something you'll love!"
-        actionText="Start Shopping"
-        onAction={() => window.location.href = '/collection'}
+        actionLabel="Start Shopping"
+        onAction={() => { window.location.href = '/collection'; }}
       />
     );
   }

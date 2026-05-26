@@ -409,6 +409,7 @@ export default function CheckoutPayment() {
                 </span>
               </div>
             </div>
+          </div>
 
           {/* ── Right: Order Summary ── */}
           <div className="w-full lg:w-80 xl:w-96 flex-shrink-0">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, updateUserProfile, UserProfile } from '../../services/userService';
-import SkeletonLoader from '../../components/common/SkeletonLoader';
+import { getUserProfile, updateUserProfile } from '../../services/userService';
+import type { UserProfile } from '../../services/userService';
+import { Skeleton } from '../../components/common/SkeletonLoader';
 import { useAuth } from '../../context/AuthContext';
 
 export default function ProfileDetails() {
@@ -58,8 +59,8 @@ export default function ProfileDetails() {
   if (isLoading) {
     return (
       <div className="bg-white p-6 md:p-8 border border-outline-variant/30 rounded-xl flex flex-col gap-6">
-        <SkeletonLoader className="h-8 w-1/3" />
-        <SkeletonLoader className="h-64" />
+        <Skeleton className="h-8 w-1/3" />
+        <Skeleton className="h-64" />
       </div>
     );
   }

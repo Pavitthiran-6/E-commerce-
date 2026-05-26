@@ -35,6 +35,7 @@ public class OrderResponse {
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class OrderItemResponse {
         private Long id;
+        private UUID productId;
         private String productName;
         private String productImage;
         private String size;

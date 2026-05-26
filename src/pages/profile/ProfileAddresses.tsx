@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Plus, Trash2, Edit2 } from 'lucide-react';
-import { getAddresses, addAddress, deleteAddress, setDefaultAddress, Address } from '../../services/userService';
-import SkeletonLoader from '../../components/common/SkeletonLoader';
+import { getAddresses, addAddress, deleteAddress, setDefaultAddress } from '../../services/userService';
+import type { Address } from '../../services/userService';
+import { Skeleton } from '../../components/common/SkeletonLoader';
 
 export default function ProfileAddresses() {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -69,8 +70,8 @@ export default function ProfileAddresses() {
       <div className="flex flex-col gap-6">
         <h2 className="font-headline-md text-2xl mb-2">Saved Addresses</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <SkeletonLoader className="h-48 rounded-xl" />
-          <SkeletonLoader className="h-48 rounded-xl" />
+          <Skeleton className="h-48 rounded-xl" />
+          <Skeleton className="h-48 rounded-xl" />
         </div>
       </div>
     );

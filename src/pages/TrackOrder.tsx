@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Package, Truck, CheckCircle2, XCircle, Clock, MapPin, Download, HelpCircle, RotateCcw, AlertCircle, ShoppingBag } from 'lucide-react';
-import { Order, OrderTracking, getOrderById, trackOrder } from '../services/orderService';
+import { getOrderById, trackOrder } from '../services/orderService';
+import type { Order, OrderTracking } from '../services/orderService';
 
 export default function TrackOrder() {
   const location = useLocation();
@@ -281,7 +282,7 @@ export default function TrackOrder() {
                 {visibleEvents.map((event, idx) => (
                   <div 
                     key={idx} 
-                    ref={el => timelineRefs.current[idx] = el}
+                    ref={el => { timelineRefs.current[idx] = el; }}
                     className="relative pl-8 md:pl-10 opacity-0 translate-y-4 transition-all duration-700 ease-out"
                     style={{ transitionDelay: `${idx * 150}ms` }}
                   >
@@ -333,10 +334,22 @@ export default function TrackOrder() {
                 {order.items.map((item, idx) => (
                   <div key={idx} className="flex gap-3 border-b border-gray-100 pb-3 last:border-0 last:pb-0">
                     <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden flex-shrink-0">
-                      <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover mix-blend-multiply" />
+                      {item.productId ? (
+                        <Link to={`/product/${item.productId}`}>
+                          <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover mix-blend-multiply hover:opacity-85 transition-opacity" />
+                        </Link>
+                      ) : (
+                        <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover mix-blend-multiply" />
+                      )}
                     </div>
                     <div className="flex-1 text-sm">
-                      <p className="font-bold text-charcoal-stone leading-tight line-clamp-2">{item.productName}</p>
+                      {item.productId ? (
+                        <Link to={`/product/${item.productId}`} className="font-bold text-charcoal-stone leading-tight line-clamp-2 hover:text-primary transition-colors">
+                          {item.productName}
+                        </Link>
+                      ) : (
+                        <p className="font-bold text-charcoal-stone leading-tight line-clamp-2">{item.productName}</p>
+                      )}
                       <p className="text-gray-500 mt-1">Qty: {item.quantity}</p>
                     </div>
                     <div className="text-sm font-bold text-right whitespace-nowrap">
@@ -378,7 +391,7 @@ export default function TrackOrder() {
         <div className="flex flex-wrap gap-4 items-center justify-between bg-white rounded-xl border border-outline-variant/30 p-6 shadow-sm mb-12">
           <div className="flex flex-wrap gap-4 w-full md:w-auto">
             <Link 
-              to={`/product/${productId}`}
+              to={order.items[0]?.productId ? `/product/${order.items[0].productId}` : '/collection'}
               className="flex-1 md:flex-none bg-charcoal-stone text-white px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-black transition-colors text-center shadow-md"
             >
               Buy Again

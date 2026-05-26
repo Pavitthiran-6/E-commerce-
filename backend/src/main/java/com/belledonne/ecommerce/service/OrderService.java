@@ -132,7 +132,9 @@ public class OrderService {
     public OrderResponse toResponse(Order o) {
         List<OrderResponse.OrderItemResponse> items = o.getItems().stream()
             .map(i -> OrderResponse.OrderItemResponse.builder()
-                .id(i.getId()).productName(i.getProductName())
+                .id(i.getId())
+                .productId(i.getProduct() != null ? i.getProduct().getId() : null)
+                .productName(i.getProductName())
                 .productImage(i.getProductImage()).size(i.getSize()).color(i.getColor())
                 .quantity(i.getQuantity()).unitPrice(i.getUnitPrice()).totalPrice(i.getTotalPrice())
                 .build()).collect(Collectors.toList());

@@ -36,7 +36,7 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setWishlistItems(wishlist.map(product => ({
           id: product.id,
           name: product.name,
-          price: typeof product.price === 'string' ? parseInt(product.price.replace(/[^0-9]/g, '')) : product.price,
+          price: typeof (product.price as any) === 'string' ? parseInt((product.price as any).replace(/[^0-9]/g, '')) : product.price,
           image: product.image || ''
         })));
       }

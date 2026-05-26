@@ -41,8 +41,8 @@ export default function Product() {
     addToCart({
       id: product.id,
       name: product.name,
-      price: typeof product.price === 'string' ? parseInt(product.price.replace(/[^0-9]/g, '')) : product.price,
-      image: product.image,
+      price: typeof (product.price as any) === 'string' ? parseInt((product.price as any).replace(/[^0-9]/g, '')) : product.price,
+      image: product.image || (product.images && product.images[0]) || '',
       quantity: 1,
       size: selectedSize,
       color: selectedColor
@@ -58,8 +58,8 @@ export default function Product() {
       addToWishlist({
         id: product.id,
         name: product.name,
-        price: typeof product.price === 'string' ? parseInt(product.price.replace(/[^0-9]/g, '')) : product.price,
-        image: product.image
+        price: typeof (product.price as any) === 'string' ? parseInt((product.price as any).replace(/[^0-9]/g, '')) : product.price,
+        image: product.image || (product.images && product.images[0]) || ''
       });
     }
   };
@@ -202,7 +202,7 @@ export default function Product() {
             <h1 className="font-headline-display text-4xl text-primary mb-1 capitalize">{product.name}</h1>
             <div className="flex flex-col gap-1 mt-2">
               <div className="flex items-center justify-between">
-                <p className="font-body-lg text-body-lg text-on-surface-variant">{product.price}</p>
+                <p className="text-2xl font-bold text-charcoal-stone">{typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}</p>
                 {stockStatus === 'in_stock' && (
                   <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span><span className="text-sm font-body-md text-on-surface-variant">In Stock</span></div>
                 )}

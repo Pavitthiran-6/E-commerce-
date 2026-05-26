@@ -335,7 +335,10 @@ export default function Collection() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
         {/* Left Sidebar (Filters) */}
-        <aside className="hidden lg:flex flex-col gap-10 pr-4 lg:sticky lg:top-32 h-fit max-h-[calc(100vh-8rem)] overflow-y-auto pb-4">
+        <aside 
+          className="hidden lg:flex flex-col gap-10 pr-4 lg:sticky lg:top-32 h-fit max-h-[calc(100vh-12rem)] overflow-y-auto overscroll-y-contain custom-scrollbar pb-24"
+          data-lenis-prevent
+        >
 
           {/* Active Filters (Moved inside sidebar) */}
           {(selectedCategories.length > 0 || priceRange[0] > 0 || priceRange[1] < 10000 || selectedSizes.length > 0 || selectedColors.length > 0 || selectedExtra.length > 0 || selectedDepartments.length > 0) && (
@@ -411,22 +414,6 @@ export default function Collection() {
             </div>
           </div>
 
-          {/* Department */}
-          <div className="flex flex-col gap-4">
-            <h3 className="font-label-caps text-xs text-primary uppercase tracking-widest border-b border-outline-variant/30 pb-2">Department</h3>
-            <div className="flex flex-col gap-3 text-sm">
-              {['Men', 'Women', 'Kids'].map(dept => (
-                <label key={dept} className="flex items-center gap-3 cursor-pointer group" onClick={() => toggleDepartment(dept)}>
-                  <div className={`w-4 h-4 border flex items-center justify-center transition-colors ${selectedDepartments.includes(dept) ? 'border-primary' : 'border-outline-variant group-hover:border-primary'}`}>
-                    {selectedDepartments.includes(dept) && <div className="w-2 h-2 bg-primary"></div>}
-                  </div>
-                  <span className={`${selectedDepartments.includes(dept) ? 'text-primary font-medium' : 'text-on-surface-variant group-hover:text-primary transition-colors'}`}>
-                    {dept}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
 
           {/* Price Range */}
           <div className="flex flex-col gap-4">
@@ -462,6 +449,20 @@ export default function Collection() {
                   onChange={(e) => handlePriceChange(1, parseInt(e.target.value))}
                   className="absolute w-full -top-1.5 h-4 appearance-none bg-transparent pointer-events-none z-20 [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-primary [&::-webkit-slider-thumb]:rounded-full"
                 />
+              </div>
+              <div className="flex flex-col gap-2 mt-4">
+                <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Quick Select</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[299, 499, 999, 2999].map(amount => (
+                    <button
+                      key={amount}
+                      onClick={() => setPriceRange([0, amount])}
+                      className={`border py-2 text-xs transition-colors cursor-pointer text-center font-medium ${priceRange[0] === 0 && priceRange[1] === amount ? 'border-primary bg-primary text-white' : 'border-outline-variant/50 text-on-surface-variant hover:border-primary hover:text-primary bg-white'}`}
+                    >
+                      Under ₹{amount.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -535,7 +536,7 @@ export default function Collection() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16">
             {isLoading ? (
               Array.from({ length: 9 }).map((_, i) => (
-                <div key={i} className={`product-card group cursor-pointer flex flex-col ${i % 3 === 1 ? 'mt-12 md:mt-0 lg:mt-24' : ''}`}>
+                <div key={i} className="product-card group cursor-pointer flex flex-col">
                   <ProductCardSkeleton />
                 </div>
               ))
@@ -556,7 +557,7 @@ export default function Collection() {
               </div>
             ) : (
               paginatedProducts.map((product, index) => (
-                <Link to={`/product/${product.id}`} key={product.id} className={`product-card group cursor-pointer flex flex-col ${index % 3 === 1 ? 'mt-12 md:mt-0 lg:mt-24' : ''}`}>
+                <Link to={`/product/${product.id}`} key={product.id} className="product-card group cursor-pointer flex flex-col">
                   <div className="relative aspect-[4/5] overflow-hidden bg-[#f6f5f0] flex items-center justify-center mb-4">
                     <img
                       alt={product.name}
@@ -575,12 +576,9 @@ export default function Collection() {
                       />
                     </button>
                   </div>
-                  <div className="flex flex-col">
-                    <div className="flex justify-between items-center w-full">
-                      <h3 className="font-serif text-[17px] text-charcoal-stone">{product.name}</h3>
-                      <span className="text-[9px] font-semibold tracking-wider text-charcoal-stone">{product.price}</span>
-                    </div>
-                    <p className="font-body-md text-xs text-gray-500 mt-1">{product.description}</p>
+                  <div className="flex flex-col gap-1">
+                    <h3 className="font-serif text-[17px] text-charcoal-stone">{product.name}</h3>
+                    <span className="text-[15px] font-bold tracking-wider text-charcoal-stone">{typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}</span>
                   </div>
                 </Link>
               ))

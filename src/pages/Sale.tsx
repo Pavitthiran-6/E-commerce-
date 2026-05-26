@@ -187,7 +187,7 @@ export default function Sale() {
               <div className="flex flex-col">
                 <h3 className="font-serif text-[16px] text-charcoal-stone line-clamp-1">{product.name}</h3>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-red-600 font-bold text-sm">{product.price}</span>
+                  <span className="text-red-600 font-bold text-base">{typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}</span>
                   <span className="text-gray-400 line-through text-xs">{product.originalPrice}</span>
                 </div>
               </div>

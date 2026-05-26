@@ -11,6 +11,13 @@ export default function Home() {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [products, setProducts] = useState<Product[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -304,7 +311,7 @@ export default function Home() {
                   </div>
                   <div className="flex justify-between items-center pt-1">
                     <h3 className="font-body-md text-xs text-charcoal-stone relative inline-block pb-0.5 after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-[1px] after:bottom-0 after:right-0 after:bg-current after:origin-right after:transition-transform after:duration-300 group-hover:after:scale-x-100">{item.name}</h3>
-                    <span className="font-body-md text-xs text-charcoal-stone">{item.price}</span>
+                    <span className="font-body-md text-sm font-bold text-charcoal-stone">{typeof item.price === 'number' ? `₹${item.price.toLocaleString('en-IN')}` : item.price}</span>
                   </div>
                 </Link>
               ))
@@ -350,67 +357,96 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Philosophy Editorial */}
+      {/* Exclusive Offers & Coupons Section */}
       <section className="max-w-container mx-auto px-margin-edge py-section-gap">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-gutter items-center">
-          <div className="md:col-span-7 mb-stack-lg md:mb-0 aspect-[3/2] bg-warm-sand overflow-hidden group">
-            <img alt="" className="w-full h-full object-cover transition-transform duration-[600ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-105" src="https://images.unsplash.com/photo-1449505278894-297fdb3edbc1?q=80&w=1200" />
-          </div>
-          <div className="md:col-span-4 md:col-start-9">
-            <span className="font-label-caps text-label-caps text-outline block mb-stack-md">Our Philosophy</span>
-            <h2 className="font-headline-md text-headline-md text-charcoal-stone mb-stack-lg italic">"Elevating the everyday through meticulous craftsmanship and uncompromising materials."</h2>
-            <p className="font-body-md text-body-md text-on-surface-variant mb-stack-lg">Designed in Paris. Assembled in Portugal. We source only the finest full-grain Italian leathers and premium suedes to construct footwear that matures beautifully over time. Every stitch is considered.</p>
-            <a className="font-button text-button text-charcoal-stone uppercase tracking-widest relative inline-block pb-1 after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-[1px] after:bottom-0 after:left-0 after:bg-current after:origin-bottom-right after:transition-transform after:duration-[400ms] after:ease-out hover:after:scale-x-100 hover:after:origin-bottom-left" href="#">Discover Craftsmanship</a>
-          </div>
+        <div className="flex flex-col items-center justify-center text-center mb-12">
+          <span className="font-label-caps text-[10px] tracking-[0.2em] text-muted-gold uppercase block mb-2">Special Promotions</span>
+          <h2 className="font-serif text-3xl md:text-4xl text-charcoal-stone mb-3">Exclusive Offers For You</h2>
+          <p className="font-body-md text-sm text-gray-500 max-w-md">Copy and apply these code vouchers at checkout to redeem maximum discounts on your cart items.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[
+            { code: 'WELCOME10', discount: '10% OFF', desc: 'On your first order', minCart: '999' },
+            { code: 'SUMMER20', discount: '20% OFF', desc: 'Summer special discount', minCart: '1,499' },
+            { code: 'SAVE500', discount: '₹500 OFF', desc: 'Flat savings on big carts', minCart: '5,000' }
+          ].map((offer) => {
+            const isCopied = copiedCode === offer.code;
+
+            return (
+              <div key={offer.code} className="border border-dashed border-outline-variant/60 rounded-xl p-6 bg-white flex flex-col justify-between hover:shadow-lg transition-all duration-300 group">
+                <div>
+                  <div className="flex justify-between items-start mb-4">
+                    <span className="bg-muted-gold/10 text-muted-gold text-[10px] font-bold tracking-widest px-2.5 py-1 rounded-full">
+                      VOUCHER
+                    </span>
+                    <span className="text-gray-400 text-xs font-medium">Min Spend: ₹{offer.minCart}</span>
+                  </div>
+                  <h3 className="font-serif text-3xl font-extrabold text-charcoal-stone mb-1">{offer.discount}</h3>
+                  <p className="font-body-md text-xs text-gray-500 mb-6">{offer.desc}</p>
+                </div>
+                <div className="flex items-center justify-between border-t border-gray-100 pt-4">
+                  <div className="bg-warm-sand px-4 py-2 border border-outline-variant/40 rounded font-mono text-sm font-semibold tracking-wider text-charcoal-stone select-all">
+                    {offer.code}
+                  </div>
+                  <button 
+                    onClick={() => handleCopyCode(offer.code)}
+                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors duration-300 rounded ${isCopied ? 'bg-green-600 text-white' : 'bg-charcoal-stone text-white hover:bg-muted-gold cursor-pointer'}`}
+                  >
+                    {isCopied ? 'Copied!' : 'Copy Code'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
-      {/* Manifesto Section */}
-      <section className="max-w-container mx-auto px-margin-edge py-section-gap text-center">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="font-headline-md text-2xl text-charcoal-stone mb-6 uppercase tracking-wider font-semibold leading-relaxed">
-            Raise your expectations,<br />raise our standards.
-          </h2>
-          <p className="font-body-lg text-lg text-on-surface-variant leading-relaxed">
-            Inspired by sports classics and crafted from exceptional materials, our sneakers combine minimalism, elegance and high quality standards.
-          </p>
-        </div>
-      </section>
 
-      {/* Dual Category Banners - Sticky Layout */}
-      <section className="w-full bg-white">
-        {/* Men's Section */}
-        <div className="flex flex-col md:flex-row w-full relative">
-          {/* Left: Tall Image */}
-          <div className="w-full md:w-1/2 h-[100vh] md:h-[150vh]">
-            <img alt="Men's Collection" className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1617114919297-3c8ddb01f599?q=80&w=800" />
-          </div>
-          {/* Right: Sticky Text */}
-          <div className="w-full md:w-1/2 relative bg-white py-20 md:py-0">
-            <div className="md:sticky md:top-1/2 md:-translate-y-1/2 pl-6 md:pl-10 flex flex-col justify-center h-full md:h-auto">
-              <h2 className="text-xl font-bold mb-2 uppercase tracking-[0.2em] text-charcoal-stone">Men's Collection</h2>
-              <div>
-                <Link className="text-sm font-medium border-b border-charcoal-stone pb-0.5 hover:opacity-60 transition-opacity" to="/collection?department=Men">Discover all our models</Link>
-              </div>
-            </div>
-          </div>
+      {/* Shop by Department & Category */}
+      <section className="max-w-container mx-auto px-margin-edge py-section-gap">
+        <div className="flex flex-col items-center justify-center text-center mb-12">
+          <span className="font-label-caps text-[10px] tracking-[0.2em] text-muted-gold uppercase block mb-2">Curated Collections</span>
+          <h2 className="font-serif text-3xl md:text-4xl text-charcoal-stone mb-3">Shop by Category</h2>
+          <p className="font-body-md text-sm text-gray-500 max-w-md">Explore our premium catalog organized by specific departments and product categories.</p>
         </div>
 
-        {/* Women's Section */}
-        <div className="flex flex-col md:flex-row-reverse w-full relative">
-          {/* Right: Tall Image */}
-          <div className="w-full md:w-1/2 h-[100vh] md:h-[150vh]">
-            <img alt="Women's Collection" className="w-full h-full object-cover object-top" src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=800" />
-          </div>
-          {/* Left: Sticky Text */}
-          <div className="w-full md:w-1/2 relative bg-white py-20 md:py-0">
-            <div className="md:sticky md:top-1/2 md:-translate-y-1/2 pr-6 md:pr-10 flex flex-col justify-center items-end text-right h-full md:h-auto">
-              <h2 className="text-xl font-bold mb-2 uppercase tracking-[0.2em] text-charcoal-stone">Women's Collection</h2>
-              <div>
-                <Link className="text-sm font-medium border-b border-charcoal-stone pb-0.5 hover:opacity-60 transition-opacity" to="/collection?department=Women">Discover all our models</Link>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            {
+              title: "Men's Wear",
+              subtitle: "Refined Casuals & Essentials",
+              image: "https://images.unsplash.com/photo-1617114919297-3c8ddb01f599?q=80&w=600",
+              link: "/collection?department=Men"
+            },
+            {
+              title: "Women's Wear",
+              subtitle: "Elegant Dresses & Silks",
+              image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600",
+              link: "/collection?department=Women"
+            },
+            {
+              title: "Premium Footwear",
+              subtitle: "Leather Sneakers & Boots",
+              image: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=600",
+              link: "/collection?category=footwear"
+            },
+            {
+              title: "Smart Tech & Living",
+              subtitle: "Wearables & Appliances",
+              image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?q=80&w=600",
+              link: "/collection?category=electronics"
+            }
+          ].map((cat, idx) => (
+            <Link to={cat.link} key={idx} className="relative aspect-[4/5] rounded-2xl overflow-hidden group shadow-sm hover:shadow-lg transition-all duration-500 block bg-neutral-950">
+              <img alt={cat.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-85 group-hover:opacity-75" src={cat.image} />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10 transition-opacity duration-300" />
+              <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col justify-end text-white">
+                <h3 className="font-serif text-xl font-bold tracking-wide mb-1">{cat.title}</h3>
+                <span className="font-body-md text-xs text-gray-300 font-light uppercase tracking-wider">{cat.subtitle}</span>
               </div>
-            </div>
-          </div>
+            </Link>
+          ))}
         </div>
       </section>
 
@@ -471,7 +507,7 @@ export default function Home() {
                   </div>
                   <div className="flex justify-between items-center pt-1">
                     <h3 className="font-body-md text-xs text-gray-500 relative inline-block pb-0.5 after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-[1px] after:bottom-0 after:right-0 after:bg-current after:origin-right after:transition-transform after:duration-300 group-hover:after:scale-x-100">{item.name}</h3>
-                    <span className="font-body-md text-xs text-gray-500">{item.price}</span>
+                    <span className="font-body-md text-sm font-bold text-gray-500">{typeof item.price === 'number' ? `₹${item.price.toLocaleString('en-IN')}` : item.price}</span>
                   </div>
                 </Link>
               ))

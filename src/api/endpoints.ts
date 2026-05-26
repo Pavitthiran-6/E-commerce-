@@ -36,4 +36,7 @@ export const ENDPOINTS = {
   // Coupons
   COUPONS: '/api/coupons',
   VALIDATE_COUPON: '/api/coupons/validate',
+
+  // Reviews
+  REVIEWS: '/api/reviews',
 };

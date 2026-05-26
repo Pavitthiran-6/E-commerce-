@@ -4,8 +4,9 @@ import { useCart } from '../../context/CartContext';
 import { CheckCircle2, ChevronDown, ChevronUp, MapPin, Plus } from 'lucide-react';
 import { LoadingButton } from '../../components/LoadingButton';
 import { coupons, calculateDiscount } from '../../utils/couponLogic';
-import { getAddresses, addAddress, Address } from '../../services/userService';
-import SkeletonLoader from '../../components/common/SkeletonLoader';
+import { getAddresses, addAddress } from '../../services/userService';
+import type { Address } from '../../services/userService';
+import { Skeleton } from '../../components/common/SkeletonLoader';
 
 const STEPS = ['Address', 'Payment', 'Confirmation'];
 
@@ -108,7 +109,7 @@ export default function CheckoutAddress() {
 
             {isLoading ? (
               [...Array(2)].map((_, i) => (
-                <SkeletonLoader key={i} className="h-32 rounded-sm" />
+                <Skeleton key={i} className="h-32 rounded-sm" />
               ))
             ) : (
               addresses.map(addr => (

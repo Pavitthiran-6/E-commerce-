@@ -148,14 +148,14 @@ export default function Navbar() {
               )}
             </Link>
 
-            <button onClick={() => setCartDrawerOpen(true)} className="relative">
+            <Link to="/cart" className="relative">
               <ShoppingBag className="w-5 h-5 md:w-6 md:h-6 text-charcoal-stone hover:text-primary transition-colors" />
               {cartCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                   {cartCount}
                 </span>
               )}
-            </button>
+            </Link>
           </div>
         </div>
 

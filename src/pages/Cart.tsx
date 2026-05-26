@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { LoadingButton } from '../components/LoadingButton';
 import { Minus, Plus, Trash2, ArrowRight, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { getActiveCoupons, validateCoupon, Coupon } from '../services/couponService';
+import { getActiveCoupons, validateCoupon } from '../services/couponService';
+import type { Coupon } from '../services/couponService';
 
 export default function Cart() {
   const navigate = useNavigate();

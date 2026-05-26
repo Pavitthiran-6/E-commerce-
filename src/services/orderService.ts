@@ -3,6 +3,7 @@ import { ENDPOINTS } from '../api/endpoints';
 
 export interface OrderItem {
   id: number;
+  productId?: string;
   productName: string;
   productImage: string;
   size?: string;

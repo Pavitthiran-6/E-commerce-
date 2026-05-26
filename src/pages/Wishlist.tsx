@@ -90,7 +90,7 @@ export default function Wishlist() {
                   <Link to={`/product/${product.id}`}>
                     <h3 className="font-serif text-[17px] text-charcoal-stone hover:opacity-70 transition-opacity">{product.name}</h3>
                   </Link>
-                  <span className="text-[9px] font-semibold tracking-wider text-charcoal-stone">{product.price}</span>
+                  <span className="text-[15px] font-bold tracking-wider text-charcoal-stone">{typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}</span>
                 </div>
                 
                 <button 

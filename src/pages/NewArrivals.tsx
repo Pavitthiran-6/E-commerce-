@@ -92,7 +92,7 @@ export default function NewArrivals() {
             </div>
             <div className="flex flex-col">
               <h3 className="font-serif text-[16px] text-charcoal-stone line-clamp-1">{product.name}</h3>
-              <span className="text-[11px] font-bold tracking-widest text-charcoal-stone mt-1">{product.price}</span>
+              <span className="text-sm font-bold tracking-widest text-charcoal-stone mt-1">{typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}</span>
             </div>
           </Link>
         ))}
