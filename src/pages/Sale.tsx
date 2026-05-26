@@ -54,7 +54,7 @@ export default function Sale() {
   const saleProducts = products.map((p, index) => {
     // Generate some fake discounts
     const discountPercent = 20 + (index % 5) * 10; // 20%, 30%, 40%, 50%, 60%
-    const originalPriceNum = Math.round(p.priceNum / (1 - discountPercent / 100));
+    const originalPriceNum = Math.round(p.price / (1 - discountPercent / 100));
     
     return {
       ...p,
@@ -69,8 +69,8 @@ export default function Sale() {
     if (activeTab === 'Men') return p.gender === 'Men';
     if (activeTab === 'Women') return p.gender === 'Women';
     if (activeTab === 'Tech & Kitchen') return p.category === 'Audio' || p.category === 'Kitchen Items';
-    if (activeTab === 'Under ₹999') return p.priceNum < 999;
-    if (activeTab === 'Under ₹1999') return p.priceNum < 1999;
+    if (activeTab === 'Under ₹999') return p.price < 999;
+    if (activeTab === 'Under ₹1999') return p.price < 1999;
     return true;
   });
 
@@ -78,10 +78,10 @@ export default function Sale() {
   const dealOfTheDay = saleProducts[0];
 
   return (
-    <div className="min-h-screen bg-[#fafaf8] pb-24 font-body-md pt-16">
+    <div className="min-h-screen bg-[#fafaf8] pb-24 font-body-md pt-8">
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-red-600 to-orange-500 text-white py-16 px-6 md:px-12 text-center mt-8">
+      <section className="bg-gradient-to-r from-red-600 to-orange-500 text-white py-16 px-6 md:px-12 text-center mt-4">
         <h1 className="font-serif text-5xl md:text-7xl font-bold mb-4 tracking-tight">SALE IS LIVE 🔥</h1>
         <p className="text-lg md:text-xl font-medium mb-10 max-w-2xl mx-auto opacity-90">
           Limited time deals — up to 70% off on selected products!

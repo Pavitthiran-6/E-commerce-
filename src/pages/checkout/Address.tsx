@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { CheckCircle2, ChevronDown, ChevronUp, MapPin, Plus } from 'lucide-react';
 import { LoadingButton } from '../../components/LoadingButton';
 import { coupons, calculateDiscount } from '../../utils/couponLogic';
+import { getAddresses, addAddress, Address } from '../../services/userService';
+import SkeletonLoader from '../../components/common/SkeletonLoader';
 
 const STEPS = ['Address', 'Payment', 'Confirmation'];
 
@@ -38,35 +40,49 @@ function StepBar({ current }: { current: number }) {
   );
 }
 
-const SAVED_ADDRESSES = [
-  {
-    id: 'addr1',
-    name: 'Rahul Sharma',
-    phone: '+91 98765 43210',
-    line1: 'Flat 4B, Sunrise Apartments, Bandra West',
-    city: 'Mumbai',
-    state: 'Maharashtra',
-    pincode: '400050',
-    isDefault: true,
-  },
-  {
-    id: 'addr2',
-    name: 'Rahul Sharma',
-    phone: '+91 98765 43210',
-    line1: '12, MG Road, Koramangala',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-    pincode: '560034',
-    isDefault: false,
-  },
-];
-
 export default function CheckoutAddress() {
   const navigate = useNavigate();
   const { cartItems } = useCart();
-  const [selected, setSelected] = useState('addr1');
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [selected, setSelected] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', phone: '', pincode: '', line1: '', street: '', city: '', state: '' });
+  const [isLoading, setIsLoading] = useState(true);
+  const [form, setForm] = useState({ fullName: '', phone: '', pincode: '', addressLine1: '', addressLine2: '', city: '', state: '' });
+
+  useEffect(() => {
+    fetchAddresses();
+  }, []);
+
+  const fetchAddresses = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getAddresses();
+      setAddresses(data);
+      if (data.length > 0) {
+        const defaultAddr = data.find(a => a.isDefault);
+        setSelected(defaultAddr ? defaultAddr.id : data[0].id);
+      } else {
+        setShowForm(true);
+      }
+    } catch (error) {
+      console.error("Failed to load addresses", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveAddress = async () => {
+    try {
+      const newAddress = await addAddress(form);
+      setAddresses([...addresses, newAddress]);
+      setSelected(newAddress.id);
+      setShowForm(false);
+      setForm({ fullName: '', phone: '', pincode: '', addressLine1: '', addressLine2: '', city: '', state: '' });
+    } catch (error) {
+      console.error("Failed to save address", error);
+      alert("Failed to save address");
+    }
+  };
 
   const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
@@ -90,37 +106,43 @@ export default function CheckoutAddress() {
           <div className="flex-1 flex flex-col gap-5">
             <h2 className="font-serif text-2xl text-charcoal-stone">Select Delivery Address</h2>
 
-            {/* Saved address cards */}
-            {SAVED_ADDRESSES.map(addr => (
-              <label
-                key={addr.id}
-                onClick={() => setSelected(addr.id)}
-                className={`relative flex gap-4 p-5 bg-white border-2 cursor-pointer transition-all duration-200 rounded-sm
-                  ${selected === addr.id ? 'border-charcoal-stone shadow-md' : 'border-gray-200 hover:border-gray-300'}`}
-              >
-                <input
-                  type="radio"
-                  name="address"
-                  checked={selected === addr.id}
-                  onChange={() => setSelected(addr.id)}
-                  className="mt-1 accent-charcoal-stone flex-shrink-0"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-charcoal-stone text-sm">{addr.name}</span>
-                    <span className="text-xs text-gray-400">{addr.phone}</span>
-                    {addr.isDefault && (
-                      <span className="ml-auto bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-emerald-200">
-                        Default
-                      </span>
-                    )}
+            {isLoading ? (
+              [...Array(2)].map((_, i) => (
+                <SkeletonLoader key={i} className="h-32 rounded-sm" />
+              ))
+            ) : (
+              addresses.map(addr => (
+                <label
+                  key={addr.id}
+                  onClick={() => setSelected(addr.id)}
+                  className={`relative flex gap-4 p-5 bg-white border-2 cursor-pointer transition-all duration-200 rounded-sm
+                    ${selected === addr.id ? 'border-charcoal-stone shadow-md' : 'border-gray-200 hover:border-gray-300'}`}
+                >
+                  <input
+                    type="radio"
+                    name="address"
+                    checked={selected === addr.id}
+                    onChange={() => setSelected(addr.id)}
+                    className="mt-1 accent-charcoal-stone flex-shrink-0"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-charcoal-stone text-sm">{addr.fullName}</span>
+                      <span className="text-xs text-gray-400">{addr.phone}</span>
+                      {addr.isDefault && (
+                        <span className="ml-auto bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-emerald-200">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 leading-relaxed">{addr.addressLine1}</p>
+                    {addr.addressLine2 && <p className="text-sm text-gray-600 leading-relaxed">{addr.addressLine2}</p>}
+                    <p className="text-sm text-gray-600">{addr.city}, {addr.state} – {addr.pincode}</p>
                   </div>
-                  <p className="text-sm text-gray-600 leading-relaxed">{addr.line1}</p>
-                  <p className="text-sm text-gray-600">{addr.city}, {addr.state} – {addr.pincode}</p>
-                </div>
-                <MapPin className={`w-4 h-4 mt-1 flex-shrink-0 ${selected === addr.id ? 'text-charcoal-stone' : 'text-gray-300'}`} />
-              </label>
-            ))}
+                  <MapPin className={`w-4 h-4 mt-1 flex-shrink-0 ${selected === addr.id ? 'text-charcoal-stone' : 'text-gray-300'}`} />
+                </label>
+              ))
+            )}
 
             {/* Add new address */}
             <button
@@ -137,11 +159,11 @@ export default function CheckoutAddress() {
                 <h3 className="font-serif text-lg text-charcoal-stone mb-5">New Delivery Address</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
-                    { label: 'Full Name', key: 'name', col: '' },
+                    { label: 'Full Name', key: 'fullName', col: '' },
                     { label: 'Phone Number', key: 'phone', col: '' },
                     { label: 'Pincode', key: 'pincode', col: '' },
-                    { label: 'House / Flat No.', key: 'line1', col: '' },
-                    { label: 'Street / Area / Locality', key: 'street', col: 'sm:col-span-2' },
+                    { label: 'House / Flat No.', key: 'addressLine1', col: '' },
+                    { label: 'Street / Area / Locality', key: 'addressLine2', col: 'sm:col-span-2' },
                     { label: 'City', key: 'city', col: '' },
                     { label: 'State', key: 'state', col: '' },
                   ].map(field => (
@@ -157,20 +179,26 @@ export default function CheckoutAddress() {
                   ))}
                 </div>
                 <LoadingButton
-                  onClick={() => setShowForm(false)}
+                  onClick={handleSaveAddress}
                   className="mt-5 bg-charcoal-stone text-white text-xs font-semibold uppercase tracking-widest px-6 py-3 hover:bg-charcoal-stone/80 transition-colors"
                 >
-                  Save & Deliver Here
+                  Save Address
                 </LoadingButton>
               </div>
             )}
 
             <LoadingButton
               onClickAsync={async () => {
+                if (!selected) {
+                  alert("Please select a delivery address.");
+                  return;
+                }
+                localStorage.setItem('checkoutAddressId', selected.toString());
                 await new Promise(r => setTimeout(r, 600));
                 navigate('/checkout/payment');
               }}
               className="mt-2 w-full bg-charcoal-stone text-white font-semibold uppercase tracking-widest py-4 text-sm hover:bg-charcoal-stone/85 transition-colors flex items-center justify-center gap-2"
+              disabled={!selected && !showForm}
             >
               Deliver to this Address
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

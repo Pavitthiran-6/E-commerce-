@@ -1,0 +1,47 @@
+package com.belledonne.ecommerce.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+public class ProductResponse {
+    private UUID id;
+    private String name;
+    private String slug;
+    private String brand;
+    private String categoryName;
+    private Long categoryId;
+    private String description;
+    private String shortDescription;
+    private BigDecimal price;
+    private BigDecimal originalPrice;
+    private Integer discountPercentage;
+    private Integer stockQuantity;
+    private Boolean isActive;
+    private Boolean isFeatured;
+    private Boolean isNew;
+    private Boolean isBestseller;
+    private BigDecimal averageRating;
+    private Integer reviewCount;
+    private String[] tags;
+    private String[] images;
+    private List<VariantResponse> variants;
+    private LocalDateTime createdAt;
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class VariantResponse {
+        private Long id;
+        private String size;
+        private String color;
+        private String colorHex;
+        private Integer stockQuantity;
+        private BigDecimal additionalPrice;
+    }
+}

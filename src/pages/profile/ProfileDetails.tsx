@@ -1,31 +1,71 @@
 import React, { useState, useEffect } from 'react';
+import { getUserProfile, updateUserProfile, UserProfile } from '../../services/userService';
+import SkeletonLoader from '../../components/common/SkeletonLoader';
+import { useAuth } from '../../context/AuthContext';
 
-interface ProfileDetailsProps {
-  email: string;
-}
-
-export default function ProfileDetails({ email }: ProfileDetailsProps) {
+export default function ProfileDetails() {
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [dob, setDob] = useState('');
   const [gender, setGender] = useState('');
 
-  // Extract clean name from email
   useEffect(() => {
-    const rawName = email.split('@')[0];
-    const cleanName = rawName.replace(/[^a-zA-Z]/g, '');
-    const capitalizedName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1).toLowerCase();
-    
-    setFullName(capitalizedName);
-  }, [email]);
+    fetchProfile();
+  }, []);
 
-  const avatarLetter = fullName ? fullName.charAt(0).toUpperCase() : email.charAt(0).toUpperCase();
-
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Simulate save
-    alert('Profile details saved successfully!');
+  const fetchProfile = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getUserProfile();
+      setProfile(data);
+      setFullName(data.name || '');
+      setPhone(data.phone || '');
+      setDob(data.dateOfBirth || '');
+      setGender(data.gender || '');
+    } catch (error) {
+      console.error("Failed to load profile", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile) return;
+    try {
+      setIsSaving(true);
+      const updated = await updateUserProfile({
+        name: fullName,
+        phone,
+        dateOfBirth: dob,
+        gender
+      });
+      setProfile(updated);
+      alert('Profile details saved successfully!');
+    } catch (error) {
+      console.error("Failed to update profile", error);
+      alert("Failed to update profile");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="bg-white p-6 md:p-8 border border-outline-variant/30 rounded-xl flex flex-col gap-6">
+        <SkeletonLoader className="h-8 w-1/3" />
+        <SkeletonLoader className="h-64" />
+      </div>
+    );
+  }
+
+  const email = profile?.email || user?.email || '';
+  const avatarLetter = fullName ? fullName.charAt(0).toUpperCase() : email.charAt(0).toUpperCase();
 
   return (
     <div className="bg-white p-6 md:p-8 border border-outline-variant/30 rounded-xl">
@@ -113,9 +153,10 @@ export default function ProfileDetails({ email }: ProfileDetailsProps) {
           <div className="mt-8">
             <button 
               type="submit"
-              className="bg-primary text-white px-8 py-3 rounded-lg font-medium hover:bg-charcoal-stone transition-colors"
+              disabled={isSaving}
+              className="bg-primary text-white px-8 py-3 rounded-lg font-medium hover:bg-charcoal-stone transition-colors disabled:opacity-70"
             >
-              Save Changes
+              {isSaving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>

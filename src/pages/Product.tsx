@@ -1,54 +1,97 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import type { WishlistItem } from '../context/WishlistContext';
 import { Heart } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { LoadingButton } from '../components/LoadingButton';
+import { getProductById } from '../services/productService';
+import { getProductReviews } from '../services/reviewService';
+import type { Review } from '../services/reviewService';
+import type { Product as ProductType } from '../data/products';
+import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
+import ErrorState from '../components/common/ErrorState';
 
 export default function Product() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const [product, setProduct] = useState<ProductType | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  
   const [selectedSize, setSelectedSize] = useState('8');
   const [selectedColor, setSelectedColor] = useState('Walnut');
   const [stockStatus, setStockStatus] = useState<'in_stock' | 'out_of_stock' | 'limited'>('in_stock');
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [totalReviews, setTotalReviews] = useState(0);
 
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { showToast } = useToast();
 
   const handleAddToCart = () => {
+    if (!product) return;
     if (stockStatus === 'out_of_stock') {
       showToast('This item is currently out of stock.', 'error');
       return;
     }
     addToCart({
-      id: id || 'b0-walnut',
-      name: id?.replace('-', ' ') || 'B0 Walnut',
-      price: 16500,
-      image: productPhotos[0],
+      id: product.id,
+      name: product.name,
+      price: typeof product.price === 'string' ? parseInt(product.price.replace(/[^0-9]/g, '')) : product.price,
+      image: product.image,
       quantity: 1,
       size: selectedSize,
       color: selectedColor
     });
-    showToast(`${id?.replace('-', ' ') || 'Product'} added to cart!`, 'success', { label: 'View Cart', href: '/cart' });
+    showToast(`${product.name} added to cart!`, 'success', { label: 'View Cart', href: '/cart' });
   };
 
   const handleWishlistToggle = () => {
-    const productId = id || 'b0-walnut';
-    if (isInWishlist(productId)) {
-      removeFromWishlist(productId);
+    if (!product) return;
+    if (isInWishlist(product.id)) {
+      removeFromWishlist(product.id);
     } else {
       addToWishlist({
-        id: productId,
-        name: productId.replace('-', ' '),
-        price: 16500,
-        image: productPhotos[0]
+        id: product.id,
+        name: product.name,
+        price: typeof product.price === 'string' ? parseInt(product.price.replace(/[^0-9]/g, '')) : product.price,
+        image: product.image
       });
     }
   };
+
+  // Fetch product
+  useEffect(() => {
+    if (!id) return;
+    const fetchProduct = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await getProductById(id);
+        setProduct(data);
+        if (data.sizes && data.sizes.length > 0) {
+          setSelectedSize(String(data.sizes[0]));
+        }
+        if (data.colors && data.colors.length > 0) {
+          setSelectedColor(data.colors[0]);
+        }
+        
+        // Fetch reviews
+        const reviewsData = await getProductReviews(id);
+        setReviews(reviewsData.content);
+        setTotalReviews(reviewsData.totalElements);
+      } catch (err) {
+        setError('Failed to load product details');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProduct();
+  }, [id]);
 
   // Mock stock status based on size
   useEffect(() => {
@@ -115,22 +158,40 @@ export default function Product() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="w-full flex flex-col md:flex-row min-h-screen pt-24 px-6 md:px-16 gap-8 pb-16">
+        <div className="w-full md:w-1/2">
+          <ProductCardSkeleton />
+        </div>
+        <div className="w-full md:w-1/2 flex flex-col gap-4">
+          <div className="h-10 bg-gray-200 animate-pulse w-3/4 rounded"></div>
+          <div className="h-6 bg-gray-200 animate-pulse w-1/4 rounded"></div>
+          <div className="h-24 bg-gray-200 animate-pulse w-full rounded mt-4"></div>
+          <div className="h-12 bg-gray-200 animate-pulse w-full rounded mt-8"></div>
+          <div className="h-12 bg-gray-200 animate-pulse w-full rounded mt-2"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return <ErrorState message={error || 'Product not found'} onRetry={() => navigate('/collection')} className="mt-24 mx-4" />;
+  }
+
   return (
     <div className="w-full flex flex-col">
       <main className="w-full flex flex-col md:flex-row min-h-screen">
       {/* Left Column: Product Imagery */}
       <div className="w-full md:w-1/2 flex flex-col gap-4">
         <div className="w-full bg-[#f6f5f0] aspect-[4/5] flex items-center justify-center overflow-hidden">
-          <img alt="Belledonne B0 Sneaker" onClick={() => setProductLightboxIndex(0)} className="w-full h-full object-scale-down p-4 transform transition-transform duration-700 ease-in-out hover:scale-105 mix-blend-multiply cursor-pointer" src="https://lh3.googleusercontent.com/aida/ADBb0ugdJSLBhMOg17OKe5bEJVJiBOhqWn1_CUUSdpfLgqnS0r5rnqduDT4BHMLRSGcg-0QLdZ9mZ-xJDKkRLPv00aFS4YEjyzC2Y_9u3Ue9CIXPPs3C-VFKzrv-JUWkAZKNpej3W2G-so1vCRj_QuKcV5zNWSiRxnLpG08to022Vug_7Eq_NJ5rTgs__4F2qFl-ucJsozGDdMUZO1jXGXnEZBdn2YKT8sh9JNq-srHVfu-d86eGN6cdSo8XWhZC" />
+          <img alt={product.name} onClick={() => setProductLightboxIndex(0)} className="w-full h-full object-scale-down p-4 transform transition-transform duration-700 ease-in-out hover:scale-105 mix-blend-multiply cursor-pointer" src={product.image} />
         </div>
-        <div className="w-full bg-[#f6f5f0] aspect-[4/5] flex items-center justify-center overflow-hidden">
-          <img alt="Belledonne B0 Sneaker Detail" onClick={() => setProductLightboxIndex(1)} className="w-full h-full object-scale-down p-4 transform transition-transform duration-700 ease-in-out hover:scale-105 mix-blend-multiply cursor-pointer" src="https://lh3.googleusercontent.com/aida/ADBb0uj7lpaKtCv6nmi__My16-1qw2GYsH8kGgWFX8sUp721M_3ZV1MXIEiixNADIqC1jf-Rn59cGUE0vfnGsv0eaYIkXaBU2mD4UoqPL47zb5xDriq6Be_KER-k6w9iGYKoi3Gq3mahFAac52krcZcpiFptpAgz1Snfd21Oxzc8EpKqU4C_MQ3CKGYxVvvvMOLqEOUJmYN0MCg1Sj0PVKDgUO-eNTaGY_EHXre61DRpKfSMUG7vbzwE-NdNVtwC" />
-        </div>
-        {id === 'b0-classic' && (
-          <div className="w-full bg-[#f6f5f0] aspect-[4/5] flex items-center justify-center overflow-hidden">
-            <img alt="Belledonne B0 Classic Angle" onClick={() => setProductLightboxIndex(2)} className="w-full h-full object-scale-down p-4 transform transition-transform duration-700 ease-in-out hover:scale-105 mix-blend-multiply cursor-pointer" src="https://images.unsplash.com/photo-1608231387042-66d1773070a5?q=80&w=2000&auto=format&fit=crop" />
+        {productPhotos.slice(1).map((photo, idx) => (
+          <div key={idx} className="w-full bg-[#f6f5f0] aspect-[4/5] flex items-center justify-center overflow-hidden">
+            <img alt={`${product.name} Detail ${idx + 1}`} onClick={() => setProductLightboxIndex(idx + 1)} className="w-full h-full object-scale-down p-4 transform transition-transform duration-700 ease-in-out hover:scale-105 mix-blend-multiply cursor-pointer" src={photo} />
           </div>
-        )}
+        ))}
       </div>
       
       {/* Right Column: Product Details (Sticky) */}
@@ -138,10 +199,10 @@ export default function Product() {
         <div className="sticky top-24 flex flex-col gap-6">
           {/* Title & Price */}
           <div className="border-b border-outline-variant/30 pb-4">
-            <h1 className="font-headline-display text-4xl text-primary mb-1 capitalize">{id?.replace('-', ' ') || 'B0 Walnut'}</h1>
+            <h1 className="font-headline-display text-4xl text-primary mb-1 capitalize">{product.name}</h1>
             <div className="flex flex-col gap-1 mt-2">
               <div className="flex items-center justify-between">
-                <p className="font-body-lg text-body-lg text-on-surface-variant">₹16,500</p>
+                <p className="font-body-lg text-body-lg text-on-surface-variant">{product.price}</p>
                 {stockStatus === 'in_stock' && (
                   <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span><span className="text-sm font-body-md text-on-surface-variant">In Stock</span></div>
                 )}
@@ -158,16 +219,16 @@ export default function Product() {
           
           {/* Narrative */}
           <div className="prose prose-p:font-body-md prose-p:text-on-surface-variant prose-p:leading-relaxed">
-            <p className="text-sm">Inspired by the warm tones of natural wood, the {id?.replace('-', ' ') || 'B0 Walnut'} combines premium Italian suede with a classic gum sole. Hand-stitched in Portugal, it features a refined silhouette that bridges the gap between casual comfort and artisanal luxury.</p>
+            <p className="text-sm">{product.description}</p>
           </div>
           
           {/* Color Selection */}
           <div className="flex flex-col gap-2">
             <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">Color: {selectedColor}</span>
             <div className="flex gap-4 mt-2">
-              <button onClick={() => setSelectedColor('Walnut')} aria-label="Select Walnut" className={`w-8 h-8 rounded-full border bg-[#6B4E31] focus:outline-none ring-2 ring-offset-2 ring-transparent transition-all ${selectedColor === 'Walnut' ? 'border-primary ring-primary' : 'border-outline-variant hover:border-primary'}`}></button>
-              <button onClick={() => setSelectedColor('Black')} aria-label="Select Black" className={`w-8 h-8 rounded-full border bg-[#1A1A1A] focus:outline-none ring-2 ring-offset-2 ring-transparent transition-all ${selectedColor === 'Black' ? 'border-primary ring-primary' : 'border-outline-variant hover:border-primary'}`}></button>
-              <button onClick={() => setSelectedColor('White')} aria-label="Select White" className={`w-8 h-8 rounded-full border bg-[#FAFAFA] focus:outline-none ring-2 ring-offset-2 ring-transparent transition-all ${selectedColor === 'White' ? 'border-primary ring-primary' : 'border-outline-variant hover:border-primary'}`}></button>
+              {product.colors && product.colors.map(color => (
+                 <button key={color} onClick={() => setSelectedColor(color)} aria-label={`Select ${color}`} className={`w-8 h-8 rounded-full border focus:outline-none ring-2 ring-offset-2 ring-transparent transition-all ${selectedColor === color ? 'border-primary ring-primary' : 'border-outline-variant hover:border-primary'}`} style={{ backgroundColor: color === 'Walnut' ? '#6B4E31' : color === 'Black' ? '#1A1A1A' : color === 'White' ? '#FAFAFA' : color }}></button>
+              ))}
             </div>
           </div>
           
@@ -178,15 +239,15 @@ export default function Product() {
               <button onClick={() => setIsSizeGuideOpen(true)} className="font-label-caps text-label-caps text-on-surface-variant underline hover:text-primary transition-colors">Size Guide</button>
             </div>
             <div className="grid grid-cols-7 gap-2 mt-1">
-              {sizes.map(size => (
+              {product.sizes && product.sizes.map(size => (
                 <button 
                   key={size}
-                  onClick={() => size !== '12' && setSelectedSize(size)}
+                  onClick={() => size !== '12' && setSelectedSize(String(size))}
                   disabled={size === '12'}
                   className={`py-2 font-body-md text-sm transition-all duration-300 ${
                     size === '12' 
                       ? 'border border-outline-variant opacity-50 cursor-not-allowed text-primary' 
-                      : selectedSize === size 
+                      : selectedSize === String(size) 
                         ? 'border border-primary bg-primary text-white' 
                         : 'border border-outline-variant hover:border-primary hover:bg-warm-sand text-primary'
                   }`}
@@ -211,8 +272,8 @@ export default function Product() {
                 onClick={handleWishlistToggle}
                 className={`w-1/2 flex items-center justify-center gap-2 font-button text-button uppercase py-3 transition-colors duration-400 ease-in-out tracking-[0.1em] border bg-white text-primary border-primary hover:bg-warm-sand`}
               >
-                <Heart className={`w-5 h-5 ${isInWishlist(id || 'b0-walnut') ? 'fill-primary' : ''}`} />
-                {isInWishlist(id || 'b0-walnut') ? 'Saved' : 'Wishlist'}
+                <Heart className={`w-5 h-5 ${isInWishlist(product.id) ? 'fill-primary' : ''}`} />
+                {isInWishlist(product.id) ? 'Saved' : 'Wishlist'}
               </button>
             </div>
             
@@ -325,14 +386,14 @@ export default function Product() {
         <div className="w-full md:w-1/2 p-8 md:p-16 lg:p-24 flex flex-col justify-center bg-[#fafafa]">
           <div className="mb-8">
             <h2 className="font-headline-display text-3xl text-primary mb-3">Customer Reviews</h2>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex text-yellow-500 text-lg">
-                ★★★★★
-              </div>
-              <span className="font-body-md text-on-surface-variant">4.9 / 5 (128 Reviews)</span>
+            <div className="flex gap-4 items-center">
+            <div className="flex text-yellow-500 text-sm">
+              {'★'.repeat(5)}
             </div>
-            
-            {/* Customer Photos Gallery */}
+            <a href="#reviews" className="font-body-sm text-on-surface-variant underline underline-offset-4 hover:text-primary transition-colors">
+              {totalReviews} Reviews
+            </a>
+          </div>  {/* Customer Photos Gallery */}
             <div className="flex flex-col gap-3">
               <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest text-xs">Customer Photos</span>
               <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -350,40 +411,33 @@ export default function Product() {
           </div>
 
           <div className="flex flex-col gap-8">
-            <div className="border-b border-outline-variant/30 pb-8">
-              <div className="flex justify-between items-center mb-3">
-                <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">Alex M.</span>
-                <span className="font-body-sm text-on-surface-variant">Oct 12, 2023</span>
+            {reviews.slice(0, 2).map((review) => (
+              <div key={review.id} className="border-b border-outline-variant/30 pb-8">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">{review.userName || 'Anonymous'}</span>
+                  <span className="font-body-sm text-on-surface-variant">{new Date(review.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="flex text-yellow-500 text-sm mb-3">
+                  {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                </div>
+                <p className="font-body-md text-on-surface-variant leading-relaxed mb-4">{review.comment}</p>
               </div>
-              <div className="flex text-yellow-500 text-sm mb-3">★★★★★</div>
-              <p className="font-body-md text-on-surface-variant leading-relaxed mb-4">"These are the most comfortable sneakers I've ever owned. The suede quality is exceptional and they look great with both jeans and chinos. Highly recommend."</p>
-              <div className="flex gap-3">
-                <img src={reviewPhotos[0].url} alt="Customer photo 1" onClick={() => setLightboxIndex(0)} className="w-16 h-16 object-cover border border-outline-variant/30 hover:opacity-80 transition-opacity cursor-pointer rounded-sm" />
-                <img src={reviewPhotos[1].url} alt="Customer photo 2" onClick={() => setLightboxIndex(1)} className="w-16 h-16 object-cover border border-outline-variant/30 hover:opacity-80 transition-opacity cursor-pointer rounded-sm" />
-              </div>
-            </div>
-            
-            <div className="border-b border-outline-variant/30 pb-8">
-              <div className="flex justify-between items-center mb-3">
-                <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">Sarah T.</span>
-                <span className="font-body-sm text-on-surface-variant">Sep 28, 2023</span>
-              </div>
-              <div className="flex text-yellow-500 text-sm mb-3">★★★★★</div>
-              <p className="font-body-md text-on-surface-variant leading-relaxed">"Beautiful craftsmanship. You can really tell these are handmade. Sizing was perfect following the guide. Will definitely be buying another pair in black."</p>
-            </div>
-            
+            ))}
+            {reviews.length === 0 && (
+              <p className="font-body-md text-on-surface-variant italic">No reviews yet. Be the first to review this product!</p>
+            )}
           </div>
           
           <div className="mt-8 flex flex-wrap gap-4">
             <button className="border border-primary text-primary font-button text-button uppercase py-3 px-8 hover:bg-primary hover:text-white transition-colors duration-400 ease-in-out tracking-[0.1em]">
               Write a Review
             </button>
-            {id === 'b0-classic' && (
+            {totalReviews > 2 && (
               <button 
                 onClick={() => setIsReviewsModalOpen(true)}
                 className="bg-primary text-white font-button text-button uppercase py-3 px-8 hover:bg-primary/90 transition-colors duration-400 ease-in-out tracking-[0.1em]"
               >
-                View All Reviews (4)
+                View All Reviews ({totalReviews})
               </button>
             )}
           </div>
@@ -480,68 +534,24 @@ export default function Product() {
             <h3 className="font-headline-display text-2xl text-primary mb-2 text-center">All Customer Reviews</h3>
             <div className="flex items-center justify-center gap-3 mb-6">
               <div className="flex text-yellow-500 text-lg">★★★★★</div>
-              <span className="font-body-md text-on-surface-variant">4.9 / 5 (128 Reviews)</span>
+              <span className="font-body-md text-on-surface-variant">{totalReviews} Reviews</span>
             </div>
 
-            {/* Customer Photos Gallery */}
-            <div className="flex flex-col gap-3 mb-8">
-              <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest text-xs text-center">Customer Photos</span>
-              <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {reviewPhotos.map((photo, index) => (
-                  <img 
-                    key={index}
-                    src={photo.url} 
-                    alt={`Customer photo ${index + 1}`} 
-                    onClick={() => setLightboxIndex(index)}
-                    className="w-24 h-24 flex-shrink-0 object-cover border border-outline-variant/30 rounded-sm snap-start cursor-pointer hover:opacity-80 transition-opacity" 
-                  />
-                ))}
-              </div>
-            </div>
+            {/* Customer Photos Gallery - Hiding mock photos for now since API doesn't support images */}
             
             <div className="flex flex-col gap-8">
-              <div className="border-b border-outline-variant/30 pb-8">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">Alex M.</span>
-                  <span className="font-body-sm text-on-surface-variant">Oct 12, 2023</span>
+              {reviews.map((review) => (
+                <div key={review.id} className="border-b border-outline-variant/30 pb-8">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">{review.userName || 'Anonymous'}</span>
+                    <span className="font-body-sm text-on-surface-variant">{new Date(review.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex text-yellow-500 text-sm mb-3">
+                    {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                  </div>
+                  <p className="font-body-md text-on-surface-variant leading-relaxed mb-4">{review.comment}</p>
                 </div>
-                <div className="flex text-yellow-500 text-sm mb-3">★★★★★</div>
-                <p className="font-body-md text-on-surface-variant leading-relaxed mb-4">"These are the most comfortable sneakers I've ever owned. The suede quality is exceptional and they look great with both jeans and chinos. Highly recommend."</p>
-                <div className="flex gap-3">
-                  <img src={reviewPhotos[0].url} alt="Customer photo 1" onClick={() => setLightboxIndex(0)} className="w-16 h-16 object-cover border border-outline-variant/30 hover:opacity-80 transition-opacity cursor-pointer rounded-sm" />
-                  <img src={reviewPhotos[1].url} alt="Customer photo 2" onClick={() => setLightboxIndex(1)} className="w-16 h-16 object-cover border border-outline-variant/30 hover:opacity-80 transition-opacity cursor-pointer rounded-sm" />
-                </div>
-              </div>
-              
-              <div className="border-b border-outline-variant/30 pb-8">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">Sarah T.</span>
-                  <span className="font-body-sm text-on-surface-variant">Sep 28, 2023</span>
-                </div>
-                <div className="flex text-yellow-500 text-sm mb-3">★★★★★</div>
-                <p className="font-body-md text-on-surface-variant leading-relaxed">"Beautiful craftsmanship. You can really tell these are handmade. Sizing was perfect following the guide. Will definitely be buying another pair in black."</p>
-              </div>
-
-              <div className="border-b border-outline-variant/30 pb-8">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">Rohan K.</span>
-                  <span className="font-body-sm text-on-surface-variant">Aug 15, 2023</span>
-                </div>
-                <div className="flex text-yellow-500 text-sm mb-3">★★★★★</div>
-                <p className="font-body-md text-on-surface-variant leading-relaxed mb-4">"The classic design goes with absolutely everything. I've worn them to the office and on weekends. Truly a versatile piece!"</p>
-                <div className="flex gap-3">
-                  <img src={reviewPhotos[2].url} alt="Customer photo 3" onClick={() => setLightboxIndex(2)} className="w-16 h-16 object-cover border border-outline-variant/30 hover:opacity-80 transition-opacity cursor-pointer rounded-sm" />
-                </div>
-              </div>
-              
-              <div className="pb-4">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">Amit S.</span>
-                  <span className="font-body-sm text-on-surface-variant">Jul 04, 2023</span>
-                </div>
-                <div className="flex text-yellow-500 text-sm mb-3">★★★★☆</div>
-                <p className="font-body-md text-on-surface-variant leading-relaxed">"Great shoes and premium feel. Delivery was quick and the packaging was excellent. Taking one star off because they took a couple of days to break in."</p>
-              </div>
+              ))}
             </div>
           </div>
         </div>

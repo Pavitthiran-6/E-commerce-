@@ -37,8 +37,8 @@ export const searchProducts = (query: string, allProducts: Product[]): Product[]
     const searchableString = [
       product.name.toLowerCase(),
       product.category.toLowerCase(),
-      product.productType.toLowerCase(),
-      ...(product.searchTags?.map(tag => tag.toLowerCase()) || []),
+      product.subCategory.toLowerCase(),
+      ...(product.tags?.map((tag: string) => tag.toLowerCase()) || []),
       product.brand?.toLowerCase() || ''
     ].join(' ');
 

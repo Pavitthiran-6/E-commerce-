@@ -1,15 +1,14 @@
 import React from 'react';
+import { NavLink } from 'react-router-dom';
 import { User, Package, MapPin, Heart, KeyRound, LogOut } from 'lucide-react';
 
 interface ProfileSidebarProps {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
   setShowLogout: (show: boolean) => void;
 }
 
-export default function ProfileSidebar({ activeTab, setActiveTab, setShowLogout }: ProfileSidebarProps) {
+export default function ProfileSidebar({ setShowLogout }: ProfileSidebarProps) {
   const tabs = [
-    { id: 'profile', label: 'My Profile', icon: User },
+    { id: 'details', label: 'My Profile', icon: User },
     { id: 'orders', label: 'My Orders', icon: Package },
     { id: 'addresses', label: 'Saved Addresses', icon: MapPin },
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
@@ -24,18 +23,18 @@ export default function ProfileSidebar({ activeTab, setActiveTab, setShowLogout 
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
-              <button
+              <NavLink
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 pb-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === tab.id 
+                to={`/profile/${tab.id}`}
+                className={({ isActive }) => `flex items-center gap-2 pb-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  isActive 
                     ? 'border-primary text-primary' 
                     : 'border-transparent text-gray-500 hover:text-charcoal-stone'
                 }`}
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}
-              </button>
+              </NavLink>
             );
           })}
           <button
@@ -53,18 +52,18 @@ export default function ProfileSidebar({ activeTab, setActiveTab, setShowLogout 
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
-            <button
+            <NavLink
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                activeTab === tab.id 
+              to={`/profile/${tab.id}`}
+              className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                isActive 
                   ? 'bg-[#f6f5f0] text-primary' 
                   : 'text-gray-500 hover:bg-gray-50 hover:text-charcoal-stone'
               }`}
             >
               <Icon className="w-5 h-5" />
               {tab.label}
-            </button>
+            </NavLink>
           );
         })}
         <button

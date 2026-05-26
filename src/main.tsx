@@ -1,25 +1,30 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { CartProvider } from './context/CartContext'
-import { WishlistProvider } from './context/WishlistContext'
+import { AuthProvider, CartProvider, WishlistProvider, ToastProvider } from './context'
 import { SmoothScrollProvider } from './context/SmoothScrollProvider'
-import { ToastProvider } from './context/ToastContext'
+import AppRouter from './router/AppRouter'
+import ScrollToTop from './components/common/ScrollToTop'
+import { ErrorBoundary } from './ErrorBoundary'
 import './index.css'
-import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <CartProvider>
-      <WishlistProvider>
+    <ErrorBoundary>
+      <BrowserRouter>
         <ToastProvider>
-          <SmoothScrollProvider>
-            <BrowserRouter>
-              <App />
-            </BrowserRouter>
-          </SmoothScrollProvider>
+          <AuthProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <SmoothScrollProvider>
+                  <ScrollToTop />
+                  <AppRouter />
+                </SmoothScrollProvider>
+              </WishlistProvider>
+            </CartProvider>
+          </AuthProvider>
         </ToastProvider>
-      </WishlistProvider>
-    </CartProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>,
 )

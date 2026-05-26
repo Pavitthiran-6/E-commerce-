@@ -13,8 +13,9 @@ export default function LogoutModal({ isOpen, onClose }: LogoutModalProps) {
   if (!isOpen) return null;
 
   const handleLogout = () => {
-    // Perform logout logic here (clear tokens, etc.)
-    navigate('/');
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userEmail');
+    window.location.href = '/';
   };
 
   return (

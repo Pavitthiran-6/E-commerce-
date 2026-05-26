@@ -1,0 +1,166 @@
+package com.belledonne.ecommerce.service;
+
+import com.belledonne.ecommerce.dto.request.OrderRequest;
+import com.belledonne.ecommerce.dto.response.AddressResponse;
+import com.belledonne.ecommerce.dto.response.OrderResponse;
+import com.belledonne.ecommerce.entity.*;
+import com.belledonne.ecommerce.enums.OrderStatus;
+import com.belledonne.ecommerce.enums.PaymentMethod;
+import com.belledonne.ecommerce.exception.BadRequestException;
+import com.belledonne.ecommerce.exception.ResourceNotFoundException;
+import com.belledonne.ecommerce.repository.*;
+import com.belledonne.ecommerce.security.UserPrincipal;
+import com.belledonne.ecommerce.util.PriceUtil;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+    private final AddressRepository addressRepository;
+    private final ProductRepository productRepository;
+    private final CouponService couponService;
+    private final EmailService emailService;
+
+    private static final AtomicInteger orderCounter = new AtomicInteger(1);
+
+    public OrderResponse placeOrder(UserPrincipal principal, OrderRequest request) {
+        User user = userRepository.findById(principal.getId())
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getId()));
+        Address address = addressRepository.findById(request.getAddressId())
+            .orElseThrow(() -> new ResourceNotFoundException("Address", "id", request.getAddressId()));
+
+        // Calculate subtotal
+        BigDecimal subtotal = BigDecimal.ZERO;
+        List<OrderItem> orderItems = new ArrayList<>();
+        for (OrderRequest.OrderItemRequest itemReq : request.getItems()) {
+            Product product = productRepository.findById(itemReq.getProductId())
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "id", itemReq.getProductId()));
+            BigDecimal itemTotal = product.getPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+            subtotal = subtotal.add(itemTotal);
+            String image = product.getImages() != null && product.getImages().length > 0 ? product.getImages()[0] : null;
+            orderItems.add(OrderItem.builder()
+                .product(product).productName(product.getName()).productImage(image)
+                .quantity(itemReq.getQuantity()).unitPrice(product.getPrice()).totalPrice(itemTotal)
+                .build());
+        }
+
+        BigDecimal discount = BigDecimal.ZERO;
+        Coupon coupon = null;
+        if (request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
+            Map<String, Object> couponResult = couponService.validateCoupon(request.getCouponCode(), subtotal);
+            discount = (BigDecimal) couponResult.get("discountAmount");
+            couponService.incrementUsage(request.getCouponCode());
+        }
+
+        BigDecimal shippingCharge = PriceUtil.calculateShipping(subtotal.subtract(discount));
+        BigDecimal taxAmount = PriceUtil.calculateGst(subtotal.subtract(discount));
+        BigDecimal total = subtotal.subtract(discount).add(shippingCharge).add(taxAmount);
+
+        String orderNumber = generateOrderNumber();
+        Order order = Order.builder()
+            .orderNumber(orderNumber)
+            .user(user).address(address)
+            .subtotal(subtotal).shippingCharge(shippingCharge)
+            .taxAmount(taxAmount).discountAmount(discount)
+            .totalAmount(PriceUtil.round(total))
+            .couponCode(request.getCouponCode())
+            .paymentMethod(PaymentMethod.valueOf(request.getPaymentMethod()))
+            .estimatedDelivery(LocalDate.now().plusDays(5))
+            .status(OrderStatus.PLACED)
+            .build();
+
+        Order saved = orderRepository.save(order);
+        orderItems.forEach(item -> { item.setOrder(saved); saved.getItems().add(item); });
+
+        // Add first tracking event
+        saved.getTrackingHistory().add(OrderTracking.builder()
+            .order(saved).status("ORDER_PLACED")
+            .message("Your order has been placed successfully").build());
+
+        orderRepository.save(saved);
+        emailService.sendOrderConfirmationEmail(user.getEmail(), saved);
+        return toResponse(saved);
+    }
+
+    public Page<OrderResponse> getUserOrders(UserPrincipal principal, Pageable pageable) {
+        return orderRepository.findByUserIdOrderByCreatedAtDesc(principal.getId(), pageable)
+            .map(this::toResponse);
+    }
+
+    public OrderResponse getOrder(UserPrincipal principal, UUID orderId) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+        if (!order.getUser().getId().equals(principal.getId()))
+            throw new ResourceNotFoundException("Order", "id", orderId);
+        return toResponse(order);
+    }
+
+    public OrderResponse cancelOrder(UserPrincipal principal, UUID orderId) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+        if (!order.getUser().getId().equals(principal.getId()))
+            throw new ResourceNotFoundException("Order", "id", orderId);
+        if (order.getStatus() != OrderStatus.PLACED && order.getStatus() != OrderStatus.CONFIRMED)
+            throw new BadRequestException("Order cannot be cancelled at this stage");
+        order.setStatus(OrderStatus.CANCELLED);
+        order.getTrackingHistory().add(OrderTracking.builder()
+            .order(order).status("CANCELLED").message("Order cancelled by customer").build());
+        return toResponse(orderRepository.save(order));
+    }
+
+    private String generateOrderNumber() {
+        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        return "ORD-" + date + "-" + String.format("%04d", orderCounter.getAndIncrement());
+    }
+
+    public OrderResponse toResponse(Order o) {
+        List<OrderResponse.OrderItemResponse> items = o.getItems().stream()
+            .map(i -> OrderResponse.OrderItemResponse.builder()
+                .id(i.getId()).productName(i.getProductName())
+                .productImage(i.getProductImage()).size(i.getSize()).color(i.getColor())
+                .quantity(i.getQuantity()).unitPrice(i.getUnitPrice()).totalPrice(i.getTotalPrice())
+                .build()).collect(Collectors.toList());
+
+        List<OrderResponse.TrackingResponse> tracking = o.getTrackingHistory().stream()
+            .map(t -> OrderResponse.TrackingResponse.builder()
+                .status(t.getStatus()).message(t.getMessage())
+                .location(t.getLocation()).trackingTime(t.getTrackingTime())
+                .build()).collect(Collectors.toList());
+
+        AddressResponse addressResponse = o.getAddress() != null ? AddressResponse.builder()
+            .id(o.getAddress().getId()).fullName(o.getAddress().getFullName())
+            .phone(o.getAddress().getPhone()).addressLine1(o.getAddress().getAddressLine1())
+            .addressLine2(o.getAddress().getAddressLine2()).city(o.getAddress().getCity())
+            .state(o.getAddress().getState()).pincode(o.getAddress().getPincode())
+            .build() : null;
+
+        return OrderResponse.builder()
+            .id(o.getId()).orderNumber(o.getOrderNumber())
+            .status(o.getStatus().name()).subtotal(o.getSubtotal())
+            .shippingCharge(o.getShippingCharge()).taxAmount(o.getTaxAmount())
+            .discountAmount(o.getDiscountAmount()).totalAmount(o.getTotalAmount())
+            .couponCode(o.getCouponCode()).paymentMethod(o.getPaymentMethod() != null ? o.getPaymentMethod().name() : null)
+            .paymentStatus(o.getPaymentStatus().name())
+            .estimatedDelivery(o.getEstimatedDelivery()).deliveredAt(o.getDeliveredAt())
+            .trackingNumber(o.getTrackingNumber())
+            .address(addressResponse).items(items).trackingHistory(tracking)
+            .createdAt(o.getCreatedAt())
+            .build();
+    }
+}

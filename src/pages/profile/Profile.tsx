@@ -1,39 +1,11 @@
 import React, { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import ProfileSidebar from './ProfileSidebar';
-import ProfileDetails from './ProfileDetails';
-import ProfileOrders from './ProfileOrders';
-import ProfileAddresses from './ProfileAddresses';
-import ProfileWishlist from './ProfileWishlist';
-import ProfilePassword from './ProfilePassword';
 import LogoutModal from './LogoutModal';
 import './profile.css';
 
 export default function Profile() {
-  const location = useLocation();
-  const queryTab = new URLSearchParams(location.search).get('tab') || 'profile';
-  const [activeTab, setActiveTab] = useState(queryTab);
   const [showLogout, setShowLogout] = useState(false);
-
-  // Mock user email from localStorage
-  const userEmail = localStorage.getItem('userEmail') || 'user@example.com';
-
-  const renderActiveTab = () => {
-    switch (activeTab) {
-      case 'profile':
-        return <ProfileDetails email={userEmail} />;
-      case 'orders':
-        return <ProfileOrders />;
-      case 'addresses':
-        return <ProfileAddresses />;
-      case 'wishlist':
-        return <ProfileWishlist />;
-      case 'password':
-        return <ProfilePassword />;
-      default:
-        return <ProfileDetails email={userEmail} />;
-    }
-  };
 
   return (
     <div className="bg-[#fafaf8] min-h-screen pb-20">
@@ -46,14 +18,10 @@ export default function Profile() {
 
       <div className="max-w-[1440px] mx-auto px-4 md:px-10 lg:px-20">
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start">
-          <ProfileSidebar 
-            activeTab={activeTab} 
-            setActiveTab={setActiveTab} 
-            setShowLogout={setShowLogout} 
-          />
+          <ProfileSidebar setShowLogout={setShowLogout} />
           
           <div className="flex-1 w-full min-w-0">
-            {renderActiveTab()}
+            <Outlet />
           </div>
         </div>
       </div>

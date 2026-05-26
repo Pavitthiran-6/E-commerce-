@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { resetPassword } from '../../services/authService';
+import { useToast } from '../../context/ToastContext';
 
 const validatePassword = (pwd: string) => {
   const minLength = 8;
@@ -12,6 +14,12 @@ const validatePassword = (pwd: string) => {
 
 export default function ResetPassword() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { showToast } = useToast();
+  
+  const email = location.state?.email;
+  const otp = location.state?.otp;
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -20,9 +28,12 @@ export default function ResetPassword() {
   // Scroll to top on mount
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, []);
+    if (!email || !otp) {
+      navigate('/auth/login');
+    }
+  }, [email, otp, navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validatePassword(newPassword)) {
       setError('Password must be at least 8 characters and include a symbol, number, uppercase, and lowercase letter.');
@@ -34,9 +45,15 @@ export default function ResetPassword() {
     }
     setError('');
     setIsLoading(true);
-    setTimeout(() => {
-      navigate('/login');
-    }, 1500);
+    try {
+      await resetPassword({ email, otp, newPassword });
+      showToast('Password reset successful! Please log in.', 'success');
+      navigate('/auth/login');
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to reset password.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

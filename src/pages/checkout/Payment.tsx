@@ -4,6 +4,8 @@ import { useCart } from '../../context/CartContext';
 import { CheckCircle2, Lock, ShieldCheck, ChevronDown, Check } from 'lucide-react';
 import { LoadingButton } from '../../components/LoadingButton';
 import { coupons, calculateDiscount } from '../../utils/couponLogic';
+import { placeOrder } from '../../services/orderService';
+import { createPaymentOrder, verifyPayment } from '../../services/paymentService';
 
 /* ─── Custom Dropdown ─── */
 interface CustomDropdownProps {
@@ -315,18 +317,77 @@ export default function CheckoutPayment() {
             <div className="px-6 py-6 border-t border-gray-100 bg-gray-50">
               <LoadingButton
                 onClickAsync={async () => {
-                  let paymentDetails = '';
-                  if (method === 'upi') paymentDetails = `UPI · ${upiId || 'saved@upi'}`;
-                  else if (method === 'card') paymentDetails = `Card ending in •••• ${card.number.slice(-4) || '4242'}`;
-                  else if (method === 'cod') paymentDetails = 'Cash on Delivery';
-                  else if (method === 'netbanking') paymentDetails = `Net Banking · ${bank || 'Bank'}`;
-                  else if (method === 'wallet') paymentDetails = 'Paytm Wallet';
+                  let paymentMethodBackend = 'UPI';
+                  if (method === 'upi') paymentMethodBackend = 'UPI';
+                  else if (method === 'card') paymentMethodBackend = 'CREDIT_CARD';
+                  else if (method === 'cod') paymentMethodBackend = 'COD';
+                  else if (method === 'netbanking') paymentMethodBackend = 'NET_BANKING';
+                  else if (method === 'wallet') paymentMethodBackend = 'WALLET';
 
-                  localStorage.setItem('lastPaymentMethod', method);
-                  localStorage.setItem('lastPaymentDetails', paymentDetails);
+                  const addressId = localStorage.getItem('checkoutAddressId');
+                  if (!addressId) {
+                    alert('Please select a delivery address first.');
+                    navigate('/checkout/address');
+                    return;
+                  }
 
-                  await new Promise(r => setTimeout(r, 800));
-                  navigate('/checkout/confirmation');
+                  try {
+                    // 1. Place order on backend
+                    const orderData = {
+                      addressId: parseInt(addressId, 10),
+                      paymentMethod: paymentMethodBackend,
+                      couponCode: appliedCoupon || undefined,
+                      items: cartItems.map(i => ({ productId: i.id, quantity: i.quantity }))
+                    };
+                    
+                    const order = await placeOrder(orderData);
+                    localStorage.setItem('lastOrderId', order.id);
+
+                    let paymentDetails = '';
+                    if (method === 'upi') paymentDetails = `UPI · ${upiId || 'saved@upi'}`;
+                    else if (method === 'card') paymentDetails = `Card ending in •••• ${card.number.slice(-4) || '4242'}`;
+                    else if (method === 'cod') paymentDetails = 'Cash on Delivery';
+                    else if (method === 'netbanking') paymentDetails = `Net Banking · ${bank || 'Bank'}`;
+                    else if (method === 'wallet') paymentDetails = 'Paytm Wallet';
+                    
+                    localStorage.setItem('lastPaymentMethod', method);
+                    localStorage.setItem('lastPaymentDetails', paymentDetails);
+
+                    if (paymentMethodBackend === 'COD') {
+                      navigate('/checkout/confirmation');
+                      return;
+                    }
+
+                    // 2. Razorpay Flow
+                    const rzpOrder = await createPaymentOrder(order.id);
+                    
+                    const options = {
+                      key: 'rzp_test_dummy', // Replace with real key in production or from backend response
+                      amount: rzpOrder.amount,
+                      currency: rzpOrder.currency,
+                      name: "Belledonne",
+                      description: "Order Payment",
+                      order_id: rzpOrder.id,
+                      handler: async function (response: any) {
+                        try {
+                           await verifyPayment(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
+                           navigate('/checkout/confirmation');
+                        } catch (e) {
+                           alert('Payment verification failed');
+                        }
+                      },
+                      theme: { color: "#333333" }
+                    };
+
+                    const rzp1 = new (window as any).Razorpay(options);
+                    rzp1.on('payment.failed', function (response: any) {
+                        alert('Payment failed: ' + response.error.description);
+                    });
+                    rzp1.open();
+                  } catch (e) {
+                    console.error("Order processing failed", e);
+                    alert('Failed to process order. Please try again.');
+                  }
                 }}
                 className="w-full bg-charcoal-stone text-white font-semibold uppercase tracking-widest py-4 text-sm hover:bg-charcoal-stone/85 transition-colors flex items-center justify-center gap-2 mb-5"
               >
@@ -348,7 +409,6 @@ export default function CheckoutPayment() {
                 </span>
               </div>
             </div>
-          </div>
 
           {/* ── Right: Order Summary ── */}
           <div className="w-full lg:w-80 xl:w-96 flex-shrink-0">

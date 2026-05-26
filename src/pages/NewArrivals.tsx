@@ -101,7 +101,7 @@ export default function NewArrivals() {
   );
 
   return (
-    <div className="min-h-screen bg-[#fafaf8] pb-24 font-body-md pt-32">
+    <div className="min-h-screen bg-[#fafaf8] pb-24 font-body-md pt-12">
       
       {/* Hero Section */}
       <section className="px-6 md:px-12 text-center mb-20 max-w-4xl mx-auto">

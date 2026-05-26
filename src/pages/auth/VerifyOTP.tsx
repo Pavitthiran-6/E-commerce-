@@ -1,15 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { verifyOTP } from '../../services/authService';
+import { useToast } from '../../context/ToastContext';
 
 export default function VerifyOTP() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { showToast } = useToast();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
+  const email = location.state?.email;
+  const source = location.state?.source;
 
   // Scroll to top on mount
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, []);
+    if (!email) {
+      navigate('/auth/login');
+    }
+  }, [email, navigate]);
 
   const handleChange = (element: HTMLInputElement, index: number) => {
     if (isNaN(Number(element.value))) return false;
@@ -30,12 +39,26 @@ export default function VerifyOTP() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const otpValue = otp.join('');
+    if (otpValue.length !== 6) return;
+
     setIsLoading(true);
-    setTimeout(() => {
-      navigate('/reset-password');
-    }, 1500);
+    try {
+      await verifyOTP({ email, otp: otpValue });
+      showToast('Email verified successfully!', 'success');
+      
+      if (source === 'forgot_password') {
+        navigate('/auth/reset-password', { state: { email, otp: otpValue } });
+      } else {
+        navigate('/auth/login');
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Invalid OTP.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

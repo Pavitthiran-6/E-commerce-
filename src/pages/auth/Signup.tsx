@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LoadingButton } from '../../components/LoadingButton';
+import { registerUser } from '../../services/authService';
+import { useToast } from '../../context/ToastContext';
 
 const validatePassword = (pwd: string) => {
   const minLength = 8;
@@ -13,6 +15,12 @@ const validatePassword = (pwd: string) => {
 
 export default function Signup() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -22,7 +30,7 @@ export default function Signup() {
     window.scrollTo(0, 0);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validatePassword(password)) {
       setError('Password must be at least 8 characters and include a symbol, number, uppercase, and lowercase letter.');
@@ -30,9 +38,22 @@ export default function Signup() {
     }
     setError('');
     setIsLoading(true);
-    setTimeout(() => {
-      navigate('/');
-    }, 1500);
+    try {
+      await registerUser({
+        name: `${firstName} ${lastName}`.trim(),
+        email,
+        password,
+        phone
+      });
+      showToast('Account created! Please verify your email.', 'success');
+      navigate('/auth/verify-otp', { state: { email, source: 'signup' } });
+    } catch (err: any) {
+      const message = err.response?.data?.message || 'Failed to create account.';
+      setError(message);
+      showToast(message, 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -53,6 +74,8 @@ export default function Signup() {
                 id="firstName" 
                 type="text" 
                 placeholder="John"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
                 className="w-full border-b-2 border-outline-variant/50 pb-2 text-sm focus:outline-none focus:border-primary transition-colors bg-transparent placeholder-on-surface-variant/50"
                 required
               />
@@ -65,6 +88,8 @@ export default function Signup() {
                 id="lastName" 
                 type="text" 
                 placeholder="Doe"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
                 className="w-full border-b-2 border-outline-variant/50 pb-2 text-sm focus:outline-none focus:border-primary transition-colors bg-transparent placeholder-on-surface-variant/50"
                 required
               />
@@ -79,6 +104,23 @@ export default function Signup() {
               id="email" 
               type="email" 
               placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border-b-2 border-outline-variant/50 pb-2 text-sm focus:outline-none focus:border-primary transition-colors bg-transparent placeholder-on-surface-variant/50"
+              required
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label htmlFor="phone" className="font-label-caps text-xs text-primary uppercase tracking-widest">
+              Phone Number
+            </label>
+            <input 
+              id="phone" 
+              type="tel" 
+              placeholder="+1234567890"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               className="w-full border-b-2 border-outline-variant/50 pb-2 text-sm focus:outline-none focus:border-primary transition-colors bg-transparent placeholder-on-surface-variant/50"
               required
             />

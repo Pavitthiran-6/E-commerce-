@@ -1,25 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LoadingButton } from '../../components/LoadingButton';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
 
   // Scroll to top on mount
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) {
+    if (email && password) {
       setIsLoading(true);
-      setTimeout(() => {
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userEmail', email);
-        window.location.href = '/'; 
-      }, 1500);
+      try {
+        await login(email, password);
+      } catch (error) {
+        // Error handling is managed by the context (toast notifications)
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -60,6 +65,8 @@ export default function Login() {
               id="password" 
               type="password" 
               placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full border-b-2 border-outline-variant/50 pb-2 text-sm focus:outline-none focus:border-primary transition-colors bg-transparent placeholder-on-surface-variant/50"
               required
             />

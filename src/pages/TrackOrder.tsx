@@ -1,32 +1,47 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Package, Truck, CheckCircle2, XCircle, Clock, MapPin, Download, HelpCircle, RotateCcw, AlertCircle, ShoppingBag } from 'lucide-react';
+import { Order, OrderTracking, getOrderById, trackOrder } from '../services/orderService';
 
 export default function TrackOrder() {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
-  const orderId = queryParams.get('orderId') || 'ORD-20240512-001';
+  const orderIdParam = queryParams.get('orderId') || '';
 
-  // State to simulate loading and fetch
   const [isLoading, setIsLoading] = useState(true);
-
-  // Use the orderId to determine status for demo purposes, or default to Delivered
-  let status = 'Delivered';
-  if (orderId.includes('089')) status = 'Processing';
-  if (orderId.includes('042')) status = 'Cancelled';
-  if (orderId.includes('002')) status = 'Out for Delivery'; // Just for testing
-  if (orderId.includes('003')) status = 'Placed';
-
-  const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [trackingHistory, setTrackingHistory] = useState<OrderTracking[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    // Simulate network fetch
-    const timer = setTimeout(() => {
+    if (!orderIdParam) {
+      setError("No order ID provided");
       setIsLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [orderId]);
+      return;
+    }
+    
+    Promise.all([
+      getOrderById(orderIdParam),
+      trackOrder(orderIdParam).catch(() => []) // Fallback to empty if tracking API fails
+    ])
+      .then(([orderData, trackingData]) => {
+        setOrder(orderData);
+        // If tracking history is already in orderData, use it, else use trackingData
+        setTrackingHistory(orderData.trackingHistory || trackingData || []);
+      })
+      .catch(err => {
+        console.error("Error fetching tracking info", err);
+        setError("Failed to load tracking information. Please check your Order ID.");
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [orderIdParam]);
+
+  const status = order?.status.charAt(0).toUpperCase() + (order?.status.slice(1).toLowerCase() || '') || 'Unknown';
+
+  const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -62,18 +77,33 @@ export default function TrackOrder() {
     );
   }
 
+  if (error || !order) {
+    return (
+      <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-6 text-center">
+        <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Order Not Found</h2>
+        <p className="text-gray-600 mb-6">{error || 'Could not locate the requested order.'}</p>
+        <Link to="/" className="px-6 py-3 bg-primary text-white font-bold uppercase text-sm tracking-widest rounded hover:bg-primary/90 transition-colors">
+          Return to Home
+        </Link>
+      </div>
+    );
+  }
+
   // Determine Banner Data
   const getBannerData = () => {
-    switch (status) {
-      case 'Placed':
+    switch (status.toLowerCase()) {
+      case 'pending':
+      case 'placed':
         return { color: 'bg-yellow-50 text-yellow-800 border-yellow-200', icon: <Package className="w-6 h-6 text-yellow-600" />, title: 'Order Placed', desc: 'We have received your order and are currently verifying it.' };
-      case 'Processing':
+      case 'processing':
         return { color: 'bg-blue-50 text-blue-800 border-blue-200', icon: <Clock className="w-6 h-6 text-blue-600" />, title: 'Processing', desc: 'We are preparing your order. It will be shipped soon!' };
-      case 'Out for Delivery':
-        return { color: 'bg-orange-50 text-orange-800 border-orange-200', icon: <Truck className="w-6 h-6 text-orange-600" />, title: 'Out for Delivery', desc: 'Your order is on its way! Expected today by 9PM.' };
-      case 'Delivered':
-        return { color: 'bg-green-50 text-green-800 border-green-200', icon: <CheckCircle2 className="w-6 h-6 text-green-600" />, title: 'Delivered', desc: 'Your order was delivered on 15 May 2024. We hope you love it!' };
-      case 'Cancelled':
+      case 'shipped':
+      case 'out for delivery':
+        return { color: 'bg-orange-50 text-orange-800 border-orange-200', icon: <Truck className="w-6 h-6 text-orange-600" />, title: 'Shipped', desc: 'Your order is on its way!' };
+      case 'delivered':
+        return { color: 'bg-green-50 text-green-800 border-green-200', icon: <CheckCircle2 className="w-6 h-6 text-green-600" />, title: 'Delivered', desc: 'Your order was delivered successfully. We hope you love it!' };
+      case 'cancelled':
         return { color: 'bg-red-50 text-red-800 border-red-200', icon: <XCircle className="w-6 h-6 text-red-600" />, title: 'Cancelled', desc: 'This order has been cancelled.' };
       default:
         return { color: 'bg-gray-50 text-gray-800 border-gray-200', icon: <AlertCircle className="w-6 h-6" />, title: 'Unknown', desc: 'Status unknown.' };
@@ -81,38 +111,45 @@ export default function TrackOrder() {
   };
   const banner = getBannerData();
 
-  // Progress Tracker logic
-  const steps = ['Order Placed', 'Order Confirmed', 'Shipped', 'Out for Delivery', 'Delivered'];
+  const steps = ['Placed', 'Processing', 'Shipped', 'Delivered'];
   const getStepStatus = (stepName: string, index: number) => {
-    if (status === 'Cancelled') return { completed: false, current: false };
+    if (status.toLowerCase() === 'cancelled') return { completed: false, current: false };
     
     let currentIndex = 0;
-    if (status === 'Placed') currentIndex = 0;
-    if (status === 'Processing') currentIndex = 1;
-    if (status === 'Out for Delivery') currentIndex = 3;
-    if (status === 'Delivered') currentIndex = 4;
+    const currentStatus = status.toLowerCase();
+    if (currentStatus === 'pending' || currentStatus === 'placed') currentIndex = 0;
+    if (currentStatus === 'processing') currentIndex = 1;
+    if (currentStatus === 'shipped') currentIndex = 2;
+    if (currentStatus === 'delivered') currentIndex = 3;
 
-    // Special case: if processing, we assume shipped hasn't happened. If out for delivery, shipped has.
     if (index < currentIndex) return { completed: true, current: false };
     if (index === currentIndex) return { completed: false, current: true };
     return { completed: false, current: false };
   };
 
-  // Mock Timeline events
-  const allEvents = [
-    { date: '15 May 2024, 2:45 PM', event: 'Delivered successfully', loc: 'Mumbai, Maharashtra', statusReq: ['Delivered'], icon: <CheckCircle2 className="w-4 h-4 text-white" />, color: 'bg-green-500' },
-    { date: '15 May 2024, 9:00 AM', event: 'Out for delivery', loc: 'Mumbai Hub', statusReq: ['Out for Delivery', 'Delivered'], icon: <Truck className="w-4 h-4 text-white" />, color: 'bg-orange-500' },
-    { date: '14 May 2024, 11:30 PM', event: 'Arrived at delivery hub', loc: 'Mumbai, Maharashtra', statusReq: ['Out for Delivery', 'Delivered'], icon: <MapPin className="w-4 h-4 text-white" />, color: 'bg-blue-500' },
-    { date: '13 May 2024, 6:00 PM', event: 'In transit', loc: 'Pune → Mumbai', statusReq: ['Out for Delivery', 'Delivered'], icon: <Truck className="w-4 h-4 text-white" />, color: 'bg-blue-500' },
-    { date: '13 May 2024, 10:30 AM', event: 'Shipped from warehouse', loc: 'Pune, Maharashtra', statusReq: ['Out for Delivery', 'Delivered'], icon: <Package className="w-4 h-4 text-white" />, color: 'bg-blue-500' },
-    { date: '12 May 2024, 4:00 PM', event: 'Order confirmed & packed', loc: 'Warehouse', statusReq: ['Processing', 'Out for Delivery', 'Delivered'], icon: <CheckCircle2 className="w-4 h-4 text-white" />, color: 'bg-green-500' },
-    { date: '12 May 2024, 2:30 PM', event: 'Order placed successfully', loc: 'Online', statusReq: ['Placed', 'Processing', 'Out for Delivery', 'Delivered', 'Cancelled'], icon: <ShoppingBag className="w-4 h-4 text-white" />, color: 'bg-green-500' },
-  ];
+  const getEventIcon = (eventStatus: string) => {
+    const s = eventStatus.toLowerCase();
+    if (s.includes('deliver')) return <CheckCircle2 className="w-4 h-4 text-white" />;
+    if (s.includes('transit') || s.includes('ship') || s.includes('out')) return <Truck className="w-4 h-4 text-white" />;
+    if (s.includes('process') || s.includes('pack')) return <MapPin className="w-4 h-4 text-white" />;
+    return <Package className="w-4 h-4 text-white" />;
+  };
 
-  const visibleEvents = allEvents.filter(e => e.statusReq.includes(status));
+  const getEventColor = (eventStatus: string) => {
+    const s = eventStatus.toLowerCase();
+    if (s.includes('deliver')) return 'bg-green-500';
+    if (s.includes('cancel')) return 'bg-red-500';
+    return 'bg-blue-500';
+  };
 
-  // Determine Product ID to link based on the order ID for demo
-  const productId = orderId.includes('089') ? 'b0-classic' : orderId.includes('042') ? 'b0-walnut' : 'b0-velcro';
+  const visibleEvents = trackingHistory.map(history => ({
+    date: new Date(history.trackingTime).toLocaleString(),
+    event: history.message,
+    loc: history.location || '',
+    statusReq: [], 
+    icon: getEventIcon(history.status),
+    color: getEventColor(history.status)
+  })).reverse(); // newest first if backend returns chronological
 
   return (
     <div className="min-h-screen bg-surface pb-24">
@@ -121,9 +158,9 @@ export default function TrackOrder() {
         <div className="max-w-4xl mx-auto px-6">
           <h1 className="font-headline-display text-4xl mb-3">Track Your Order</h1>
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 text-on-surface-variant font-body-sm">
-            <span className="font-mono text-warm-sand text-lg tracking-wider">Order #{orderId}</span>
+            <span className="font-mono text-warm-sand text-lg tracking-wider">Order #{order.orderNumber}</span>
             <span className="hidden md:inline text-gray-500">•</span>
-            <span>Placed on 12 May 2024</span>
+            <span>Placed on {new Date(order.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
       </div>
@@ -163,7 +200,7 @@ export default function TrackOrder() {
               {steps.map((step, idx) => {
                 const { completed, current } = getStepStatus(step, idx);
                 return (
-                  <div key={idx} className="flex flex-col items-center w-1/5 relative bg-white px-2">
+                  <div key={idx} className="flex flex-col items-center w-1/4 relative bg-white px-2">
                     {completed ? (
                       <div className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center shadow-md z-10 mb-3 border-4 border-white">
                         <CheckCircle2 className="w-5 h-5" />
@@ -181,11 +218,6 @@ export default function TrackOrder() {
                     <span className={`text-sm font-semibold text-center ${completed || current ? 'text-charcoal-stone' : 'text-gray-400'}`}>
                       {step}
                     </span>
-                    {completed && idx === 0 && <span className="text-xs text-gray-500 mt-1">12 May, 2:30 PM</span>}
-                    {completed && idx === 1 && <span className="text-xs text-gray-500 mt-1">12 May, 4:00 PM</span>}
-                    {completed && idx === 2 && <span className="text-xs text-gray-500 mt-1">13 May, 10:30 AM</span>}
-                    {completed && idx === 3 && <span className="text-xs text-gray-500 mt-1">15 May, 9:00 AM</span>}
-                    {completed && idx === 4 && <span className="text-xs text-gray-500 mt-1">15 May, 2:45 PM</span>}
                   </div>
                 );
               })}
@@ -237,32 +269,38 @@ export default function TrackOrder() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           
-          {/* SECTION 4: Detailed Tracking Timeline */}
-          {status !== 'Cancelled' && (
-            <div className="lg:col-span-2 bg-white rounded-xl border border-outline-variant/30 p-6 md:p-8 shadow-sm">
-              <h3 className="font-headline-md text-xl mb-8 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-primary" />
+          {/* SECTION 4: Timeline */}
+          {visibleEvents.length > 0 && (
+            <div className="w-full md:w-2/3">
+              <h3 className="font-headline-md text-2xl mb-8 flex items-center gap-3">
+                <Clock className="w-6 h-6 text-primary" />
                 Tracking History
               </h3>
               
-              <div className="relative pl-6 border-l-2 border-gray-100 ml-3 space-y-10">
-                {visibleEvents.map((evt, i) => (
+              <div className="relative border-l-2 border-gray-200 ml-4 md:ml-6 space-y-8 pb-8">
+                {visibleEvents.map((event, idx) => (
                   <div 
-                    key={i} 
-                    ref={(el) => { timelineRefs.current[i] = el; }}
-                    className="relative opacity-0 translate-y-4 transition-all duration-700 ease-out"
-                    style={{ transitionDelay: `${i * 100}ms` }}
+                    key={idx} 
+                    ref={el => timelineRefs.current[idx] = el}
+                    className="relative pl-8 md:pl-10 opacity-0 translate-y-4 transition-all duration-700 ease-out"
+                    style={{ transitionDelay: `${idx * 150}ms` }}
                   >
-                    <div className={`absolute -left-[35px] w-8 h-8 rounded-full flex items-center justify-center border-4 border-white shadow-sm ${evt.color}`}>
-                      {evt.icon}
+                    <div className={`absolute -left-[17px] top-1 w-8 h-8 rounded-full ${event.color} flex items-center justify-center shadow-sm border-2 border-white`}>
+                      {event.icon}
                     </div>
-                    <div>
-                      <p className="font-bold text-charcoal-stone text-[15px]">{evt.event}</p>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-1 text-sm text-gray-500">
-                        <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {evt.loc}</span>
-                        <span className="hidden sm:inline text-gray-300">•</span>
-                        <span>{evt.date}</span>
+                    
+                    <div className="bg-white rounded-lg p-4 border border-outline-variant/30 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-1 mb-2">
+                        <h4 className="font-bold text-charcoal-stone text-lg">{event.event}</h4>
+                        <span className="text-sm font-medium text-primary whitespace-nowrap bg-warm-sand/30 px-2 py-0.5 rounded">
+                          {event.date}
+                        </span>
                       </div>
+                      {event.loc && (
+                        <p className="text-on-surface-variant text-sm flex items-center gap-1.5 mt-2 bg-gray-50 w-fit px-2 py-1 rounded">
+                          <MapPin className="w-3.5 h-3.5" /> {event.loc}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -270,112 +308,67 @@ export default function TrackOrder() {
             </div>
           )}
 
-          {/* Right Column: Info Cards */}
-          <div className="flex flex-col gap-6">
+          {/* Right Column: Order Details Summary */}
+          <div className="bg-white rounded-xl border border-outline-variant/30 overflow-hidden shadow-sm sticky top-24">
+            <div className="bg-gray-50 border-b border-outline-variant/30 px-5 py-4 flex justify-between items-center">
+              <h3 className="font-headline-md text-lg">Order Details</h3>
+              <button onClick={handlePrint} className="text-primary hover:bg-gray-200 p-1.5 rounded transition-colors" title="Download Invoice">
+                <Download className="w-4 h-4" />
+              </button>
+            </div>
             
-            {/* SECTION 5: Shipment Details Box */}
-            <div className="bg-white rounded-xl border border-outline-variant/30 p-6 shadow-sm">
-              <h3 className="font-label-caps uppercase tracking-widest text-xs text-gray-400 mb-4 border-b pb-2">Shipment Details</h3>
-              <div className="space-y-4 text-sm">
-                <div className="flex items-start gap-3">
-                  <Package className="w-5 h-5 text-primary flex-shrink-0" />
-                  <div>
-                    <p className="text-gray-500 mb-0.5">Courier Partner</p>
-                    <p className="font-semibold text-charcoal-stone">Delhivery</p>
+            <div className="p-5">
+              <div className="mb-6">
+                <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-1">Shipping Address</p>
+                <p className="font-body-md font-medium">{order.address.fullName}</p>
+                <p className="text-sm text-on-surface-variant mt-1">
+                  {order.address.addressLine1}<br />
+                  {order.address.addressLine2 && <>{order.address.addressLine2}<br/></>}
+                  {order.address.city}, {order.address.state} {order.address.postalCode}
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                <p className="text-xs text-gray-500 uppercase tracking-wider font-bold border-b pb-2">Items</p>
+                {order.items.map((item, idx) => (
+                  <div key={idx} className="flex gap-3 border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+                    <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+                      <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover mix-blend-multiply" />
+                    </div>
+                    <div className="flex-1 text-sm">
+                      <p className="font-bold text-charcoal-stone leading-tight line-clamp-2">{item.productName}</p>
+                      <p className="text-gray-500 mt-1">Qty: {item.quantity}</p>
+                    </div>
+                    <div className="text-sm font-bold text-right whitespace-nowrap">
+                      ₹{item.totalPrice.toLocaleString()}
+                    </div>
                   </div>
+                ))}
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-gray-100 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="font-medium">₹{order.subtotal.toLocaleString()}</span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <span className="w-5 h-5 flex items-center justify-center bg-gray-100 rounded text-[10px] font-bold text-gray-600 flex-shrink-0">#</span>
-                  <div className="w-full">
-                    <p className="text-gray-500 mb-0.5">Tracking Number</p>
-                    <p className="font-mono font-semibold text-charcoal-stone mb-2">DLVR20240513789456</p>
-                    <a 
-                      href="https://www.delhivery.com/tracking" 
-                      target="_blank" 
-                      rel="noreferrer"
-                      className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
-                    >
-                      Track on Courier Website <RotateCcw className="w-3 h-3" />
-                    </a>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Shipping</span>
+                  <span className="font-medium">{order.shippingCharge === 0 ? 'Free' : `₹${order.shippingCharge.toLocaleString()}`}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Tax</span>
+                  <span className="font-medium">₹{order.taxAmount.toLocaleString()}</span>
+                </div>
+                {order.discountAmount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Discount {order.couponCode ? `(${order.couponCode})` : ''}</span>
+                    <span className="font-medium">-₹{order.discountAmount.toLocaleString()}</span>
                   </div>
+                )}
+                <div className="flex justify-between font-bold text-charcoal-stone text-lg pt-2 border-t border-gray-100 mt-2">
+                  <span>Total</span>
+                  <span>₹{order.totalAmount.toLocaleString()}</span>
                 </div>
-                <div className="pt-3 border-t border-gray-50">
-                  <p className="text-gray-500 mb-0.5">Estimated Delivery</p>
-                  <p className="font-semibold text-charcoal-stone">Thursday, 15 May 2024</p>
-                  {status === 'Delivered' && (
-                    <p className="text-xs text-green-600 font-medium mt-1">✅ Actual Delivery: 15 May 2024, 2:45 PM</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* SECTION 6: Delivery Address Box */}
-            <div className="bg-white rounded-xl border border-outline-variant/30 p-6 shadow-sm">
-              <h3 className="font-label-caps uppercase tracking-widest text-xs text-gray-400 mb-4 border-b pb-2">Delivered To</h3>
-              <div className="flex items-start gap-3 text-sm">
-                <MapPin className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold text-charcoal-stone mb-1">Rahul Sharma</p>
-                  <p className="text-gray-500 mb-1">+91 98765 43210</p>
-                  <p className="text-gray-500 leading-relaxed">
-                    Flat 4B, Sunrise Apartments<br />
-                    Bandra West<br />
-                    Mumbai, Maharashtra – 400050
-                  </p>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        {/* SECTION 7: Ordered Items Box */}
-        <div className="bg-white rounded-xl border border-outline-variant/30 shadow-sm mb-8 overflow-hidden">
-          <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-            <h3 className="font-headline-md text-xl">Items in this Order</h3>
-          </div>
-          
-          <div className="p-6">
-            <div className="flex flex-col md:flex-row gap-6 items-center border-b border-gray-100 pb-6 mb-6">
-              <Link to={`/product/${productId}`} className="w-24 h-32 bg-[#f6f5f0] rounded-md overflow-hidden flex-shrink-0 group block">
-                <img 
-                  src="https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=500" 
-                  alt="Product" 
-                  className="w-full h-full object-cover mix-blend-multiply cursor-pointer transition-transform duration-500 group-hover:scale-110" 
-                />
-              </Link>
-              <div className="flex-1 text-center md:text-left">
-                <Link to={`/product/${productId}`} className="font-serif text-lg text-charcoal-stone hover:text-primary transition-colors block mb-1">
-                  {productId === 'b0-classic' ? 'Wide Leg Linen Pants' : productId === 'b0-walnut' ? 'High-Speed Blender' : 'Bo Velcro'}
-                </Link>
-                <p className="text-sm text-gray-500 mb-2">Size: 8 | Color: Walnut | Qty: 1</p>
-              </div>
-              <div className="text-xl font-semibold text-charcoal-stone">
-                ₹16,500
-              </div>
-            </div>
-
-            {/* Price Breakdown */}
-            <div className="w-full md:w-1/2 ml-auto space-y-3 text-sm">
-              <div className="flex justify-between text-gray-500">
-                <span>Subtotal</span>
-                <span>₹16,500</span>
-              </div>
-              <div className="flex justify-between text-gray-500">
-                <span>Shipping</span>
-                <span className="text-green-600 font-medium">Free</span>
-              </div>
-              <div className="flex justify-between text-gray-500">
-                <span>GST (18%)</span>
-                <span>₹2,970</span>
-              </div>
-              <div className="flex justify-between text-green-600 font-medium">
-                <span>Discount</span>
-                <span>- ₹0</span>
-              </div>
-              <div className="flex justify-between text-lg font-bold text-charcoal-stone pt-3 border-t border-gray-200 mt-2">
-                <span>Total Paid</span>
-                <span>₹19,470</span>
               </div>
             </div>
           </div>

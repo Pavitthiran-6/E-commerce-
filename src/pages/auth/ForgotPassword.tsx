@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LoadingButton } from '../../components/LoadingButton';
+import { forgotPassword } from '../../services/authService';
+import { useToast } from '../../context/ToastContext';
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // Scroll to top on mount
@@ -11,12 +15,19 @@ export default function ForgotPassword() {
     window.scrollTo(0, 0);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email) return;
     setIsLoading(true);
-    setTimeout(() => {
-      navigate('/verify-otp');
-    }, 1500);
+    try {
+      await forgotPassword(email);
+      showToast('OTP sent to your email!', 'success');
+      navigate('/auth/verify-otp', { state: { email, source: 'forgot_password' } });
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to send OTP.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -36,6 +47,8 @@ export default function ForgotPassword() {
               id="email" 
               type="email" 
               placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full border-b-2 border-outline-variant/50 pb-2 text-sm focus:outline-none focus:border-primary transition-colors bg-transparent placeholder-on-surface-variant/50"
               required
             />

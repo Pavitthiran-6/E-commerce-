@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { products } from '../data/products';
-import { searchProducts } from '../utils/searchLogic';
+import type { Product } from '../data/products';
+import { getAllProducts, searchProducts } from '../services/productService';
+import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
+import ErrorState from '../components/common/ErrorState';
 import { SparkleHeart } from '../components/icons/SparkleHeart';
 import { useWishlist } from '../context/WishlistContext';
 
@@ -27,14 +29,31 @@ export default function Collection() {
     }
   };
 
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
   const [sortBy, setSortBy] = useState('Recommended');
   const [currentPage, setCurrentPage] = useState(1);
   const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
-
   const [isSortOpen, setIsSortOpen] = useState(false);
-
-  // Demo state to switch between product types
   const [productType, setProductType] = useState<'all' | 'footwear' | 'apparel' | 'electronics'>('all');
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = searchQuery ? await searchProducts(searchQuery) : await getAllProducts();
+        setProducts(data);
+      } catch (err) {
+        setError('Failed to load products');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProducts();
+  }, [searchQuery]);
 
   // Filter Configurations based on Product Type
   const filterConfigs = {
@@ -180,7 +199,7 @@ export default function Collection() {
   };
 
   // Compute filtered products
-  const baseProducts = searchQuery ? searchProducts(searchQuery, products) : products;
+  const baseProducts = products;
 
   const filteredProducts = baseProducts.filter(p => {
     // Only show products matching the active demo switcher tab
@@ -194,7 +213,7 @@ export default function Collection() {
 
     // Check Price Range
     const maxPriceLimit = priceRange[1] === 10000 ? Infinity : priceRange[1];
-    if (p.priceNum < priceRange[0] || p.priceNum > maxPriceLimit) return false;
+    if (p.price < priceRange[0] || p.price > maxPriceLimit) return false;
 
     // Check Size
     if (selectedSizes.length > 0 && !p.sizes.some(s => selectedSizes.includes(s))) return false;
@@ -207,8 +226,8 @@ export default function Collection() {
 
   // Apply Sorting
   const sortedProducts = [...filteredProducts].sort((a, b) => {
-    if (sortBy === 'Price: Low to High') return a.priceNum - b.priceNum;
-    if (sortBy === 'Price: High to Low') return b.priceNum - a.priceNum;
+    if (sortBy === 'Price: Low to High') return a.price - b.price;
+    if (sortBy === 'Price: High to Low') return b.price - a.price;
     return 0; // Default/Recommended
   });
 
@@ -233,7 +252,7 @@ export default function Collection() {
   };
 
   return (
-    <main className="max-w-container mx-auto px-6 md:px-margin-edge pb-section-gap pt-24 md:pt-32">
+    <main className="max-w-container mx-auto px-6 md:px-margin-edge pb-section-gap pt-8 md:pt-12">
 
       {/* Breadcrumbs */}
       <div className="text-[10px] uppercase tracking-widest text-gray-500 font-medium mb-6">
@@ -514,7 +533,17 @@ export default function Collection() {
         {/* Product Grid Area */}
         <div className="lg:col-span-3 flex flex-col">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16">
-            {sortedProducts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).length === 0 ? (
+            {isLoading ? (
+              Array.from({ length: 9 }).map((_, i) => (
+                <div key={i} className={`product-card group cursor-pointer flex flex-col ${i % 3 === 1 ? 'mt-12 md:mt-0 lg:mt-24' : ''}`}>
+                  <ProductCardSkeleton />
+                </div>
+              ))
+            ) : error ? (
+              <div className="col-span-full">
+                <ErrorState message={error} onRetry={() => window.location.reload()} />
+              </div>
+            ) : sortedProducts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).length === 0 ? (
               <div className="col-span-full py-32 text-center flex flex-col items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-12 h-12 text-gray-300 mb-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />

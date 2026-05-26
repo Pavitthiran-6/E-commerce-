@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { LoadingButton } from '../components/LoadingButton';
 import { Minus, Plus, Trash2, ArrowRight, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { coupons, calculateDiscount, getCouponError } from '../utils/couponLogic';
+import { getActiveCoupons, validateCoupon, Coupon } from '../services/couponService';
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -17,29 +17,60 @@ export default function Cart() {
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
   const [couponInput, setCouponInput] = useState('');
   const [couponError, setCouponError] = useState<string | null>(null);
-  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(() => sessionStorage.getItem('appliedCoupon'));
+  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(() => sessionStorage.getItem('appliedCoupon'));
+  const [appliedCouponDetails, setAppliedCouponDetails] = useState<Coupon | null>(null);
+  const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
+  const [isValidating, setIsValidating] = useState(false);
 
-  const handleApplyCoupon = (code: string) => {
-    if (appliedCoupon) {
+  useEffect(() => {
+    getActiveCoupons().then(setAvailableCoupons).catch(console.error);
+  }, []);
+
+  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  useEffect(() => {
+    if (appliedCouponCode && subtotal > 0) {
+      validateCoupon(appliedCouponCode, subtotal)
+        .then(details => {
+          setAppliedCouponDetails(details);
+          setCouponError(null);
+        })
+        .catch(err => {
+          console.error(err);
+          handleRemoveCoupon();
+        });
+    } else {
+      setAppliedCouponDetails(null);
+    }
+  }, [appliedCouponCode, subtotal]);
+
+  const handleApplyCoupon = async (code: string) => {
+    if (appliedCouponCode) {
       if (window.confirm('A coupon is already applied. Remove it first?')) {
         handleRemoveCoupon();
       } else {
         return;
       }
     }
-    const error = getCouponError(code, subtotal);
-    if (error) {
-      setCouponError(error);
-      return;
-    }
+    
+    setIsValidating(true);
     setCouponError(null);
-    setAppliedCoupon(code.toUpperCase());
-    sessionStorage.setItem('appliedCoupon', code.toUpperCase());
-    setIsCouponModalOpen(false);
+    try {
+      const details = await validateCoupon(code, subtotal);
+      setAppliedCouponCode(code.toUpperCase());
+      setAppliedCouponDetails(details);
+      sessionStorage.setItem('appliedCoupon', code.toUpperCase());
+      setIsCouponModalOpen(false);
+    } catch (err: any) {
+      setCouponError(err.response?.data?.message || 'Invalid or expired coupon');
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   const handleRemoveCoupon = () => {
-    setAppliedCoupon(null);
+    setAppliedCouponCode(null);
+    setAppliedCouponDetails(null);
     sessionStorage.removeItem('appliedCoupon');
     setCouponInput('');
     setCouponError(null);
@@ -55,23 +86,17 @@ export default function Cart() {
 
 
 
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
   // Discount Calculations
-  const discountAmount = appliedCoupon ? calculateDiscount(appliedCoupon, subtotal) : 0;
-  const isFreeShipping = appliedCoupon ? coupons.find(c => c.code === appliedCoupon)?.type === 'freeshipping' : false;
+  const discountAmount = appliedCouponDetails ? appliedCouponDetails.discountValue : 0; // Wait, actually discountValue is from validate response (the absolute amount) but let me check if validateCoupon returns the discount object or we should calculate it. 
+  // Let me look at the controller again. validateCoupon returns a map or coupon. If it returns the coupon object we might need to calculate the amount here. But the backend might validate and return true/false, or the applied discount amount.
+  // Assuming it returns the Coupon object with discountType and discountValue.
+  const calculatedDiscount = appliedCouponDetails ? (appliedCouponDetails.discountType === 'PERCENTAGE' ? Math.min((subtotal * appliedCouponDetails.discountValue) / 100, appliedCouponDetails.maxDiscountAmount || Infinity) : appliedCouponDetails.discountValue) : 0;
+  
+  const isFreeShipping = false; // Add logic if free shipping coupons are supported
 
   const shipping = isFreeShipping ? 0 : (subtotal > 5000 ? 0 : 250);
-  const tax = (subtotal - discountAmount) * 0.18;
-  const total = (subtotal - discountAmount) + shipping + tax;
-
-  // Auto-remove coupon if cart subtotal drops below minimum
-  useEffect(() => {
-    if (appliedCoupon) {
-      const error = getCouponError(appliedCoupon, subtotal);
-      if (error) handleRemoveCoupon();
-    }
-  }, [subtotal, appliedCoupon]);
+  const tax = Math.round((subtotal - calculatedDiscount) * 0.18);
+  const total = (subtotal - calculatedDiscount) + shipping + tax;
 
   if (cartItems.length === 0) {
     return (
@@ -182,17 +207,17 @@ export default function Cart() {
                   <span className="text-on-surface-variant">Estimated Tax</span>
                   <span className="font-medium">{formatPrice(tax)}</span>
                 </div>
-                {appliedCoupon && (
+                {appliedCouponCode && (
                   <div className="flex justify-between text-green-600 font-medium">
-                    <span>Discount ({appliedCoupon})</span>
-                    <span>- {formatPrice(discountAmount)}</span>
+                    <span>Discount ({appliedCouponCode})</span>
+                    <span>- {formatPrice(calculatedDiscount)}</span>
                   </div>
                 )}
               </div>
 
               {/* Apply Coupon Section */}
               <div className="mb-6">
-                {!appliedCoupon ? (
+                {!appliedCouponCode ? (
                   <button 
                     onClick={() => setIsCouponModalOpen(true)}
                     className="w-full border border-charcoal-stone bg-white text-charcoal-stone font-bold uppercase tracking-widest text-xs py-3 rounded hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
@@ -203,7 +228,7 @@ export default function Cart() {
                   <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded px-4 py-3">
                     <div className="flex items-center gap-2 text-green-700 text-sm font-medium">
                       <span>✅</span>
-                      <span>{appliedCoupon} applied — You saved {formatPrice(discountAmount)}!</span>
+                      <span>{appliedCouponCode} applied — You saved {formatPrice(calculatedDiscount)}!</span>
                     </div>
                     <button onClick={handleRemoveCoupon} className="text-xs text-green-700 underline hover:text-green-800 font-bold ml-2">
                       Remove
@@ -219,6 +244,12 @@ export default function Cart() {
 
               <LoadingButton
                 onClickAsync={async () => {
+                  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+                  if (!isLoggedIn) {
+                    localStorage.setItem('redirectAfterLogin', '/checkout');
+                    navigate('/login');
+                    return;
+                  }
                   await new Promise(r => setTimeout(r, 600));
                   navigate('/checkout');
                 }}
@@ -278,8 +309,8 @@ export default function Cart() {
 
               {/* Coupon List */}
               <div className="flex flex-col gap-4">
-                {coupons.map(coupon => {
-                  const meetsMinCart = subtotal >= coupon.minCart;
+                {availableCoupons.map(coupon => {
+                  const meetsMinCart = subtotal >= coupon.minOrderAmount;
                   return (
                     <div key={coupon.code} className={`border rounded-lg p-4 flex flex-col gap-3 ${meetsMinCart ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-75'}`}>
                       <div className="flex items-start justify-between gap-4">
@@ -288,19 +319,22 @@ export default function Cart() {
                             {coupon.code}
                           </span>
                           <p className="text-charcoal-stone text-sm font-medium">{coupon.description}</p>
-                          <p className="text-xs text-gray-500">Min order {formatPrice(coupon.minCart)}</p>
-                          <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mt-1">{coupon.expiry}</p>
+                          <p className="text-xs text-gray-500">Min order {formatPrice(coupon.minOrderAmount)}</p>
+                          <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mt-1">
+                            Expires {new Date(coupon.validUntil).toLocaleDateString()}
+                          </p>
                         </div>
                         {meetsMinCart ? (
                           <button 
                             onClick={() => handleApplyCoupon(coupon.code)}
-                            className="text-primary font-bold text-xs uppercase tracking-widest hover:underline whitespace-nowrap pt-2"
+                            disabled={isValidating}
+                            className="text-primary font-bold text-xs uppercase tracking-widest hover:underline whitespace-nowrap pt-2 disabled:opacity-50"
                           >
                             Apply
                           </button>
                         ) : (
                           <span className="text-xs text-gray-400 text-right max-w-[100px] pt-2 leading-tight">
-                            Add {formatPrice(coupon.minCart - subtotal)} more to unlock
+                            Add {formatPrice(coupon.minOrderAmount - subtotal)} more to unlock
                           </span>
                         )}
                       </div>

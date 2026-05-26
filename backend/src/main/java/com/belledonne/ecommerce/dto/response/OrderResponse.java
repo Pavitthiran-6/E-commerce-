@@ -1,0 +1,54 @@
+package com.belledonne.ecommerce.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+public class OrderResponse {
+    private UUID id;
+    private String orderNumber;
+    private String status;
+    private BigDecimal subtotal;
+    private BigDecimal shippingCharge;
+    private BigDecimal taxAmount;
+    private BigDecimal discountAmount;
+    private BigDecimal totalAmount;
+    private String couponCode;
+    private String paymentMethod;
+    private String paymentStatus;
+    private LocalDate estimatedDelivery;
+    private LocalDateTime deliveredAt;
+    private String trackingNumber;
+    private AddressResponse address;
+    private List<OrderItemResponse> items;
+    private List<TrackingResponse> trackingHistory;
+    private LocalDateTime createdAt;
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class OrderItemResponse {
+        private Long id;
+        private String productName;
+        private String productImage;
+        private String size;
+        private String color;
+        private Integer quantity;
+        private BigDecimal unitPrice;
+        private BigDecimal totalPrice;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class TrackingResponse {
+        private String status;
+        private String message;
+        private String location;
+        private LocalDateTime trackingTime;
+    }
+}
