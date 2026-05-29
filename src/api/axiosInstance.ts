@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { handleMockRequest } from './mockDataHandler';
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -21,14 +22,21 @@ axiosInstance.interceptors.response.use(
   (error: any) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_user');
-      window.location.href = '/auth/login';
+      if (window.location.pathname !== '/auth/login') {
+        window.location.href = '/auth/login';
+      }
     }
     if (error.response?.status === 403) {
-      window.location.href = '/';
+      const isConfigUrlAdmin = error.config?.url?.includes('/api/admin');
+      const isCurrentPageAdmin = window.location.pathname.startsWith('/admin');
+      if (!isConfigUrlAdmin && !isCurrentPageAdmin) {
+        window.location.href = '/';
+      }
     }
     if (!error.response) {
-      // Network error — backend is down
-      console.error('Network error — is the backend running?');
+      // Network error — backend is down or not deployed on Netlify
+      console.warn('Backend unreachable. Falling back to Frontend Mock Mode for client demo...');
+      return handleMockRequest(error.config);
     }
     return Promise.reject(error);
   }

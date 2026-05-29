@@ -39,4 +39,14 @@ export const ENDPOINTS = {
 
   // Reviews
   REVIEWS: '/api/reviews',
+
+  // Sale (public)
+  SALE_SETTINGS: '/api/sales/settings',
+  SALE_DEAL_OF_THE_DAY: '/api/sales/deal-of-the-day',
+
+  // Admin Sale
+  ADMIN_SALE_SETTINGS: '/api/admin/sales/settings',
+  ADMIN_SALE_DEAL_OF_THE_DAY: '/api/admin/sales/deal-of-the-day',
+  ADMIN_PRODUCT_DISCOUNT: (id: string) => `/api/admin/products/${id}/discount`,
+  ADMIN_PRODUCTS_ALL: '/api/products',
 };

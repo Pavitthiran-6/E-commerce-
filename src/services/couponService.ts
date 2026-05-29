@@ -2,18 +2,15 @@ import axiosInstance from '../api/axiosInstance';
 import { ENDPOINTS } from '../api/endpoints';
 
 export interface Coupon {
-  id: number;
   code: string;
   description: string;
-  discountType: 'PERCENTAGE' | 'FLAT';
+  minOrderValue: number;
+  discountType: 'PERCENTAGE' | 'FIXED';
   discountValue: number;
-  minOrderAmount: number;
-  maxDiscountAmount: number;
-  validUntil: string;
 }
 
 export const getActiveCoupons = async (): Promise<Coupon[]> => {
-  const response = await axiosInstance.get(ENDPOINTS.COUPONS);
+  const response = await axiosInstance.get(`${ENDPOINTS.COUPONS}/available`);
   return response.data.data;
 };
 
@@ -21,5 +18,5 @@ export const validateCoupon = async (code: string, cartTotal: number): Promise<C
   const response = await axiosInstance.post(`${ENDPOINTS.COUPONS}/validate`, null, {
     params: { code, cartTotal }
   });
-  return response.data.data;
+  return response.data.data.coupon;
 };

@@ -4,35 +4,53 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import type { WishlistItem } from '../context/WishlistContext';
 import { Heart } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { LoadingButton } from '../components/LoadingButton';
 import { getProductById } from '../services/productService';
-import { getProductReviews } from '../services/reviewService';
+import { getProductReviews, addReview } from '../services/reviewService';
 import type { Review } from '../services/reviewService';
 import type { Product as ProductType } from '../data/products';
 import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
 import ErrorState from '../components/common/ErrorState';
 
 export default function Product() {
-  const { id } = useParams();
+  const { productId: id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState<ProductType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   
-  const [selectedSize, setSelectedSize] = useState('8');
-  const [selectedColor, setSelectedColor] = useState('Walnut');
   const [stockStatus, setStockStatus] = useState<'in_stock' | 'out_of_stock' | 'limited'>('in_stock');
-  const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
+  const [isWriteReviewOpen, setIsWriteReviewOpen] = useState(false);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewImages, setReviewImages] = useState<{ file: File; preview: string }[]>([]);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [totalReviews, setTotalReviews] = useState(0);
 
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { showToast } = useToast();
+  const { isLoggedIn } = useAuth();
 
   const handleAddToCart = () => {
+    if (!product) return;
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: typeof (product.price as any) === 'string' ? parseInt((product.price as any).replace(/[^0-9]/g, '')) : product.price,
+      image: product.image || (product.images && product.images[0]) || '',
+      quantity: 1,
+      size: product.sizes?.[0] || 'Standard',
+      color: product.colors?.[0] || 'Standard',
+    });
+    showToast(`${product.name} added to cart!`, 'success', { label: 'View Cart', href: '/cart' });
+  };
+
+  const handleBuyNow = () => {
     if (!product) return;
     if (stockStatus === 'out_of_stock') {
       showToast('This item is currently out of stock.', 'error');
@@ -44,10 +62,10 @@ export default function Product() {
       price: typeof (product.price as any) === 'string' ? parseInt((product.price as any).replace(/[^0-9]/g, '')) : product.price,
       image: product.image || (product.images && product.images[0]) || '',
       quantity: 1,
-      size: selectedSize,
-      color: selectedColor
+      size: product.sizes?.[0] || 'Standard',
+      color: product.colors?.[0] || 'Standard',
     });
-    showToast(`${product.name} added to cart!`, 'success', { label: 'View Cart', href: '/cart' });
+    navigate('/cart');
   };
 
   const handleWishlistToggle = () => {
@@ -64,6 +82,58 @@ export default function Product() {
     }
   };
 
+  const handleReviewPhotoAdd = (files: FileList | null) => {
+    if (!files) return;
+    const list = Array.from(files);
+    const newImgs = list
+      .filter(f => f && f.type.startsWith('image/'))
+      .map(f => ({
+        file: f,
+        preview: URL.createObjectURL(f),
+      }));
+    setReviewImages([...reviewImages, ...newImgs]);
+  };
+
+  const handleReviewPhotoRemove = (idx: number) => {
+    URL.revokeObjectURL(reviewImages[idx].preview);
+    setReviewImages(reviewImages.filter((_, i) => i !== idx));
+  };
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    if (!product) return;
+    e.preventDefault();
+    if (!reviewComment.trim()) {
+      showToast('Please enter a description.', 'error');
+      return;
+    }
+    setIsSubmittingReview(true);
+    try {
+      const newReview = await addReview(product.id, reviewRating, reviewComment.trim());
+      setReviews(prev => [newReview, ...prev]);
+      setTotalReviews(prev => prev + 1);
+      showToast('Review submitted successfully!', 'success');
+      setReviewComment('');
+      setReviewRating(5);
+      reviewImages.forEach(img => URL.revokeObjectURL(img.preview));
+      setReviewImages([]);
+      setIsWriteReviewOpen(false);
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to submit review.', 'error');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  const handleWriteReviewClick = () => {
+    if (!isLoggedIn) {
+      localStorage.setItem('redirectAfterLogin', window.location.pathname);
+      showToast('Please login to write a review.', 'info');
+      navigate('/auth/login');
+      return;
+    }
+    setIsWriteReviewOpen(true);
+  };
+
   // Fetch product
   useEffect(() => {
     if (!id) return;
@@ -73,12 +143,7 @@ export default function Product() {
       try {
         const data = await getProductById(id);
         setProduct(data);
-        if (data.sizes && data.sizes.length > 0) {
-          setSelectedSize(String(data.sizes[0]));
-        }
-        if (data.colors && data.colors.length > 0) {
-          setSelectedColor(data.colors[0]);
-        }
+        setStockStatus((data.stockQuantity ?? 0) > 0 ? 'in_stock' : 'out_of_stock');
         
         // Fetch reviews
         const reviewsData = await getProductReviews(id);
@@ -93,23 +158,19 @@ export default function Product() {
     fetchProduct();
   }, [id]);
 
-  // Mock stock status based on size
-  useEffect(() => {
-    if (selectedSize === '12') {
-      setStockStatus('out_of_stock');
-    } else if (selectedSize === '11') {
-      setStockStatus('limited');
-    } else {
-      setStockStatus('in_stock');
-    }
-  }, [selectedSize]);
 
   // Scroll to top on mount
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
 
-  const sizes = ['6', '7', '8', '9', '10', '11', '12'];
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      reviewImages.forEach(img => URL.revokeObjectURL(img.preview));
+    };
+  }, [reviewImages]);
+
 
   const reviewPhotos = [
     { url: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=1200&auto=format&fit=crop", rating: 5 },
@@ -199,19 +260,35 @@ export default function Product() {
         <div className="sticky top-24 flex flex-col gap-6">
           {/* Title & Price */}
           <div className="border-b border-outline-variant/30 pb-4">
-            <h1 className="font-headline-display text-4xl text-primary mb-1 capitalize">{product.name}</h1>
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="font-headline-display text-4xl text-primary capitalize">{product.name}</h1>
+              <button 
+                type="button"
+                onClick={handleWishlistToggle}
+                className="p-1.5 hover:bg-[#f6f5f0] rounded-full transition-colors group focus:outline-none flex-shrink-0"
+                aria-label="Add to Wishlist"
+              >
+                <Heart 
+                  className={`w-6 h-6 transition-colors duration-300 ${
+                    isInWishlist(product.id) ? 'fill-red-500 text-red-500' : 'text-primary group-hover:text-red-500'
+                  }`}
+                />
+              </button>
+            </div>
             <div className="flex flex-col gap-1 mt-2">
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-charcoal-stone">{typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}</p>
-                {stockStatus === 'in_stock' && (
-                  <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span><span className="text-sm font-body-md text-on-surface-variant">In Stock</span></div>
-                )}
-                {stockStatus === 'out_of_stock' && (
-                  <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-500"></span><span className="text-sm font-body-md text-red-500">Out of Stock</span></div>
-                )}
-                {stockStatus === 'limited' && (
-                  <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span><span className="text-sm font-body-md text-yellow-600">Limited Stock</span></div>
-                )}
+                <p className="text-4xl font-bold text-charcoal-stone">{typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}</p>
+                <div className="flex items-center gap-2">
+                  {stockStatus === 'in_stock' && (
+                    <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span><span className="text-sm font-body-md text-on-surface-variant">In Stock</span></div>
+                  )}
+                  {stockStatus === 'out_of_stock' && (
+                    <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-500"></span><span className="text-sm font-body-md text-red-500">Out of Stock</span></div>
+                  )}
+                  {stockStatus === 'limited' && (
+                    <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span><span className="text-sm font-body-md text-yellow-600">Limited Stock</span></div>
+                  )}
+                </div>
               </div>
               <p className="text-xs text-on-surface-variant/70">(Incl. of all taxes)</p>
             </div>
@@ -222,58 +299,40 @@ export default function Product() {
             <p className="text-sm">{product.description}</p>
           </div>
           
-          {/* Color Selection */}
-          <div className="flex flex-col gap-2">
-            <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">Color: {selectedColor}</span>
-            <div className="flex gap-4 mt-2">
-              {product.colors && product.colors.map(color => (
-                 <button key={color} onClick={() => setSelectedColor(color)} aria-label={`Select ${color}`} className={`w-8 h-8 rounded-full border focus:outline-none ring-2 ring-offset-2 ring-transparent transition-all ${selectedColor === color ? 'border-primary ring-primary' : 'border-outline-variant hover:border-primary'}`} style={{ backgroundColor: color === 'Walnut' ? '#6B4E31' : color === 'Black' ? '#1A1A1A' : color === 'White' ? '#FAFAFA' : color }}></button>
-              ))}
+          {/* Dynamic Product Specifications */}
+          {product.specifications && product.specifications.length > 0 && (
+            <div className="flex flex-col gap-3">
+              {[...(product.specifications as any[])]
+                .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+                .map((spec, idx) => (
+                  <div key={idx} className="flex items-start justify-between border-b border-outline-variant/20 pb-2 last:border-0">
+                    <span className="font-label-caps text-[11px] text-on-surface-variant uppercase tracking-widest w-1/3 pt-0.5">
+                      {spec.key}
+                    </span>
+                    <span className="font-body-md text-sm text-primary text-right w-2/3 font-medium">
+                      {spec.value}
+                    </span>
+                  </div>
+                ))}
             </div>
-          </div>
-          
-          {/* Size Selection */}
-          <div className="flex flex-col gap-2 mt-2">
-            <div className="flex justify-between items-end">
-              <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">Size (UK/IND)</span>
-              <button onClick={() => setIsSizeGuideOpen(true)} className="font-label-caps text-label-caps text-on-surface-variant underline hover:text-primary transition-colors">Size Guide</button>
-            </div>
-            <div className="grid grid-cols-7 gap-2 mt-1">
-              {product.sizes && product.sizes.map(size => (
-                <button 
-                  key={size}
-                  onClick={() => size !== '12' && setSelectedSize(String(size))}
-                  disabled={size === '12'}
-                  className={`py-2 font-body-md text-sm transition-all duration-300 ${
-                    size === '12' 
-                      ? 'border border-outline-variant opacity-50 cursor-not-allowed text-primary' 
-                      : selectedSize === String(size) 
-                        ? 'border border-primary bg-primary text-white' 
-                        : 'border border-outline-variant hover:border-primary hover:bg-warm-sand text-primary'
-                  }`}
-                >
-                  {size}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
+
           
           {/* CTA */}
           <div className="mt-2 flex flex-col gap-3">
             <div className="flex gap-3">
               <LoadingButton 
                 onClick={handleAddToCart}
-                disabled={stockStatus === 'out_of_stock'}
-                className={`w-1/2 font-button text-button uppercase py-3 transition-colors duration-400 ease-in-out tracking-[0.1em] ${stockStatus === 'out_of_stock' ? 'bg-outline-variant text-on-surface-variant cursor-not-allowed' : 'bg-primary text-white hover:bg-primary/90'}`}
+                className="w-1/2 font-button text-button uppercase py-3 transition-colors duration-400 ease-in-out tracking-[0.1em] bg-primary text-white hover:bg-primary/90"
               >
-                {stockStatus === 'out_of_stock' ? 'Out of Stock' : 'Add to Cart'}
+                Add to Cart
               </LoadingButton>
               <button 
-                onClick={handleWishlistToggle}
-                className={`w-1/2 flex items-center justify-center gap-2 font-button text-button uppercase py-3 transition-colors duration-400 ease-in-out tracking-[0.1em] border bg-white text-primary border-primary hover:bg-warm-sand`}
+                onClick={handleBuyNow}
+                disabled={stockStatus === 'out_of_stock'}
+                className={`w-1/2 font-button text-button uppercase py-3 transition-colors duration-400 ease-in-out tracking-[0.1em] border bg-white text-primary border-primary hover:bg-warm-sand disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                <Heart className={`w-5 h-5 ${isInWishlist(product.id) ? 'fill-primary' : ''}`} />
-                {isInWishlist(product.id) ? 'Saved' : 'Wishlist'}
+                Buy it Now
               </button>
             </div>
             
@@ -302,10 +361,12 @@ export default function Product() {
                 <span className="text-xl">🔁</span>
                 <span className="text-xs text-on-surface-variant">Easy 7-Day Returns</span>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xl">💵</span>
-                <span className="text-xs text-on-surface-variant">Cash on Delivery Available</span>
-              </div>
+              {product.id !== '376d0483-9223-4338-be12-0861da0688cb' && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">💵</span>
+                  <span className="text-xs text-on-surface-variant">Cash on Delivery Available</span>
+                </div>
+              )}
               <div className="flex items-center gap-3">
                 <span className="text-xl">🛡️</span>
                 <span className="text-xs text-on-surface-variant">Secure Checkout</span>
@@ -429,7 +490,10 @@ export default function Product() {
           </div>
           
           <div className="mt-8 flex flex-wrap gap-4">
-            <button className="border border-primary text-primary font-button text-button uppercase py-3 px-8 hover:bg-primary hover:text-white transition-colors duration-400 ease-in-out tracking-[0.1em]">
+            <button 
+              onClick={handleWriteReviewClick}
+              className="border border-primary text-primary font-button text-button uppercase py-3 px-8 hover:bg-primary hover:text-white transition-colors duration-400 ease-in-out tracking-[0.1em]"
+            >
               Write a Review
             </button>
             {totalReviews > 2 && (
@@ -449,73 +513,7 @@ export default function Product() {
         </div>
       </section>
 
-      {/* Size Guide Modal */}
-      {isSizeGuideOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsSizeGuideOpen(false)}>
-          <div className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-10 shadow-2xl relative rounded-sm" onClick={e => e.stopPropagation()} data-lenis-prevent="true">
-            <button 
-              onClick={() => setIsSizeGuideOpen(false)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-primary p-2 transition-colors"
-              aria-label="Close modal"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            
-            <h3 className="font-headline-display text-2xl text-primary mb-6 text-center">Men's Footwear Size Chart</h3>
-            
-            <div className="overflow-x-auto mb-8">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b-2 border-outline-variant/50">
-                    <th className="py-3 px-4 font-label-caps text-label-caps text-primary tracking-widest uppercase">India / UK</th>
-                    <th className="py-3 px-4 font-label-caps text-label-caps text-primary tracking-widest uppercase">EU Size</th>
-                    <th className="py-3 px-4 font-label-caps text-label-caps text-primary tracking-widest uppercase">US (Men)</th>
-                    <th className="py-3 px-4 font-label-caps text-label-caps text-primary tracking-widest uppercase text-right">Foot Length (cm)</th>
-                  </tr>
-                </thead>
-                <tbody className="font-body-md text-on-surface-variant">
-                  <tr className="border-b border-outline-variant/30 hover:bg-warm-sand/50 transition-colors">
-                    <td className="py-3 px-4 font-bold">6</td><td className="py-3 px-4">40</td><td className="py-3 px-4">7</td><td className="py-3 px-4 text-right">24.6</td>
-                  </tr>
-                  <tr className="border-b border-outline-variant/30 hover:bg-warm-sand/50 transition-colors">
-                    <td className="py-3 px-4 font-bold">7</td><td className="py-3 px-4">41</td><td className="py-3 px-4">8</td><td className="py-3 px-4 text-right">25.4</td>
-                  </tr>
-                  <tr className="border-b border-outline-variant/30 hover:bg-warm-sand/50 transition-colors">
-                    <td className="py-3 px-4 font-bold">8</td><td className="py-3 px-4">42</td><td className="py-3 px-4">9</td><td className="py-3 px-4 text-right">26.2</td>
-                  </tr>
-                  <tr className="border-b border-outline-variant/30 hover:bg-warm-sand/50 transition-colors">
-                    <td className="py-3 px-4 font-bold">9</td><td className="py-3 px-4">43</td><td className="py-3 px-4">10</td><td className="py-3 px-4 text-right">27.1</td>
-                  </tr>
-                  <tr className="border-b border-outline-variant/30 hover:bg-warm-sand/50 transition-colors">
-                    <td className="py-3 px-4 font-bold">10</td><td className="py-3 px-4">44</td><td className="py-3 px-4">11</td><td className="py-3 px-4 text-right">27.9</td>
-                  </tr>
-                  <tr className="border-b border-outline-variant/30 hover:bg-warm-sand/50 transition-colors">
-                    <td className="py-3 px-4 font-bold">11</td><td className="py-3 px-4">45</td><td className="py-3 px-4">12</td><td className="py-3 px-4 text-right">28.8</td>
-                  </tr>
-                  <tr className="border-b border-outline-variant/30 hover:bg-warm-sand/50 transition-colors">
-                    <td className="py-3 px-4 font-bold">12</td><td className="py-3 px-4">46</td><td className="py-3 px-4">13</td><td className="py-3 px-4 text-right">29.6</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
 
-            <div className="bg-[#fafafa] p-6 border border-outline-variant/30">
-              <h4 className="font-label-caps text-label-caps text-primary tracking-widest uppercase mb-4">How to measure your foot:</h4>
-              <ol className="list-decimal pl-5 space-y-2 font-body-md text-on-surface-variant text-sm mb-4">
-                <li>Place a piece of paper on the floor against a wall.</li>
-                <li>Stand on the paper with your heel firmly against the wall.</li>
-                <li>Mark the longest part of your foot (usually the big toe) on the paper.</li>
-                <li>Measure the distance from the edge of the paper to the mark in centimeters.</li>
-              </ol>
-              <p className="font-body-md text-primary text-sm italic border-l-2 border-primary pl-3 py-1">
-                If you are between sizes, we recommend sizing up for a more comfortable fit.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* All Reviews Modal */}
       {isReviewsModalOpen && (
@@ -652,6 +650,126 @@ export default function Product() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
+        </div>
+      )}
+
+      {/* Write a Review Modal */}
+      {isWriteReviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsWriteReviewOpen(false)}>
+          <div className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-10 shadow-2xl relative rounded-sm" onClick={e => e.stopPropagation()} data-lenis-prevent="true">
+            <button 
+              onClick={() => setIsWriteReviewOpen(false)}
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-primary p-2 transition-colors"
+              aria-label="Close modal"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            <h3 className="font-headline-display text-2xl text-primary mb-2 text-center">Write a Review</h3>
+            <p className="text-xs text-on-surface-variant text-center mb-6">Share your thoughts and media with other customers</p>
+
+            <form onSubmit={handleReviewSubmit} className="space-y-6">
+              
+              {/* Star Rating Section */}
+              <div className="space-y-2 flex flex-col items-center">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-primary tracking-widest uppercase">
+                  Rating *
+                </label>
+                <div className="flex gap-2.5">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewRating(star)}
+                      className={`text-2xl transition-all duration-150 transform hover:scale-110 ${
+                        reviewRating >= star ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-300'
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section 1: Photos */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-primary tracking-widest uppercase">
+                  Add Photos (Optional)
+                </label>
+                <div className="border border-dashed border-outline-variant rounded-sm p-6 text-center hover:bg-warm-sand/30 transition-colors cursor-pointer relative"
+                  onClick={() => document.getElementById('review-photo-input')?.click()}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-on-surface-variant/60 mx-auto mb-2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                  </svg>
+                  <span className="text-sm font-medium text-primary">Browse images</span>
+                  <p className="text-xs text-on-surface-variant/70 mt-1">PNG, JPG, WEBP formats supported</p>
+                  <input
+                    id="review-photo-input"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={e => handleReviewPhotoAdd(e.target.files)}
+                  />
+                </div>
+
+                {reviewImages.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2 mt-3">
+                    {reviewImages.map((img, idx) => (
+                      <div key={img.preview} className="relative group aspect-square rounded-sm overflow-hidden border border-outline-variant">
+                        <img src={img.preview} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => handleReviewPhotoRemove(idx)}
+                          className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Description */}
+              <div className="space-y-2">
+                <label htmlFor="review-desc" className="block text-xs font-semibold uppercase tracking-wider text-primary tracking-widest uppercase">
+                  Description *
+                </label>
+                <textarea
+                  id="review-desc"
+                  required
+                  rows={5}
+                  value={reviewComment}
+                  onChange={e => setReviewComment(e.target.value)}
+                  placeholder="Tell us what you like or dislike about this product. Your feedback helps others make better choices!"
+                  className="w-full border border-outline-variant px-4 py-3 text-sm focus:outline-none focus:border-primary bg-transparent text-primary rounded-sm resize-none"
+                />
+              </div>
+
+              {/* Submit / Cancel Action Buttons */}
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsWriteReviewOpen(false)}
+                  className="px-6 py-2.5 text-xs uppercase font-semibold text-on-surface-variant border border-outline-variant hover:bg-warm-sand transition-colors rounded-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingReview}
+                  className="px-8 py-2.5 text-xs uppercase font-semibold bg-primary hover:bg-primary/95 text-white disabled:opacity-50 transition-colors rounded-sm"
+                >
+                  {isSubmittingReview ? 'Submitting…' : 'Submit Review'}
+                </button>
+              </div>
+
+            </form>
+          </div>
         </div>
       )}
     </div>

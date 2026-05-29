@@ -22,14 +22,14 @@ interface WishlistContextType {
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
 export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>(() => {
     const stored = localStorage.getItem('wishlist_items');
     return stored ? JSON.parse(stored) : [];
   });
 
   const fetchWishlist = async () => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || user?.role === 'ROLE_ADMIN') return;
     try {
       const wishlist = await getWishlistAPI();
       if (wishlist) {
@@ -46,22 +46,22 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   useEffect(() => {
-    if (isLoggedIn) {
+    if (isLoggedIn && user?.role !== 'ROLE_ADMIN') {
       fetchWishlist();
     } else {
       const stored = localStorage.getItem('wishlist_items');
       setWishlistItems(stored ? JSON.parse(stored) : []);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, user]);
 
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn || user?.role === 'ROLE_ADMIN') {
       localStorage.setItem('wishlist_items', JSON.stringify(wishlistItems));
     }
-  }, [wishlistItems, isLoggedIn]);
+  }, [wishlistItems, isLoggedIn, user]);
 
   const addToWishlist = async (product: WishlistItem) => {
-    if (isLoggedIn) {
+    if (isLoggedIn && user?.role !== 'ROLE_ADMIN') {
       try {
         await addToWishlistAPI(product.id);
         await fetchWishlist();
@@ -79,7 +79,7 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const removeFromWishlist = async (id: string) => {
-    if (isLoggedIn) {
+    if (isLoggedIn && user?.role !== 'ROLE_ADMIN') {
       try {
         await removeFromWishlistAPI(id);
         await fetchWishlist();
@@ -92,7 +92,7 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const clearWishlist = async () => {
-    if (isLoggedIn) {
+    if (isLoggedIn && user?.role !== 'ROLE_ADMIN') {
       try {
         await clearWishlistAPI();
         await fetchWishlist();

@@ -59,6 +59,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/sales/**").permitAll()
                 // Public coupons routes
                 .requestMatchers("/api/coupons/**").permitAll()
                 // Swagger UI

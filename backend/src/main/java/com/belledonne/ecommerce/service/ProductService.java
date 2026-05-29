@@ -90,12 +90,49 @@ public class ProductService {
         return productRepository.findByIsBestsellerTrueAndIsActiveTrue(pageable).map(this::toResponse);
     }
 
+    public Page<Product> getApparelHighlights(Pageable pageable) {
+        return productRepository.findByIsApparelHighlightsTrueAndIsActiveTrue(pageable);
+    }
+
+    public Page<ProductResponse> getApparelHighlightsResponses(Pageable pageable) {
+        return productRepository.findByIsApparelHighlightsTrueAndIsActiveTrue(pageable).map(this::toResponse);
+    }
+
+    public Page<Product> getTechHome(Pageable pageable) {
+        return productRepository.findByIsTechHomeTrueAndIsActiveTrue(pageable);
+    }
+
+    public Page<ProductResponse> getTechHomeResponses(Pageable pageable) {
+        return productRepository.findByIsTechHomeTrueAndIsActiveTrue(pageable).map(this::toResponse);
+    }
+
     public Page<Product> getSale(Pageable pageable) {
-        return productRepository.findByDiscountPercentageGreaterThanAndIsActiveTrue(0, pageable);
+        return productRepository.findByIsOnSaleTrueAndIsActiveTrue(pageable);
     }
 
     public Page<ProductResponse> getSaleResponses(Pageable pageable) {
-        return productRepository.findByDiscountPercentageGreaterThanAndIsActiveTrue(0, pageable).map(this::toResponse);
+        return productRepository.findByIsOnSaleTrueAndIsActiveTrue(pageable).map(this::toResponse);
+    }
+
+    public ProductResponse updateProductDiscount(UUID id, Integer discountPercentage, Boolean isOnSale) {
+        Product product = productRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Product", "id", id));
+        if (discountPercentage != null) {
+            product.setDiscountPercentage(discountPercentage);
+            // Auto-compute sale price from original price
+            if (product.getOriginalPrice() != null && discountPercentage > 0) {
+                java.math.BigDecimal discountFactor = java.math.BigDecimal.ONE
+                    .subtract(java.math.BigDecimal.valueOf(discountPercentage).divide(java.math.BigDecimal.valueOf(100)));
+                product.setPrice(product.getOriginalPrice().multiply(discountFactor)
+                    .setScale(2, java.math.RoundingMode.HALF_UP));
+            } else if (discountPercentage == 0 && product.getOriginalPrice() != null) {
+                product.setPrice(product.getOriginalPrice());
+            }
+        }
+        if (isOnSale != null) {
+            product.setIsOnSale(isOnSale);
+        }
+        return toResponse(productRepository.save(product));
     }
 
     public ProductResponse toResponse(Product p) {
@@ -109,6 +146,16 @@ public class ProductService {
                 .additionalPrice(v.getAdditionalPrice())
                 .build())
             .collect(Collectors.toList());
+
+        List<ProductResponse.SpecificationDTO> specDTOs = (p.getSpecifications() != null)
+            ? p.getSpecifications().stream()
+                .map(s -> ProductResponse.SpecificationDTO.builder()
+                    .key(s.getKey())
+                    .value(s.getValue())
+                    .displayOrder(s.getDisplayOrder())
+                    .build())
+                .collect(Collectors.toList())
+            : List.of();
 
         return ProductResponse.builder()
             .id(p.getId())
@@ -126,12 +173,32 @@ public class ProductService {
             .isActive(p.getIsActive())
             .isFeatured(p.getIsFeatured())
             .isNew(p.getIsNew())
+            .arrivalTag(p.getArrivalTag())
             .isBestseller(p.getIsBestseller())
+            .isApparelHighlights(p.getIsApparelHighlights())
+            .isTechHome(p.getIsTechHome())
+            .isOnSale(p.getIsOnSale())
             .averageRating(p.getAverageRating())
             .reviewCount(p.getReviewCount())
             .tags(p.getTags())
             .images(p.getImages())
+            .colors(p.getColors())
+            .sizes(p.getSizes())
+            .materialsTitle(p.getMaterialsTitle())
+            .materialsContent(p.getMaterialsContent())
+            .shippingTitle(p.getShippingTitle())
+            .shippingContent(p.getShippingContent())
+            .careTitle(p.getCareTitle())
+            .careContent(p.getCareContent())
+            .sustainabilityTitle(p.getSustainabilityTitle())
+            .sustainabilityContent(p.getSustainabilityContent())
+            .craftsmanshipTitle(p.getCraftsmanshipTitle())
+            .craftsmanshipContent(p.getCraftsmanshipContent())
+            .freeShipping(p.getFreeShipping())
+            .codAvailable(p.getCodAvailable())
+            .easyReturns(p.getEasyReturns())
             .variants(variantResponses)
+            .specifications(specDTOs)
             .createdAt(p.getCreatedAt())
             .build();
     }
@@ -164,7 +231,26 @@ public class ProductService {
             .stockQuantity(request.getStockQuantity() != null ? request.getStockQuantity() : 0)
             .tags(request.getTags())
             .images(new String[0])
+            .colors(request.getColors())
+            .sizes(request.getSizes())
+            .materialsTitle(request.getMaterialsTitle() != null ? request.getMaterialsTitle() : "MATERIALS")
+            .materialsContent(request.getMaterialsContent())
+            .shippingTitle(request.getShippingTitle() != null ? request.getShippingTitle() : "SHIPPING & RETURNS")
+            .shippingContent(request.getShippingContent())
+            .careTitle(request.getCareTitle() != null ? request.getCareTitle() : "PRODUCT CARE")
+            .careContent(request.getCareContent())
+            .sustainabilityTitle(request.getSustainabilityTitle() != null ? request.getSustainabilityTitle() : "SUSTAINABILITY")
+            .sustainabilityContent(request.getSustainabilityContent())
+            .craftsmanshipTitle(request.getCraftsmanshipTitle() != null ? request.getCraftsmanshipTitle() : "CRAFTSMANSHIP")
+            .craftsmanshipContent(request.getCraftsmanshipContent())
+            .freeShipping(request.getFreeShipping() != null ? request.getFreeShipping() : true)
+            .codAvailable(request.getCodAvailable() != null ? request.getCodAvailable() : true)
+            .easyReturns(request.getEasyReturns() != null ? request.getEasyReturns() : true)
+            .isApparelHighlights(request.getIsApparelHighlights() != null ? request.getIsApparelHighlights() : false)
+            .isTechHome(request.getIsTechHome() != null ? request.getIsTechHome() : false)
+            .isOnSale(request.getIsOnSale() != null ? request.getIsOnSale() : false)
             .isActive(true)
+            .specifications(toSpecEntries(request.getSpecifications()))
             .build();
 
         return productRepository.save(product);
@@ -199,8 +285,39 @@ public class ProductService {
         product.setDiscountPercentage(request.getDiscountPercentage() != null ? request.getDiscountPercentage() : 0);
         product.setStockQuantity(request.getStockQuantity() != null ? request.getStockQuantity() : 0);
         product.setTags(request.getTags());
+        product.setColors(request.getColors());
+        product.setSizes(request.getSizes());
+        product.setMaterialsTitle(request.getMaterialsTitle());
+        product.setMaterialsContent(request.getMaterialsContent());
+        product.setShippingTitle(request.getShippingTitle());
+        product.setShippingContent(request.getShippingContent());
+        product.setCareTitle(request.getCareTitle());
+        product.setCareContent(request.getCareContent());
+        product.setSustainabilityTitle(request.getSustainabilityTitle());
+        product.setSustainabilityContent(request.getSustainabilityContent());
+        product.setCraftsmanshipTitle(request.getCraftsmanshipTitle());
+        product.setCraftsmanshipContent(request.getCraftsmanshipContent());
+        product.setFreeShipping(request.getFreeShipping() != null ? request.getFreeShipping() : true);
+        product.setCodAvailable(request.getCodAvailable() != null ? request.getCodAvailable() : true);
+        product.setEasyReturns(request.getEasyReturns() != null ? request.getEasyReturns() : true);
+        product.setIsApparelHighlights(request.getIsApparelHighlights() != null ? request.getIsApparelHighlights() : false);
+        product.setIsTechHome(request.getIsTechHome() != null ? request.getIsTechHome() : false);
+        product.setIsOnSale(request.getIsOnSale() != null ? request.getIsOnSale() : false);
+        if (request.getSpecifications() != null) {
+            product.setSpecifications(toSpecEntries(request.getSpecifications()));
+        }
 
         return productRepository.save(product);
+    }
+
+    // ─── Helper: convert request DTOs → entity SpecificationEntry ────────────────
+    private List<com.belledonne.ecommerce.entity.Product.SpecificationEntry> toSpecEntries(
+            List<ProductRequest.SpecificationDTO> dtos) {
+        if (dtos == null) return new java.util.ArrayList<>();
+        return dtos.stream()
+            .map(d -> new com.belledonne.ecommerce.entity.Product.SpecificationEntry(
+                d.getKey(), d.getValue(), d.getDisplayOrder()))
+            .collect(Collectors.toList());
     }
 
     public void deleteProduct(UUID id) {
@@ -275,5 +392,18 @@ public class ProductService {
         product.getVariants().remove(variant);
         productVariantRepository.delete(variant);
         productRepository.save(product);
+    }
+
+    public Product updateArrivalTag(UUID id, String arrivalTag) {
+        Product product = productRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Product", "id", id));
+        if (arrivalTag == null || arrivalTag.isBlank() || "Remove from New Arrivals".equalsIgnoreCase(arrivalTag)) {
+            product.setArrivalTag(null);
+            product.setIsNew(false);
+        } else {
+            product.setArrivalTag(arrivalTag);
+            product.setIsNew(true);
+        }
+        return productRepository.save(product);
     }
 }

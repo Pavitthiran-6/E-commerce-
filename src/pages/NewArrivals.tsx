@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { products } from '../data/products';
+import { getNewArrivals } from '../services/productService';
+import type { Product } from '../data/products';
 import { SparkleHeart } from '../components/icons/SparkleHeart';
 import { useWishlist } from '../context/WishlistContext';
 
@@ -8,8 +9,27 @@ export default function NewArrivals() {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [email, setEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [productsList, setProductsList] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const handleWishlistToggle = (e: React.MouseEvent, product: any) => {
+  useEffect(() => {
+    const fetchArrivals = async () => {
+      setIsLoading(true);
+      setError('');
+      try {
+        const data = await getNewArrivals();
+        setProductsList(data);
+      } catch (err) {
+        setError('Failed to load new arrivals.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchArrivals();
+  }, []);
+
+  const handleWishlistToggle = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
     e.stopPropagation();
     if (isInWishlist(product.id)) {
@@ -18,8 +38,8 @@ export default function NewArrivals() {
       addToWishlist({
         id: product.id,
         name: product.name,
-        price: product.priceNum,
-        image: product.image
+        price: typeof product.price === 'number' ? product.price : parseInt(String(product.price).replace(/[^0-9]/g, '')),
+        image: product.image || product.images?.[0] || ''
       });
     }
   };
@@ -34,26 +54,12 @@ export default function NewArrivals() {
 
   const currentMonthYear = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  // Mocking drop dates for dummy data
-  const augmentedProducts = products.map((p, index) => {
-    let dropCategory = 'This Month';
-    let isNew = false;
-    
-    if (index % 5 === 0) {
-      dropCategory = 'This Week';
-      isNew = true;
-    } else if (index % 3 === 0) {
-      dropCategory = 'Last Week';
-    }
+  // Grouping products from backend based on their arrivalTag
+  const thisWeek = productsList.filter(p => p.arrivalTag === 'This Week');
+  const lastWeek = productsList.filter(p => p.arrivalTag === 'Last Week');
+  const thisMonth = productsList.filter(p => p.arrivalTag === 'Earlier This Month');
 
-    return { ...p, dropCategory, isNew };
-  });
-
-  const thisWeek = augmentedProducts.filter(p => p.dropCategory === 'This Week');
-  const lastWeek = augmentedProducts.filter(p => p.dropCategory === 'Last Week');
-  const thisMonth = augmentedProducts.filter(p => p.dropCategory === 'This Month').slice(0, 8); // Just show a few
-
-  const ProductRow = ({ title, items }: { title: string, items: any[] }) => (
+  const ProductRow = ({ title, items }: { title: string, items: Product[] }) => (
     <div className="mb-16">
       <div className="flex items-center justify-between mb-8 border-b border-gray-200 pb-4">
         <h2 className="font-serif text-3xl text-charcoal-stone">{title}</h2>
@@ -77,7 +83,7 @@ export default function NewArrivals() {
               <img
                 alt={product.name}
                 className="w-full h-full object-cover object-center transition-transform ease-out duration-500 group-hover:scale-105 group-hover:opacity-90 mix-blend-multiply"
-                src={product.image}
+                src={product.image || product.images?.[0] || 'https://via.placeholder.com/300'}
               />
               
               <button 
@@ -92,7 +98,9 @@ export default function NewArrivals() {
             </div>
             <div className="flex flex-col">
               <h3 className="font-serif text-[16px] text-charcoal-stone line-clamp-1">{product.name}</h3>
-              <span className="text-sm font-bold tracking-widest text-charcoal-stone mt-1">{typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}</span>
+              <span className="text-xl font-bold tracking-widest text-charcoal-stone mt-1">
+                {typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}
+              </span>
             </div>
           </Link>
         ))}
@@ -115,9 +123,20 @@ export default function NewArrivals() {
       </section>
 
       <div className="max-w-container mx-auto px-6 md:px-margin-edge">
-        <ProductRow title="This Week" items={thisWeek} />
-        <ProductRow title="Last Week" items={lastWeek} />
-        <ProductRow title="Earlier This Month" items={thisMonth} />
+        {isLoading ? (
+          <div className="py-24 flex flex-col items-center justify-center gap-4">
+            <div className="w-12 h-12 border-4 border-charcoal-stone border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-gray-500 text-sm font-semibold tracking-wider uppercase">Loading New Arrivals...</span>
+          </div>
+        ) : error ? (
+          <div className="py-24 text-center text-red-500 font-semibold">{error}</div>
+        ) : (
+          <>
+            <ProductRow title="This Week" items={thisWeek} />
+            <ProductRow title="Last Week" items={lastWeek} />
+            <ProductRow title="Earlier This Month" items={thisMonth} />
+          </>
+        )}
 
         {/* Notify Me Section */}
         <section className="bg-charcoal-stone text-white rounded-2xl p-8 md:p-16 text-center mt-8 shadow-xl">

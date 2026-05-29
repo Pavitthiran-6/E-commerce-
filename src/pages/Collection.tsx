@@ -12,6 +12,7 @@ export default function Collection() {
   const queryParams = new URLSearchParams(location.search);
   const searchQuery = queryParams.get('q');
   const departmentQuery = queryParams.get('department');
+  const promoQuery = queryParams.get('promo');
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
   const handleWishlistToggle = (e: React.MouseEvent, product: any) => {
@@ -116,6 +117,11 @@ export default function Collection() {
 
   const currentConfig = filterConfigs[productType];
 
+  const pageTitle = promoQuery === 'clearance' ? 'Clearance' 
+                  : promoQuery === 'flash-deals' ? 'Flash Deals' 
+                  : promoQuery === 'last-chance' ? 'Last Chance' 
+                  : currentConfig.title;
+
   // Filter States
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
@@ -205,6 +211,11 @@ export default function Collection() {
     // Only show products matching the active demo switcher tab
     if (productType !== 'all' && p.productType !== productType) return false;
 
+    // Check Promo
+    if (promoQuery === 'clearance' && (!p.discount || p.discount < 25)) return false;
+    if (promoQuery === 'flash-deals' && (!p.discount || p.discount === 0)) return false;
+    if (promoQuery === 'last-chance' && (!p.discount || p.discount < 15)) return false;
+
     // Check Department
     if (selectedDepartments.length > 0 && (!p.gender || !selectedDepartments.includes(p.gender))) return false;
 
@@ -260,12 +271,12 @@ export default function Collection() {
         <span className="mx-2">/</span>
         <Link to="/collection" className="hover:text-primary transition-colors">Categories</Link>
         <span className="mx-2">/</span>
-        <span className="text-primary">{currentConfig.title}</span>
+        <span className="text-primary">{pageTitle}</span>
       </div>
 
       {/* Editorial Heading */}
       <section className="pb-8 border-b border-outline-variant/30 mb-8">
-        <h1 className="font-headline-display text-4xl md:text-5xl text-primary mb-4">{currentConfig.title}</h1>
+        <h1 className="font-headline-display text-4xl md:text-5xl text-primary mb-4">{pageTitle}</h1>
         <p className="font-body-lg text-on-surface-variant max-w-3xl">
           Explore our full range of meticulously curated products, designed for your lifestyle.
         </p>
@@ -578,7 +589,7 @@ export default function Collection() {
                   </div>
                   <div className="flex flex-col gap-1">
                     <h3 className="font-serif text-[17px] text-charcoal-stone">{product.name}</h3>
-                    <span className="text-[15px] font-bold tracking-wider text-charcoal-stone">{typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}</span>
+                    <span className="text-xl font-bold tracking-wider text-charcoal-stone">{typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}</span>
                   </div>
                 </Link>
               ))

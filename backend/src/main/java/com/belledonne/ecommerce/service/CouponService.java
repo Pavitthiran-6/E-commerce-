@@ -25,8 +25,18 @@ public class CouponService {
     private final CouponRepository couponRepository;
 
     public List<CouponResponse> getActiveCoupons() {
-        return couponRepository.findByIsActiveTrueOrderByCreatedAtDesc()
-            .stream().map(this::toResponse).collect(Collectors.toList());
+        return getAvailableCoupons();
+    }
+
+    public List<CouponResponse> getAvailableCoupons() {
+        LocalDateTime now = LocalDateTime.now();
+        return couponRepository.findAll()
+            .stream()
+            .filter(coupon -> Boolean.TRUE.equals(coupon.getIsActive()))
+            .filter(coupon -> coupon.getValidUntil() == null || coupon.getValidUntil().isAfter(now))
+            .filter(coupon -> coupon.getUsageLimit() == null || coupon.getUsedCount() < coupon.getUsageLimit())
+            .map(this::toResponse)
+            .collect(Collectors.toList());
     }
 
     public List<Coupon> getAllCouponsAdmin() {
@@ -93,13 +103,15 @@ public class CouponService {
         Coupon coupon = couponRepository.findByCodeIgnoreCase(code)
             .orElseThrow(() -> new CouponException("Coupon code '" + code + "' is not valid"));
 
-        if (!coupon.getIsActive()) throw new CouponException("This coupon is no longer active");
+        if (!coupon.getIsActive()) throw new CouponException("This coupon is not available");
         if (coupon.getValidFrom() != null && LocalDateTime.now().isBefore(coupon.getValidFrom()))
             throw new CouponException("This coupon is not yet valid");
         if (coupon.getValidUntil() != null && LocalDateTime.now().isAfter(coupon.getValidUntil()))
             throw new CouponException("This coupon has expired");
-        if (coupon.getMinCartValue() != null && cartTotal.compareTo(coupon.getMinCartValue()) < 0)
-            throw new CouponException("Minimum cart value of ₹" + coupon.getMinCartValue() + " required");
+        if (coupon.getMinCartValue() != null && cartTotal.compareTo(coupon.getMinCartValue()) < 0) {
+            String formattedVal = java.text.NumberFormat.getNumberInstance(new java.util.Locale("en", "IN")).format(coupon.getMinCartValue());
+            throw new CouponException("Minimum order value is ₹" + formattedVal + " for this coupon");
+        }
         if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit())
             throw new CouponException("This coupon has reached its usage limit");
 
@@ -107,7 +119,8 @@ public class CouponService {
         return Map.of(
             "valid", true,
             "discountAmount", discount,
-            "message", "Coupon applied! You save ₹" + discount
+            "message", "Coupon applied! You save ₹" + discount,
+            "coupon", toResponse(coupon)
         );
     }
 
@@ -133,11 +146,18 @@ public class CouponService {
     }
 
     public CouponResponse toResponse(Coupon c) {
+        String discountType = c.getType();
+        if ("FLAT".equalsIgnoreCase(discountType)) {
+            discountType = "FIXED";
+        } else if ("PERCENTAGE".equalsIgnoreCase(discountType)) {
+            discountType = "PERCENTAGE";
+        }
         return CouponResponse.builder()
-            .id(c.getId()).code(c.getCode()).description(c.getDescription())
-            .type(c.getType()).value(c.getValue()).minCartValue(c.getMinCartValue())
-            .maxDiscount(c.getMaxDiscount()).isActive(c.getIsActive())
-            .validFrom(c.getValidFrom()).validUntil(c.getValidUntil())
+            .code(c.getCode())
+            .description(c.getDescription())
+            .minOrderValue(c.getMinCartValue() != null ? c.getMinCartValue() : BigDecimal.ZERO)
+            .discountType(discountType)
+            .discountValue(c.getValue())
             .build();
     }
 }

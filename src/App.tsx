@@ -31,6 +31,19 @@ import Sale from './pages/Sale';
 import NewArrivals from './pages/NewArrivals';
 import ComingSoon from './pages/ComingSoon';
 
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import ManageProducts from './pages/admin/ManageProducts';
+import AddProduct from './pages/admin/AddProduct';
+import EditProduct from './pages/admin/EditProduct';
+import ManageCoupons from './pages/admin/ManageCoupons';
+import ManageOrders from './pages/admin/ManageOrders';
+import ManageUsers from './pages/admin/ManageUsers';
+import ManageNewArrivals from './pages/admin/ManageNewArrivals';
+import ManageSales from './pages/admin/ManageSales';
+import { useAuth } from './context/AuthContext';
+import { Navigate } from 'react-router-dom';
+
 function ScrollToTop() {
   const { pathname } = useLocation();
 
@@ -39,6 +52,15 @@ function ScrollToTop() {
   }, [pathname]);
 
   return null;
+}
+
+// ⛔ Protects admin routes — redirects non-admins to home
+function AdminRoute() {
+  const { user, isLoggedIn } = useAuth();
+  if (!isLoggedIn) return <Navigate to="/login" replace />;
+  // Backend returns role as 'ROLE_ADMIN' (from Java enum .name())
+  if (user?.role !== 'ROLE_ADMIN') return <Navigate to="/" replace />;
+  return <Outlet />;
 }
 
 function Layout() {
@@ -79,7 +101,7 @@ function App() {
           <Route path="/checkout" element={<CheckoutAddress />} />
           <Route path="/checkout/payment" element={<CheckoutPayment />} />
           <Route path="/checkout/confirmation" element={<CheckoutConfirmation />} />
-          
+
           <Route path="/faq" element={<FAQ />} />
           <Route path="/policies/faq" element={<FAQ />} />
           <Route path="/policies/privacy-policy" element={<PrivacyPolicy />} />
@@ -96,6 +118,21 @@ function App() {
           <Route path="/track-order" element={<TrackOrder />} />
           <Route path="/pages/track-order/index.html" element={<TrackOrder />} />
 
+        </Route>
+
+        {/* Admin Panel — protected by AdminRoute */}
+        <Route element={<AdminRoute />}>
+          <Route element={<AdminLayout />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/products" element={<ManageProducts />} />
+            <Route path="/admin/products/add" element={<AddProduct />} />
+            <Route path="/admin/products/edit/:id" element={<EditProduct />} />
+            <Route path="/admin/orders" element={<ManageOrders />} />
+            <Route path="/admin/users" element={<ManageUsers />} />
+            <Route path="/admin/coupons" element={<ManageCoupons />} />
+            <Route path="/admin/new-arrivals" element={<ManageNewArrivals />} />
+            <Route path="/admin/sales" element={<ManageSales />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<NotFound />} />

@@ -16,7 +16,11 @@ export interface Product {
   reviewCount: number;
   inStock: boolean;
   isNew: boolean;
+  arrivalTag?: string;
   isBestseller: boolean;
+  isApparelHighlights?: boolean;
+  isTechHome?: boolean;
+  isOnSale?: boolean;
   createdAt: string;
   // Compatibility fields for old pages
   gender?: string;
@@ -25,6 +29,25 @@ export interface Product {
   image?: string;
   discountPercentage?: number;
   shortDescription?: string;
+  materialsTitle?: string;
+  materialsContent?: string;
+  shippingTitle?: string;
+  shippingContent?: string;
+  careTitle?: string;
+  careContent?: string;
+  sustainabilityTitle?: string;
+  sustainabilityContent?: string;
+  craftsmanshipTitle?: string;
+  craftsmanshipContent?: string;
+  freeShipping?: boolean;
+  codAvailable?: boolean;
+  easyReturns?: boolean;
+  stockQuantity?: number;
+  specifications?: {
+    key: string;
+    value: string;
+    displayOrder?: number;
+  }[];
 }
 
 export const mockProducts: Product[] = [

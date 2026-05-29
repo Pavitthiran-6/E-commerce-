@@ -4,6 +4,7 @@ import com.belledonne.ecommerce.dto.request.*;
 import com.belledonne.ecommerce.dto.response.ApiResponse;
 import com.belledonne.ecommerce.dto.response.OrderResponse;
 import com.belledonne.ecommerce.dto.response.ProductResponse;
+import com.belledonne.ecommerce.dto.response.SaleSettingsResponse;
 import com.belledonne.ecommerce.entity.*;
 import com.belledonne.ecommerce.enums.OrderStatus;
 import com.belledonne.ecommerce.enums.PaymentMethod;
@@ -56,6 +57,7 @@ public class AdminController {
     private final CategoryService categoryService;
     private final OrderTrackingService orderTrackingService;
     private final FileUploadService fileUploadService;
+    private final SaleSettingsService saleSettingsService;
 
     // ---- 5A: ADMIN DASHBOARD ----
     @GetMapping("/dashboard")
@@ -162,6 +164,14 @@ public class AdminController {
     public ResponseEntity<ApiResponse<?>> toggleProductFeatured(@PathVariable UUID id) {
         Product product = productService.toggleFeatured(id);
         return ResponseEntity.ok(ApiResponse.success("Product featured status toggled", productService.toResponse(product)));
+    }
+
+    @PutMapping("/products/{id}/arrival-tag")
+    @Operation(summary = "Update arrival tag of a product")
+    public ResponseEntity<ApiResponse<?>> updateArrivalTag(@PathVariable UUID id, @RequestBody Map<String, String> body) {
+        String tag = body.get("arrivalTag");
+        Product product = productService.updateArrivalTag(id, tag);
+        return ResponseEntity.ok(ApiResponse.success("Product arrival tag updated successfully", productService.toResponse(product)));
     }
 
     @PostMapping("/products/{id}/variants")
@@ -500,5 +510,57 @@ public class AdminController {
     @Operation(summary = "Toggle active status of a category")
     public ResponseEntity<ApiResponse<?>> toggleCategory(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success("Category status toggled", categoryService.toggleCategory(id)));
+    }
+
+    // ---- 5H: SALE MANAGEMENT (Admin) ----
+    @GetMapping("/sales/settings")
+    @Operation(summary = "Get sale banner settings")
+    public ResponseEntity<ApiResponse<?>> getSaleSettings() {
+        return ResponseEntity.ok(ApiResponse.success("Sale settings fetched", saleSettingsService.getResponse()));
+    }
+
+    @PutMapping("/sales/settings")
+    @Operation(summary = "Update sale banner settings")
+    public ResponseEntity<ApiResponse<?>> updateSaleSettings(@RequestBody SaleSettingsRequest request) {
+        SaleSettingsResponse response = saleSettingsService.updateSettings(request);
+        return ResponseEntity.ok(ApiResponse.success("Sale settings updated", response));
+    }
+
+    @PutMapping("/sales/deal-of-the-day")
+    @Operation(summary = "Set the Deal of the Day product")
+    public ResponseEntity<ApiResponse<?>> updateDealOfTheDay(@RequestBody Map<String, String> body) {
+        String productIdStr = body.get("productId");
+        if (productIdStr == null || productIdStr.isBlank()) {
+            throw new BadRequestException("productId is required");
+        }
+        UUID productId = UUID.fromString(productIdStr);
+        SaleSettingsResponse response = saleSettingsService.updateDealOfTheDay(productId);
+        return ResponseEntity.ok(ApiResponse.success("Deal of the day updated", response));
+    }
+
+    @PutMapping("/products/{id}/discount")
+    @Operation(summary = "Update product discount and sale status")
+    public ResponseEntity<ApiResponse<?>> updateProductDiscount(
+            @PathVariable UUID id, @RequestBody Map<String, Object> body) {
+        Integer discountPercentage = body.containsKey("discountPercentage")
+            ? ((Number) body.get("discountPercentage")).intValue() : null;
+        Boolean isOnSale = body.containsKey("isOnSale")
+            ? (Boolean) body.get("isOnSale") : null;
+        ProductResponse response = productService.updateProductDiscount(id, discountPercentage, isOnSale);
+        return ResponseEntity.ok(ApiResponse.success("Product discount updated", response));
+    }
+
+    @PutMapping("/products/{id}/specifications")
+    @Operation(summary = "Update product specifications (dynamic key-value pairs)")
+    public ResponseEntity<ApiResponse<?>> updateProductSpecifications(
+            @PathVariable UUID id,
+            @RequestBody List<com.belledonne.ecommerce.dto.request.ProductRequest.SpecificationDTO> specifications) {
+        Product product = productService.getById(id);
+        List<com.belledonne.ecommerce.entity.Product.SpecificationEntry> entries = specifications.stream()
+            .map(s -> new com.belledonne.ecommerce.entity.Product.SpecificationEntry(s.getKey(), s.getValue(), s.getDisplayOrder()))
+            .collect(java.util.stream.Collectors.toList());
+        product.setSpecifications(entries);
+        Product saved = productService.saveProduct(product);
+        return ResponseEntity.ok(ApiResponse.success("Specifications updated successfully", productService.toResponse(saved)));
     }
 }

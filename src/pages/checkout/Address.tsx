@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { CheckCircle2, ChevronDown, ChevronUp, MapPin, Plus } from 'lucide-react';
 import { LoadingButton } from '../../components/LoadingButton';
 import { coupons, calculateDiscount } from '../../utils/couponLogic';
@@ -44,6 +45,7 @@ function StepBar({ current }: { current: number }) {
 export default function CheckoutAddress() {
   const navigate = useNavigate();
   const { cartItems } = useCart();
+  const { user } = useAuth();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -55,6 +57,26 @@ export default function CheckoutAddress() {
   }, []);
 
   const fetchAddresses = async () => {
+    if (user?.role === 'ROLE_ADMIN') {
+      const mockAdminAddresses: Address[] = [
+        {
+          id: 9999,
+          fullName: 'Admin Tester',
+          phone: '9999999999',
+          pincode: '400001',
+          addressLine1: 'Admin Office, Nariman Point',
+          addressLine2: 'Makers Chamber VI',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          isDefault: true
+        }
+      ];
+      setAddresses(mockAdminAddresses);
+      setSelected(9999);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       const data = await getAddresses();
@@ -73,6 +95,25 @@ export default function CheckoutAddress() {
   };
 
   const handleSaveAddress = async () => {
+    if (user?.role === 'ROLE_ADMIN') {
+      const newMockAddress: Address = {
+        id: Math.floor(Math.random() * 1000) + 1000,
+        fullName: form.fullName,
+        phone: form.phone,
+        pincode: form.pincode,
+        addressLine1: form.addressLine1,
+        addressLine2: form.addressLine2,
+        city: form.city,
+        state: form.state,
+        isDefault: false
+      };
+      setAddresses([...addresses, newMockAddress]);
+      setSelected(newMockAddress.id);
+      setShowForm(false);
+      setForm({ fullName: '', phone: '', pincode: '', addressLine1: '', addressLine2: '', city: '', state: '' });
+      return;
+    }
+
     try {
       const newAddress = await addAddress(form);
       setAddresses([...addresses, newAddress]);

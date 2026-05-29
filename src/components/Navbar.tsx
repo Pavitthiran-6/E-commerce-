@@ -9,7 +9,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
-  const { isLoggedIn, userInitial, logout } = useAuth();
+  const { isLoggedIn, userInitial, logout, user } = useAuth();
   
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -112,30 +112,49 @@ export default function Navbar() {
             {/* User Avatar / Login */}
             <div className="relative hidden md:block">
               {isLoggedIn ? (
-                <div 
-                  className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold cursor-pointer"
-                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                >
-                  {userInitial}
-                </div>
+                user?.role === 'ROLE_ADMIN' ? (
+                  <div className="flex items-center gap-3">
+                    <Link 
+                      to="/admin" 
+                      className="bg-charcoal-stone text-white px-4 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-black transition-colors rounded-sm text-[10px]"
+                    >
+                      Admin Dashboard
+                    </Link>
+                    <button 
+                      onClick={logout} 
+                      className="text-xs font-bold text-red-600 hover:text-red-700 uppercase tracking-widest transition-colors text-[10px]"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div 
+                      className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                    >
+                      {userInitial}
+                    </div>
+
+                    {/* Profile Dropdown */}
+                    {profileDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setProfileDropdownOpen(false)}></div>
+                        <div className="absolute right-0 mt-3 w-56 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden">
+                          <Link to="/profile/details" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100" onClick={() => setProfileDropdownOpen(false)}>👤 My Profile</Link>
+                          <Link to="/profile/orders" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100" onClick={() => setProfileDropdownOpen(false)}>📦 My Orders</Link>
+                          <Link to="/profile/addresses" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100" onClick={() => setProfileDropdownOpen(false)}>📍 Saved Addresses</Link>
+                          <Link to="/wishlist" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100" onClick={() => setProfileDropdownOpen(false)}>❤️ Wishlist</Link>
+                          <button onClick={() => { logout(); setProfileDropdownOpen(false); }} className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-medium">🚪 Logout</button>
+                        </div>
+                      </>
+                    )}
+                  </>
+                )
               ) : (
                 <Link to="/auth/login" className="text-sm font-medium hover:text-primary transition-colors">
                   Log In
                 </Link>
-              )}
-
-              {/* Profile Dropdown */}
-              {isLoggedIn && profileDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setProfileDropdownOpen(false)}></div>
-                  <div className="absolute right-0 mt-3 w-56 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden">
-                    <Link to="/profile/details" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100">👤 My Profile</Link>
-                    <Link to="/profile/orders" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100">📦 My Orders</Link>
-                    <Link to="/profile/addresses" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100">📍 Saved Addresses</Link>
-                    <Link to="/wishlist" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100">❤️ Wishlist</Link>
-                    <button onClick={logout} className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-medium">🚪 Logout</button>
-                  </div>
-                </>
               )}
             </div>
 
@@ -224,12 +243,19 @@ export default function Navbar() {
               <div className="w-full h-px bg-gray-100 my-2"></div>
               
               {isLoggedIn ? (
-                <>
-                  <Link to="/profile/details" className="text-lg font-medium text-gray-600 flex items-center gap-3" onClick={() => setMobileMenuOpen(false)}>👤 My Profile</Link>
-                  <Link to="/profile/orders" className="text-lg font-medium text-gray-600 flex items-center gap-3" onClick={() => setMobileMenuOpen(false)}>📦 My Orders</Link>
-                  <Link to="/wishlist" className="text-lg font-medium text-gray-600 flex items-center gap-3" onClick={() => setMobileMenuOpen(false)}>❤️ Wishlist ({wishlistCount})</Link>
-                  <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="text-lg font-medium text-red-600 text-left">🚪 Logout</button>
-                </>
+                user?.role === 'ROLE_ADMIN' ? (
+                  <>
+                    <Link to="/admin" className="text-lg font-medium text-gray-600 flex items-center gap-3" onClick={() => setMobileMenuOpen(false)}>🛠️ Admin Dashboard</Link>
+                    <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="text-lg font-medium text-red-600 text-left mt-2">🚪 Logout</button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/profile/details" className="text-lg font-medium text-gray-600 flex items-center gap-3" onClick={() => setMobileMenuOpen(false)}>👤 My Profile</Link>
+                    <Link to="/profile/orders" className="text-lg font-medium text-gray-600 flex items-center gap-3" onClick={() => setMobileMenuOpen(false)}>📦 My Orders</Link>
+                    <Link to="/wishlist" className="text-lg font-medium text-gray-600 flex items-center gap-3" onClick={() => setMobileMenuOpen(false)}>❤️ Wishlist ({wishlistCount})</Link>
+                    <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="text-lg font-medium text-red-600 text-left">🚪 Logout</button>
+                  </>
+                )
               ) : (
                 <div className="flex flex-col gap-4 mt-4">
                   <Link to="/auth/login" className="bg-primary text-white text-center py-3 rounded-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Log In</Link>

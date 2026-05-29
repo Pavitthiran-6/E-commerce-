@@ -31,4 +31,51 @@ public class ProductRequest {
     private Integer stockQuantity;
 
     private String[] tags;
+
+    private String[] colors;
+
+    private String[] sizes;
+
+    private String materialsTitle;
+
+    private String materialsContent;
+
+    private String shippingTitle;
+
+    private String shippingContent;
+
+    private String careTitle;
+
+    private String careContent;
+
+    private String sustainabilityTitle;
+
+    private String sustainabilityContent;
+
+    private String craftsmanshipTitle;
+
+    private String craftsmanshipContent;
+
+    private Boolean freeShipping;
+
+    private Boolean codAvailable;
+
+    private Boolean easyReturns;
+
+    private Boolean isApparelHighlights;
+
+    private Boolean isTechHome;
+
+    private Boolean isOnSale;
+
+    private java.util.List<SpecificationDTO> specifications;
+
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class SpecificationDTO {
+        private String key;
+        private String value;
+        private int displayOrder;
+    }
 }

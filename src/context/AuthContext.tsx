@@ -42,7 +42,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('auth_user', JSON.stringify(loggedInUser));
       setUser(loggedInUser);
       showToast('Welcome back! 👋', 'success');
-      navigate('/');
+
+      // Redirect to saved path if exists, otherwise redirect based on role
+      const redirectPath = localStorage.getItem('redirectAfterLogin');
+      localStorage.removeItem('redirectAfterLogin');
+      
+      if (redirectPath) {
+        navigate(redirectPath);
+      } else if (loggedInUser.role === 'ROLE_ADMIN') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } catch (error: any) {
       const message = error.response?.data?.message || 'Login failed. Please try again.';
       showToast(message, 'error');

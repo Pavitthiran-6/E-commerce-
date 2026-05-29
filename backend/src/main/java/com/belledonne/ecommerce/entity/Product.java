@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -70,9 +71,24 @@ public class Product {
     @Builder.Default
     private Boolean isNew = false;
 
+    @Column(name = "arrival_tag", length = 50)
+    private String arrivalTag;
+
     @Column(name = "is_bestseller")
     @Builder.Default
     private Boolean isBestseller = false;
+
+    @Column(name = "is_apparel_highlights")
+    @Builder.Default
+    private Boolean isApparelHighlights = false;
+
+    @Column(name = "is_tech_home")
+    @Builder.Default
+    private Boolean isTechHome = false;
+
+    @Column(name = "is_on_sale")
+    @Builder.Default
+    private Boolean isOnSale = false;
 
     @Column(name = "average_rating", precision = 3, scale = 2)
     @Builder.Default
@@ -90,11 +106,78 @@ public class Product {
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.ARRAY)
     private String[] images;
 
+    @Column(name = "colors")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.ARRAY)
+    private String[] colors;
+
+    @Column(name = "sizes")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.ARRAY)
+    private String[] sizes;
+
+    @Column(name = "materials_title", length = 100)
+    private String materialsTitle;
+
+    @Column(name = "materials_content", columnDefinition = "TEXT")
+    private String materialsContent;
+
+    @Column(name = "shipping_title", length = 100)
+    private String shippingTitle;
+
+    @Column(name = "shipping_content", columnDefinition = "TEXT")
+    private String shippingContent;
+
+    @Column(name = "care_title", length = 100)
+    private String careTitle;
+
+    @Column(name = "care_content", columnDefinition = "TEXT")
+    private String careContent;
+
+    @Column(name = "sustainability_title", length = 100)
+    private String sustainabilityTitle;
+
+    @Column(name = "sustainability_content", columnDefinition = "TEXT")
+    private String sustainabilityContent;
+
+    @Column(name = "craftsmanship_title", length = 100)
+    private String craftsmanshipTitle;
+
+    @Column(name = "craftsmanship_content", columnDefinition = "TEXT")
+    private String craftsmanshipContent;
+
+    @Column(name = "free_shipping")
+    @Builder.Default
+    private Boolean freeShipping = true;
+
+    @Column(name = "cod_available")
+    @Builder.Default
+    private Boolean codAvailable = true;
+
+    @Column(name = "easy_returns")
+    @Builder.Default
+    private Boolean easyReturns = true;
+
+    // ─── Dynamic product specifications (stored as JSONB) ────────────────────────
+    @Column(name = "specifications", columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Builder.Default
+    private List<SpecificationEntry> specifications = new ArrayList<>();
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Builder.Default
     private List<ProductVariant> variants = new ArrayList<>();
+
+    // ─── Inner DTO for specification key-value pair ───────────────────────────────
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class SpecificationEntry {
+        private String key;
+        private String value;
+        private int displayOrder;
+    }
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @ToString.Exclude

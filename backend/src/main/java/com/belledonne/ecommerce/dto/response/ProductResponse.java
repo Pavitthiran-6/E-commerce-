@@ -27,12 +27,32 @@ public class ProductResponse {
     private Boolean isActive;
     private Boolean isFeatured;
     private Boolean isNew;
+    private String arrivalTag;
     private Boolean isBestseller;
     private BigDecimal averageRating;
     private Integer reviewCount;
     private String[] tags;
     private String[] images;
+    private String[] colors;
+    private String[] sizes;
+    private String materialsTitle;
+    private String materialsContent;
+    private String shippingTitle;
+    private String shippingContent;
+    private String careTitle;
+    private String careContent;
+    private String sustainabilityTitle;
+    private String sustainabilityContent;
+    private String craftsmanshipTitle;
+    private String craftsmanshipContent;
+    private Boolean freeShipping;
+    private Boolean codAvailable;
+    private Boolean easyReturns;
+    private Boolean isApparelHighlights;
+    private Boolean isTechHome;
+    private Boolean isOnSale;
     private List<VariantResponse> variants;
+    private List<SpecificationDTO> specifications;
     private LocalDateTime createdAt;
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
@@ -43,5 +63,12 @@ public class ProductResponse {
         private String colorHex;
         private Integer stockQuantity;
         private BigDecimal additionalPrice;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class SpecificationDTO {
+        private String key;
+        private String value;
+        private int displayOrder;
     }
 }

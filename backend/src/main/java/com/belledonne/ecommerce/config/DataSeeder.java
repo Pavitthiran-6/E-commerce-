@@ -2,13 +2,18 @@ package com.belledonne.ecommerce.config;
 
 import com.belledonne.ecommerce.entity.Category;
 import com.belledonne.ecommerce.entity.Product;
+import com.belledonne.ecommerce.entity.Coupon;
+import com.belledonne.ecommerce.entity.SaleSettings;
 import com.belledonne.ecommerce.repository.CategoryRepository;
+import com.belledonne.ecommerce.repository.CouponRepository;
 import com.belledonne.ecommerce.repository.ProductRepository;
+import com.belledonne.ecommerce.repository.SaleSettingsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -18,6 +23,8 @@ public class DataSeeder implements CommandLineRunner {
 
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
+    private final CouponRepository couponRepository;
+    private final SaleSettingsRepository saleSettingsRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -119,6 +126,7 @@ public class DataSeeder implements CommandLineRunner {
                     .isNew(true)
                     .isFeatured(false)
                     .isBestseller(false)
+                    .isApparelHighlights(true)
                     .build(),
                 Product.builder()
                     .name("Tailored Chino Trousers")
@@ -181,6 +189,7 @@ public class DataSeeder implements CommandLineRunner {
                     .isNew(true)
                     .isFeatured(false)
                     .isBestseller(false)
+                    .isApparelHighlights(true)
                     .build(),
                 Product.builder()
                     .name("Floral Midi Dress")
@@ -201,6 +210,7 @@ public class DataSeeder implements CommandLineRunner {
                     .isNew(true)
                     .isFeatured(true)
                     .isBestseller(true)
+                    .isApparelHighlights(true)
                     .build(),
                 Product.builder()
                     .name("High-Waist Mom Jeans")
@@ -243,6 +253,7 @@ public class DataSeeder implements CommandLineRunner {
                     .isNew(true)
                     .isFeatured(false)
                     .isBestseller(false)
+                    .isTechHome(true)
                     .build(),
                 Product.builder()
                     .name("Aura ANC Headphones")
@@ -263,6 +274,7 @@ public class DataSeeder implements CommandLineRunner {
                     .isNew(false)
                     .isFeatured(true)
                     .isBestseller(true)
+                    .isTechHome(true)
                     .build(),
                 Product.builder()
                     .name("Infinity Smart Watch")
@@ -283,10 +295,273 @@ public class DataSeeder implements CommandLineRunner {
                     .isNew(true)
                     .isFeatured(true)
                     .isBestseller(true)
+                    .isTechHome(true)
                     .build()
             );
 
             productRepository.saveAll(products);
+        }
+
+        if (couponRepository.count() == 0) {
+            Coupon c1 = Coupon.builder()
+                .code("WELCOME10")
+                .description("Get 10% off on your first order")
+                .type("PERCENTAGE")
+                .value(new BigDecimal("10.00"))
+                .minCartValue(new BigDecimal("1000.00"))
+                .maxDiscount(new BigDecimal("500.00"))
+                .validFrom(LocalDateTime.now().minusDays(1))
+                .validUntil(LocalDateTime.now().plusMonths(6))
+                .isActive(true)
+                .build();
+
+            Coupon c2 = Coupon.builder()
+                .code("FESTIVE500")
+                .description("Flat ₹500 off on shopping above ₹3000")
+                .type("FLAT")
+                .value(new BigDecimal("500.00"))
+                .minCartValue(new BigDecimal("3000.00"))
+                .validFrom(LocalDateTime.now().minusDays(1))
+                .validUntil(LocalDateTime.now().plusMonths(1))
+                .isActive(true)
+                .build();
+
+            Coupon c3 = Coupon.builder()
+                .code("LUXURY25")
+                .description("25% off on luxury items")
+                .type("PERCENTAGE")
+                .value(new BigDecimal("25.00"))
+                .minCartValue(new BigDecimal("5000.00"))
+                .maxDiscount(new BigDecimal("2500.00"))
+                .validFrom(LocalDateTime.now().minusDays(1))
+                .validUntil(LocalDateTime.now().plusMonths(3))
+                .isActive(true)
+                .build();
+
+            couponRepository.saveAll(Arrays.asList(c1, c2, c3));
+        }
+
+        // Seed default SaleSettings
+        if (saleSettingsRepository.count() == 0) {
+            SaleSettings defaultSettings = SaleSettings.builder()
+                .saleTitle("SALE IS LIVE 🔥")
+                .saleSubtitle("Limited time deals — up to 70% off on selected products!")
+                .maxDiscountText("up to 70% off")
+                .saleEndDateTime(LocalDateTime.now().plusDays(7))
+                .isActive(true)
+                .build();
+            saleSettingsRepository.save(defaultSettings);
+        }
+
+        // Ensure all template categories exist
+        Category footwearCat = categoryRepository.findBySlug("footwear")
+            .orElseGet(() -> categoryRepository.save(Category.builder().name("Footwear").slug("footwear").isActive(true).build()));
+        
+        Category toysCat = categoryRepository.findBySlug("kids-toys")
+            .orElseGet(() -> categoryRepository.save(Category.builder().name("Kids Toys").slug("kids-toys").isActive(true).build()));
+            
+        Category techKitchenCat = categoryRepository.findBySlug("tech-kitchen")
+            .orElseGet(() -> categoryRepository.save(Category.builder().name("Tech & Kitchen").slug("tech-kitchen").isActive(true).build()));
+            
+        Category appliancesCat = categoryRepository.findBySlug("home-appliances")
+            .orElseGet(() -> categoryRepository.save(Category.builder().name("Home Appliances").slug("home-appliances").isActive(true).build()));
+
+        // 1. Fashion & Clothing Product: Bo Velcro Sneaker (slug: bo-velcro)
+        Product boVelcro = productRepository.findBySlug("bo-velcro").orElse(null);
+        if (boVelcro != null) {
+            boVelcro.setSpecifications(Arrays.asList(
+                new Product.SpecificationEntry("Color", "Walnut", 1),
+                new Product.SpecificationEntry("Material", "Full-Grain Leather", 2),
+                new Product.SpecificationEntry("Fit", "Regular Fit (True to size)", 3),
+                new Product.SpecificationEntry("Care Instructions", "Wipe with damp cloth", 4)
+            ));
+            productRepository.save(boVelcro);
+        } else {
+            productRepository.save(Product.builder()
+                .name("Bo Velcro Sneaker")
+                .brand("BELLEDONNE")
+                .category(footwearCat)
+                .slug("bo-velcro")
+                .price(new BigDecimal("16500.00"))
+                .originalPrice(new BigDecimal("22000.00"))
+                .discountPercentage(25)
+                .images(new String[]{"https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=500"})
+                .tags(new String[]{"shoes", "sneakers", "footwear", "casual", "leather"})
+                .description("Classic minimalist sneaker featuring dual velcro straps for effortless style.")
+                .shortDescription("Dual velcro strap minimalist sneaker.")
+                .averageRating(new BigDecimal("4.80"))
+                .reviewCount(124)
+                .stockQuantity(50)
+                .isActive(true)
+                .isNew(true)
+                .isFeatured(true)
+                .isBestseller(true)
+                .specifications(Arrays.asList(
+                    new Product.SpecificationEntry("Color", "Walnut", 1),
+                    new Product.SpecificationEntry("Material", "Full-Grain Leather", 2),
+                    new Product.SpecificationEntry("Fit", "Regular Fit (True to size)", 3),
+                    new Product.SpecificationEntry("Care Instructions", "Wipe with damp cloth", 4)
+                ))
+                .build());
+        }
+
+        // 2. Kids Toys Product: Wooden Activity Blocks (slug: wooden-building-blocks)
+        Product toyProduct = productRepository.findBySlug("wooden-building-blocks").orElse(null);
+        if (toyProduct != null) {
+            toyProduct.setSpecifications(Arrays.asList(
+                new Product.SpecificationEntry("Age Range", "3-8 Years", 1),
+                new Product.SpecificationEntry("Material", "Natural Sustainably Sourced Wood", 2),
+                new Product.SpecificationEntry("Battery Required", "No", 3),
+                new Product.SpecificationEntry("Safety Certification", "BIS Certified", 4),
+                new Product.SpecificationEntry("Total Pieces", "50 Pieces", 5)
+            ));
+            productRepository.save(toyProduct);
+        } else {
+            productRepository.save(Product.builder()
+                .name("Wooden Activity Building Blocks Set")
+                .brand("BELLEDONNE Play")
+                .category(toysCat)
+                .slug("wooden-building-blocks")
+                .price(new BigDecimal("2499.00"))
+                .originalPrice(new BigDecimal("3499.00"))
+                .discountPercentage(28)
+                .images(new String[]{"https://images.unsplash.com/photo-1515488042361-404e9250afef?q=80&w=500"})
+                .tags(new String[]{"toys", "wooden", "kids", "blocks", "educational"})
+                .description("Classic wooden building blocks designed for creative and motor skill development.")
+                .shortDescription("50-piece wooden building blocks set.")
+                .averageRating(new BigDecimal("4.90"))
+                .reviewCount(42)
+                .stockQuantity(15)
+                .isActive(true)
+                .isNew(true)
+                .specifications(Arrays.asList(
+                    new Product.SpecificationEntry("Age Range", "3-8 Years", 1),
+                    new Product.SpecificationEntry("Material", "Natural Sustainably Sourced Wood", 2),
+                    new Product.SpecificationEntry("Battery Required", "No", 3),
+                    new Product.SpecificationEntry("Safety Certification", "BIS Certified", 4),
+                    new Product.SpecificationEntry("Total Pieces", "50 Pieces", 5)
+                ))
+                .build());
+        }
+
+        // 3. Kitchen & Cookware Product: Pro Smart Blender (slug: smart-blender)
+        Product blender = productRepository.findBySlug("smart-blender").orElse(null);
+        if (blender != null) {
+            blender.setSpecifications(Arrays.asList(
+                new Product.SpecificationEntry("Capacity", "2 Litres", 1),
+                new Product.SpecificationEntry("Material", "Tritan (BPA-Free) & Stainless Steel", 2),
+                new Product.SpecificationEntry("Dishwasher Safe", "Yes (Pitcher only)", 3),
+                new Product.SpecificationEntry("Power", "1000W", 4),
+                new Product.SpecificationEntry("Speed Settings", "10 Speeds + Pulse", 5)
+            ));
+            productRepository.save(blender);
+        } else {
+            productRepository.save(Product.builder()
+                .name("Pro Smart Blender")
+                .brand("BELLEDONNE Tech")
+                .category(techKitchenCat)
+                .slug("smart-blender")
+                .price(new BigDecimal("18500.00"))
+                .originalPrice(new BigDecimal("24000.00"))
+                .discountPercentage(23)
+                .images(new String[]{"https://images.unsplash.com/photo-1585237748805-728b75fba184?q=80&w=500"})
+                .tags(new String[]{"kitchen", "appliances", "blender", "smart"})
+                .description("High-speed professional blender with app connectivity and automated programs.")
+                .shortDescription("High-speed professional blender.")
+                .averageRating(new BigDecimal("4.90"))
+                .reviewCount(56)
+                .stockQuantity(25)
+                .isActive(true)
+                .isNew(true)
+                .isTechHome(true)
+                .specifications(Arrays.asList(
+                    new Product.SpecificationEntry("Capacity", "2 Litres", 1),
+                    new Product.SpecificationEntry("Material", "Tritan (BPA-Free) & Stainless Steel", 2),
+                    new Product.SpecificationEntry("Dishwasher Safe", "Yes (Pitcher only)", 3),
+                    new Product.SpecificationEntry("Power", "1000W", 4),
+                    new Product.SpecificationEntry("Speed Settings", "10 Speeds + Pulse", 5)
+                ))
+                .build());
+        }
+
+        // 4. Home Appliances Product: Aura Robotic Vacuum (slug: robotic-vacuum)
+        Product vacuum = productRepository.findBySlug("robotic-vacuum").orElse(null);
+        if (vacuum != null) {
+            vacuum.setSpecifications(Arrays.asList(
+                new Product.SpecificationEntry("Power Consumption", "1500W", 1),
+                new Product.SpecificationEntry("Noise Level", "60 dB", 2),
+                new Product.SpecificationEntry("Dustbin Capacity", "0.6 Litres", 3),
+                new Product.SpecificationEntry("Warranty", "2 Years", 4),
+                new Product.SpecificationEntry("Battery Run Time", "120 Minutes", 5)
+            ));
+            productRepository.save(vacuum);
+        } else {
+            productRepository.save(Product.builder()
+                .name("Aura Robotic Vacuum Cleaner")
+                .brand("BELLEDONNE Tech")
+                .category(appliancesCat)
+                .slug("robotic-vacuum")
+                .price(new BigDecimal("29999.00"))
+                .originalPrice(new BigDecimal("34999.00"))
+                .discountPercentage(14)
+                .images(new String[]{"https://images.unsplash.com/photo-1589656966895-2f33e7653819?q=80&w=500"})
+                .tags(new String[]{"appliances", "vacuum", "robotic", "smart"})
+                .description("Smart self-charging robotic vacuum cleaner with advanced mapping technology.")
+                .shortDescription("Smart robotic vacuum cleaner.")
+                .averageRating(new BigDecimal("4.80"))
+                .reviewCount(28)
+                .stockQuantity(12)
+                .isActive(true)
+                .isFeatured(true)
+                .specifications(Arrays.asList(
+                    new Product.SpecificationEntry("Power Consumption", "1500W", 1),
+                    new Product.SpecificationEntry("Noise Level", "60 dB", 2),
+                    new Product.SpecificationEntry("Dustbin Capacity", "0.6 Litres", 3),
+                    new Product.SpecificationEntry("Warranty", "2 Years", 4),
+                    new Product.SpecificationEntry("Battery Run Time", "120 Minutes", 5)
+                ))
+                .build());
+        }
+
+        // 5. Electronics Product: Infinity Smart Watch Pro (slug: smart-watch-pro)
+        Product watch = productRepository.findBySlug("smart-watch-pro").orElse(null);
+        if (watch != null) {
+            watch.setSpecifications(Arrays.asList(
+                new Product.SpecificationEntry("Screen Size", "1.9 Inches OLED", 1),
+                new Product.SpecificationEntry("Battery Capacity", "300 mAh", 2),
+                new Product.SpecificationEntry("Connectivity", "Bluetooth 5.2, Wi-Fi, LTE", 3),
+                new Product.SpecificationEntry("Water Resistance", "IP68 (Up to 50m)", 4),
+                new Product.SpecificationEntry("Health Sensors", "Heart Rate, ECG, SpO2", 5)
+            ));
+            productRepository.save(watch);
+        } else {
+            productRepository.save(Product.builder()
+                .name("Infinity Smart Watch Pro")
+                .brand("BELLEDONNE Tech")
+                .category(techKitchenCat)
+                .slug("smart-watch-pro")
+                .price(new BigDecimal("14500.00"))
+                .originalPrice(new BigDecimal("14500.00"))
+                .discountPercentage(0)
+                .images(new String[]{"https://images.unsplash.com/photo-1546868871-7041f2a55e12?q=80&w=500"})
+                .tags(new String[]{"tech", "wearables", "watch", "fitness"})
+                .description("Advanced smartwatch with ECG, fitness tracking, and cellular connectivity.")
+                .shortDescription("Advanced smartwatch.")
+                .averageRating(new BigDecimal("4.70"))
+                .reviewCount(178)
+                .stockQuantity(65)
+                .isActive(true)
+                .isNew(true)
+                .isFeatured(true)
+                .isTechHome(true)
+                .specifications(Arrays.asList(
+                    new Product.SpecificationEntry("Screen Size", "1.9 Inches OLED", 1),
+                    new Product.SpecificationEntry("Battery Capacity", "300 mAh", 2),
+                    new Product.SpecificationEntry("Connectivity", "Bluetooth 5.2, Wi-Fi, LTE", 3),
+                    new Product.SpecificationEntry("Water Resistance", "IP68 (Up to 50m)", 4),
+                    new Product.SpecificationEntry("Health Sensors", "Heart Rate, ECG, SpO2", 5)
+                ))
+                .build());
         }
     }
 }

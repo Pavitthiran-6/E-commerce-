@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { LoadingButton } from '../components/LoadingButton';
 import { Minus, Plus, Trash2, ArrowRight, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { getActiveCoupons, validateCoupon } from '../services/couponService';
 import type { Coupon } from '../services/couponService';
 
@@ -14,6 +15,7 @@ export default function Cart() {
   }, []);
 
   const { cartItems, removeFromCart, updateQuantity } = useCart();
+  const { isLoggedIn } = useAuth();
 
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
   const [couponInput, setCouponInput] = useState('');
@@ -88,10 +90,7 @@ export default function Cart() {
 
 
   // Discount Calculations
-  const discountAmount = appliedCouponDetails ? appliedCouponDetails.discountValue : 0; // Wait, actually discountValue is from validate response (the absolute amount) but let me check if validateCoupon returns the discount object or we should calculate it. 
-  // Let me look at the controller again. validateCoupon returns a map or coupon. If it returns the coupon object we might need to calculate the amount here. But the backend might validate and return true/false, or the applied discount amount.
-  // Assuming it returns the Coupon object with discountType and discountValue.
-  const calculatedDiscount = appliedCouponDetails ? (appliedCouponDetails.discountType === 'PERCENTAGE' ? Math.min((subtotal * appliedCouponDetails.discountValue) / 100, appliedCouponDetails.maxDiscountAmount || Infinity) : appliedCouponDetails.discountValue) : 0;
+  const calculatedDiscount = appliedCouponDetails ? (appliedCouponDetails.discountType === 'PERCENTAGE' ? (subtotal * appliedCouponDetails.discountValue) / 100 : appliedCouponDetails.discountValue) : 0;
   
   const isFreeShipping = false; // Add logic if free shipping coupons are supported
 
@@ -245,14 +244,13 @@ export default function Cart() {
 
               <LoadingButton
                 onClickAsync={async () => {
-                  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
                   if (!isLoggedIn) {
-                    localStorage.setItem('redirectAfterLogin', '/checkout');
-                    navigate('/login');
+                    localStorage.setItem('redirectAfterLogin', '/checkout/address');
+                    navigate('/auth/login');
                     return;
                   }
                   await new Promise(r => setTimeout(r, 600));
-                  navigate('/checkout');
+                  navigate('/checkout/address');
                 }}
                 className="w-full bg-primary text-white font-button uppercase tracking-[0.1em] py-4 hover:bg-primary/90 transition-colors text-center block"
               >
@@ -311,7 +309,7 @@ export default function Cart() {
               {/* Coupon List */}
               <div className="flex flex-col gap-4">
                 {availableCoupons.map(coupon => {
-                  const meetsMinCart = subtotal >= coupon.minOrderAmount;
+                  const meetsMinCart = subtotal >= (coupon.minOrderValue || 0);
                   return (
                     <div key={coupon.code} className={`border rounded-lg p-4 flex flex-col gap-3 ${meetsMinCart ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-75'}`}>
                       <div className="flex items-start justify-between gap-4">
@@ -320,24 +318,15 @@ export default function Cart() {
                             {coupon.code}
                           </span>
                           <p className="text-charcoal-stone text-sm font-medium">{coupon.description}</p>
-                          <p className="text-xs text-gray-500">Min order {formatPrice(coupon.minOrderAmount)}</p>
-                          <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mt-1">
-                            Expires {new Date(coupon.validUntil).toLocaleDateString()}
-                          </p>
+                          <p className="text-xs text-gray-500">Min order {formatPrice(coupon.minOrderValue || 0)}</p>
                         </div>
-                        {meetsMinCart ? (
-                          <button 
-                            onClick={() => handleApplyCoupon(coupon.code)}
-                            disabled={isValidating}
-                            className="text-primary font-bold text-xs uppercase tracking-widest hover:underline whitespace-nowrap pt-2 disabled:opacity-50"
-                          >
-                            Apply
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-400 text-right max-w-[100px] pt-2 leading-tight">
-                            Add {formatPrice(coupon.minOrderAmount - subtotal)} more to unlock
-                          </span>
-                        )}
+                        <button 
+                          onClick={() => handleApplyCoupon(coupon.code)}
+                          disabled={!meetsMinCart || isValidating}
+                          className={`font-bold text-xs uppercase tracking-widest whitespace-nowrap pt-2 disabled:opacity-50 ${meetsMinCart ? 'text-primary hover:underline' : 'text-gray-400 cursor-not-allowed'}`}
+                        >
+                          Apply
+                        </button>
                       </div>
                     </div>
                   );

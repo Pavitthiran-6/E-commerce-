@@ -18,7 +18,10 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
     Page<Product> findByIsFeaturedTrueAndIsActiveTrue(Pageable pageable);
     Page<Product> findByIsNewTrueAndIsActiveTrue(Pageable pageable);
     Page<Product> findByIsBestsellerTrueAndIsActiveTrue(Pageable pageable);
+    Page<Product> findByIsApparelHighlightsTrueAndIsActiveTrue(Pageable pageable);
+    Page<Product> findByIsTechHomeTrueAndIsActiveTrue(Pageable pageable);
     Page<Product> findByDiscountPercentageGreaterThanAndIsActiveTrue(int discount, Pageable pageable);
+    Page<Product> findByIsOnSaleTrueAndIsActiveTrue(Pageable pageable);
     Page<Product> findByCategoryIdAndIsActiveTrue(Long categoryId, Pageable pageable);
     boolean existsByCategoryId(Long categoryId);
     long countByStockQuantityLessThan(int threshold);

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { CheckCircle2, Lock, ShieldCheck, ChevronDown, Check } from 'lucide-react';
 import { LoadingButton } from '../../components/LoadingButton';
 import { coupons, calculateDiscount } from '../../utils/couponLogic';
@@ -142,6 +143,7 @@ function detectCardType(num: string) {
 export default function CheckoutPayment() {
   const navigate = useNavigate();
   const { cartItems } = useCart();
+  const { user } = useAuth();
   const [method, setMethod] = useState<PayMethod>('upi');
   const [upiId, setUpiId] = useState('');
   const [bank, setBank] = useState('');
@@ -169,13 +171,20 @@ export default function CheckoutPayment() {
   const formatExpiry = (v: string) =>
     v.replace(/\D/g, '').slice(0, 4).replace(/(.{2})/, '$1/');
 
-  const METHODS: { id: PayMethod; label: string; icon: string }[] = [
+  const ALL_METHODS: { id: PayMethod; label: string; icon: string }[] = [
     { id: 'upi', label: 'UPI', icon: '📱' },
     { id: 'netbanking', label: 'Net Banking', icon: '🏦' },
     { id: 'cod', label: 'Cash on Delivery', icon: '💰' },
     { id: 'card', label: 'Credit / Debit Card', icon: '🃏' },
     { id: 'wallet', label: 'Wallets', icon: '👜' },
   ];
+
+  const METHODS = ALL_METHODS.filter(m => {
+    if (m.id === 'cod' && cartItems.some(item => item.id === '376d0483-9223-4338-be12-0861da0688cb')) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <main className="min-h-screen bg-[#f7f6f2] pt-28 pb-20 px-4 sm:px-8">
@@ -328,6 +337,24 @@ export default function CheckoutPayment() {
                   if (!addressId) {
                     alert('Please select a delivery address first.');
                     navigate('/checkout/address');
+                    return;
+                  }
+
+                  if (user?.role === 'ROLE_ADMIN') {
+                    const mockOrderId = 'ORD-' + Math.floor(Math.random() * 900000 + 100000);
+                    localStorage.setItem('lastOrderId', mockOrderId);
+
+                    let paymentDetails = '';
+                    if (method === 'upi') paymentDetails = `UPI · ${upiId || 'admin@upi'}`;
+                    else if (method === 'card') paymentDetails = `Card ending in •••• ${card.number.slice(-4) || '1111'}`;
+                    else if (method === 'cod') paymentDetails = 'Cash on Delivery';
+                    else if (method === 'netbanking') paymentDetails = `Net Banking · ${bank || 'SBI'}`;
+                    else if (method === 'wallet') paymentDetails = 'Paytm Wallet';
+                    
+                    localStorage.setItem('lastPaymentMethod', method);
+                    localStorage.setItem('lastPaymentDetails', paymentDetails);
+
+                    navigate('/checkout/confirmation');
                     return;
                   }
 

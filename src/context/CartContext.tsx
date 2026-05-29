@@ -27,14 +27,14 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     const stored = localStorage.getItem('cart_items');
     return stored ? JSON.parse(stored) : [];
   });
 
   const fetchCart = async () => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || user?.role === 'ROLE_ADMIN') return;
     try {
       const cart = await getCart();
       if (cart && cart.items) {
@@ -54,23 +54,41 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const syncCart = async () => {
+    const stored = localStorage.getItem('cart_items');
+    if (stored) {
+      try {
+        const items: CartItem[] = JSON.parse(stored);
+        if (items.length > 0) {
+          for (const item of items) {
+            await addToCartAPI(item.id, item.quantity);
+          }
+          localStorage.removeItem('cart_items');
+        }
+      } catch (err) {
+        console.error('Failed to sync local cart to backend', err);
+      }
+    }
+    await fetchCart();
+  };
+
   useEffect(() => {
-    if (isLoggedIn) {
-      fetchCart();
-    } else {
+    if (isLoggedIn && user?.role !== 'ROLE_ADMIN') {
+      syncCart();
+    } else if (!isLoggedIn) {
       const stored = localStorage.getItem('cart_items');
       setCartItems(stored ? JSON.parse(stored) : []);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, user]);
 
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn || user?.role === 'ROLE_ADMIN') {
       localStorage.setItem('cart_items', JSON.stringify(cartItems));
     }
-  }, [cartItems, isLoggedIn]);
+  }, [cartItems, isLoggedIn, user]);
 
   const addToCart = async (product: CartItem) => {
-    if (isLoggedIn) {
+    if (isLoggedIn && user?.role !== 'ROLE_ADMIN') {
       try {
         await addToCartAPI(product.id, product.quantity);
         await fetchCart();
@@ -99,7 +117,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeFromCart = async (id: string, size?: string, color?: string) => {
-    if (isLoggedIn) {
+    if (isLoggedIn && user?.role !== 'ROLE_ADMIN') {
       const itemToRemove = cartItems.find(item => {
         if (size && color) return item.id === id && item.size === size && item.color === color;
         return item.id === id;
@@ -130,7 +148,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    if (isLoggedIn) {
+    if (isLoggedIn && user?.role !== 'ROLE_ADMIN') {
       const itemToUpdate = cartItems.find(item => {
         const match = actualSize && actualColor 
           ? (item.id === id && item.size === actualSize && item.color === actualColor)
@@ -156,7 +174,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const clearCart = async () => {
-    if (isLoggedIn) {
+    if (isLoggedIn && user?.role !== 'ROLE_ADMIN') {
       try {
         await clearCartAPI();
         await fetchCart();

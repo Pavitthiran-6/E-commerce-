@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SparkleHeart } from '../components/icons/SparkleHeart';
 import { useWishlist } from '../context/WishlistContext';
-import { getAllProducts, getFeaturedProducts } from '../services/productService';
+import { getAllProducts, getFeaturedProducts, getApparelHighlights, getTechHome } from '../services/productService';
 import type { Product } from '../data/products';
 import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
 import ErrorState from '../components/common/ErrorState';
@@ -11,6 +11,8 @@ export default function Home() {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [products, setProducts] = useState<Product[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [apparelHighlights, setApparelHighlights] = useState<Product[]>([]);
+  const [techHome, setTechHome] = useState<Product[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const handleCopyCode = (code: string) => {
@@ -44,9 +46,23 @@ export default function Home() {
     }
   };
 
+  const fetchHighlightsAndTech = async () => {
+    try {
+      const [apparelData, techData] = await Promise.all([
+        getApparelHighlights(),
+        getTechHome()
+      ]);
+      setApparelHighlights(apparelData);
+      setTechHome(techData);
+    } catch (err) {
+      console.error('Failed to load highlight products', err);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
     fetchFeatured();
+    fetchHighlightsAndTech();
   }, []);
 
   const defaultSlides = [
@@ -112,7 +128,7 @@ export default function Home() {
           {/* Left Column: 3 small promo banners */}
           <div className="grid grid-rows-3 gap-4 lg:col-span-1 h-full">
             {/* Banner 1: 3-Day Delivery */}
-            <Link to="/collection" className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm block">
+            <Link to="/cart" className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm block">
               <img alt="3-Day Delivery" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600" />
               <div className="absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors duration-300" />
               <div className="absolute inset-y-0 left-0 w-full flex items-center z-10">
@@ -138,7 +154,7 @@ export default function Home() {
             </Link>
 
             {/* Banner 3: Belledonne Club */}
-            <Link to="/login" className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm block">
+            <Link to="/collection" className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm block">
               <img alt="Belledonne Club" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=600" />
               <div className="absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors duration-300" />
               <div className="absolute inset-y-0 left-0 w-full flex items-center z-10">
@@ -152,23 +168,25 @@ export default function Home() {
           </div>
 
           {/* Center Column: Swiper Promotional Banner */}
-          <div className="relative lg:col-span-3 rounded-2xl overflow-hidden min-h-[400px] lg:h-full group shadow-md bg-neutral-900">
+          <div className="relative lg:col-span-3 rounded-2xl overflow-hidden h-[380px] lg:h-[460px] self-center group shadow-md bg-neutral-900">
             {slides.map((slide, idx) => (
               <div 
                 key={idx}
                 className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}
               >
-                {/* Background Image */}
-                <img 
-                  alt={slide.title} 
-                  className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-10000 ease-out group-hover:scale-102" 
-                  src={slide.image} 
-                />
-                {/* Dark Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/25 to-black/55" />
+                {/* Background Image and Overlay Link */}
+                <Link to="/sale" className="absolute inset-0 z-0 block">
+                  <img 
+                    alt={slide.title} 
+                    className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-10000 ease-out group-hover:scale-102" 
+                    src={slide.image} 
+                  />
+                  {/* Dark Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/25 to-black/55" />
+                </Link>
                 
                 {/* Content */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-6 py-12">
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-6 py-12 pointer-events-none">
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-sm font-semibold tracking-[0.2em] uppercase text-white drop-shadow-sm">{slide.subtitle}</span>
                     <span className="inline-block border-[2.5px] border-yellow-300 rounded-[60%_40%_50%_45%] -rotate-3 px-3 py-0.5 text-yellow-300 font-extrabold text-xs tracking-wider uppercase shadow-sm">
@@ -194,7 +212,7 @@ export default function Home() {
                     {slide.tagline}
                   </p>
                   
-                  <Link to={slide.link} className="inline-block bg-white text-charcoal-stone font-semibold text-xs tracking-[0.2em] uppercase px-8 py-3.5 hover:bg-neutral-100 transition-colors duration-300 shadow-lg rounded-sm">
+                  <Link to={slide.link} className="inline-block bg-white text-charcoal-stone font-semibold text-xs tracking-[0.2em] uppercase px-8 py-3.5 hover:bg-neutral-100 transition-colors duration-300 shadow-lg rounded-sm pointer-events-auto">
                     {slide.buttonText}
                   </Link>
                 </div>
@@ -240,18 +258,39 @@ export default function Home() {
 
           {/* Right Column: 3 small cool-toned/darker banners */}
           <div className="grid grid-rows-3 gap-4 lg:col-span-1 h-full">
-            <div className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm">
-              <img alt="Evening look" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600" />
+            <Link to="/collection?promo=clearance" className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm block">
+              <img alt="Clearance" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600" />
               <div className="absolute inset-0 bg-neutral-950/20 group-hover:bg-neutral-950/30 transition-colors duration-300" />
-            </div>
-            <div className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm">
-              <img alt="Sunset dress" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=600" />
+              <div className="absolute inset-y-0 right-0 w-full flex items-center justify-end z-10">
+                <div className="w-[85%] bg-gradient-to-l from-black/90 via-black/70 to-transparent py-3 pr-5 pl-8 transition-transform duration-300 group-hover:-translate-x-1 text-right">
+                  <span className="text-white font-sans font-extrabold text-[15px] sm:text-base lg:text-[13px] xl:text-[15px] tracking-wide select-none drop-shadow-sm uppercase">
+                    Clearance
+                  </span>
+                </div>
+              </div>
+            </Link>
+            <Link to="/collection?promo=flash-deals" className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm block">
+              <img alt="Flash Deals" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=600" />
               <div className="absolute inset-0 bg-neutral-950/20 group-hover:bg-neutral-950/30 transition-colors duration-300" />
-            </div>
-            <div className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm">
-              <img alt="Resort wear" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=600" />
+              <div className="absolute inset-y-0 right-0 w-full flex items-center justify-end z-10">
+                <div className="w-[85%] bg-gradient-to-l from-black/90 via-black/70 to-transparent py-3 pr-5 pl-8 transition-transform duration-300 group-hover:-translate-x-1 text-right">
+                  <span className="text-white font-sans font-extrabold text-[15px] sm:text-base lg:text-[13px] xl:text-[15px] tracking-wide select-none drop-shadow-sm uppercase">
+                    Flash Deals
+                  </span>
+                </div>
+              </div>
+            </Link>
+            <Link to="/collection?promo=last-chance" className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm block">
+              <img alt="Last Chance" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=600" />
               <div className="absolute inset-0 bg-neutral-950/20 group-hover:bg-neutral-950/30 transition-colors duration-300" />
-            </div>
+              <div className="absolute inset-y-0 right-0 w-full flex items-center justify-end z-10">
+                <div className="w-[85%] bg-gradient-to-l from-black/90 via-black/70 to-transparent py-3 pr-5 pl-8 transition-transform duration-300 group-hover:-translate-x-1 text-right">
+                  <span className="text-white font-sans font-extrabold text-[15px] sm:text-base lg:text-[13px] xl:text-[15px] tracking-wide select-none drop-shadow-sm uppercase">
+                    Last Chance
+                  </span>
+                </div>
+              </div>
+            </Link>
           </div>
 
         </div>
@@ -311,7 +350,7 @@ export default function Home() {
                   </div>
                   <div className="flex justify-between items-center pt-1">
                     <h3 className="font-body-md text-xs text-charcoal-stone relative inline-block pb-0.5 after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-[1px] after:bottom-0 after:right-0 after:bg-current after:origin-right after:transition-transform after:duration-300 group-hover:after:scale-x-100">{item.name}</h3>
-                    <span className="font-body-md text-sm font-bold text-charcoal-stone">{typeof item.price === 'number' ? `₹${item.price.toLocaleString('en-IN')}` : item.price}</span>
+                    <span className="font-body-md text-lg font-bold text-charcoal-stone">{typeof item.price === 'number' ? `₹${item.price.toLocaleString('en-IN')}` : item.price}</span>
                   </div>
                 </Link>
               ))
@@ -472,14 +511,15 @@ export default function Home() {
               const maxScrollLeft = el.scrollWidth - el.clientWidth;
               
               let index = 0;
-              if (maxScrollLeft > 0) {
+              const totalItems = apparelHighlights.length;
+              if (maxScrollLeft > 0 && totalItems > 0) {
                 const scrollPercentage = scrollLeft / maxScrollLeft;
-                index = Math.round(scrollPercentage * 1); // 2 pages -> index 0 to 1
+                index = Math.round(scrollPercentage * (totalItems - 1));
               }
               
               const pagination = document.getElementById('socks-pagination');
               if (pagination) {
-                pagination.innerText = `${index + 1}/2`;
+                pagination.innerText = `${index + 1}/${totalItems || 1}`;
               }
             }}
           >
@@ -490,7 +530,7 @@ export default function Home() {
                 </div>
               ))
             ) : (
-              products.filter(p => p.productType === 'apparel').map((item) => (
+              apparelHighlights.map((item) => (
                 <Link to={`/product/${item.id}`} key={item.id} className="group block cursor-pointer min-w-[85vw] sm:min-w-[45vw] md:min-w-[22%] snap-start relative">
                   <div className="aspect-[3/4] bg-[#f6f5f0] mb-3 overflow-hidden relative">
                     <img alt={item.name} className="w-full h-full object-cover transition-transform duration-[600ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-105" src={item.image} />
@@ -507,7 +547,7 @@ export default function Home() {
                   </div>
                   <div className="flex justify-between items-center pt-1">
                     <h3 className="font-body-md text-xs text-gray-500 relative inline-block pb-0.5 after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-[1px] after:bottom-0 after:right-0 after:bg-current after:origin-right after:transition-transform after:duration-300 group-hover:after:scale-x-100">{item.name}</h3>
-                    <span className="font-body-md text-sm font-bold text-gray-500">{typeof item.price === 'number' ? `₹${item.price.toLocaleString('en-IN')}` : item.price}</span>
+                    <span className="font-body-md text-lg font-bold text-gray-500">{typeof item.price === 'number' ? `₹${item.price.toLocaleString('en-IN')}` : item.price}</span>
                   </div>
                 </Link>
               ))
@@ -532,7 +572,7 @@ export default function Home() {
             </button>
             
             <span id="socks-pagination" className="text-xs font-medium text-gray-500 tracking-widest">
-              1/2
+              1/{apparelHighlights.length || 1}
             </span>
 
             <button 
@@ -569,7 +609,7 @@ export default function Home() {
               </div>
             ))
           ) : (
-            products.filter(p => p.productType === 'electronics').slice(0, 5).map((item) => (
+            techHome.slice(0, 5).map((item) => (
               <Link to={`/product/${item.id}`} key={item.id} className="group/card block cursor-pointer relative">
                 <div className="aspect-[4/5] bg-[#f6f5f0] mb-3 overflow-hidden relative">
                   <img 

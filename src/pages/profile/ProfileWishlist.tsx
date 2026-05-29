@@ -71,7 +71,7 @@ export default function ProfileWishlist() {
             </div>
             <div className="p-4 flex flex-col flex-grow">
               <h3 className="font-serif text-lg text-charcoal-stone group-hover:text-primary transition-colors">{product.name}</h3>
-              <p className="text-base font-bold tracking-wide text-charcoal-stone mt-1 mb-4">{typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}</p>
+              <p className="text-xl font-bold tracking-wide text-charcoal-stone mt-1 mb-4">{typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}</p>
               
               <button 
                 onClick={() => handleAddToCart(product)}

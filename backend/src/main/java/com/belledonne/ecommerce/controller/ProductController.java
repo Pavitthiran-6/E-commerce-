@@ -80,6 +80,20 @@ public class ProductController {
             productService.getBestsellersResponses(PageRequest.of(page, size))));
     }
 
+    @GetMapping("/apparel-highlights")
+    public ResponseEntity<ApiResponse<?>> getApparelHighlights(
+        @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "12") int size) {
+        return ResponseEntity.ok(ApiResponse.success("Apparel highlights products",
+            productService.getApparelHighlightsResponses(PageRequest.of(page, size))));
+    }
+
+    @GetMapping("/tech-home")
+    public ResponseEntity<ApiResponse<?>> getTechHome(
+        @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "12") int size) {
+        return ResponseEntity.ok(ApiResponse.success("Tech & Home products",
+            productService.getTechHomeResponses(PageRequest.of(page, size))));
+    }
+
     @GetMapping("/sale")
     public ResponseEntity<ApiResponse<?>> getSale(
         @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "12") int size) {

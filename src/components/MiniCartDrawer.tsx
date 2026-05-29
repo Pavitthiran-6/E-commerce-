@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { X, Plus, Minus, Trash2 } from 'lucide-react';
 import { useCart } from '../context';
+import { useAuth } from '../context/AuthContext';
 import { formatPrice } from '../utils/formatPrice';
 
 interface MiniCartDrawerProps {
@@ -11,6 +12,7 @@ interface MiniCartDrawerProps {
 
 export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps) {
   const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
+  const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -93,7 +95,6 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
             <div className="flex flex-col gap-3">
               <button 
                 onClick={() => {
-                  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
                   if (!isLoggedIn) {
                     localStorage.setItem('redirectAfterLogin', '/checkout/address');
                     onClose();

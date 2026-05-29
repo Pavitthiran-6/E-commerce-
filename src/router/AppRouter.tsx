@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 
 // Layouts & Utility Components
 import MainLayout from '../components/layout/MainLayout';
@@ -8,6 +8,7 @@ import PageLoader from '../components/common/PageLoader';
 import ScrollToTop from '../components/common/ScrollToTop';
 import ProtectedRoute from './ProtectedRoute';
 import GuestRoute from './GuestRoute';
+import { useAuth } from '../context/AuthContext';
 
 // ----------------------------------------------------------------------
 // Lazy Loaded Pages
@@ -54,7 +55,28 @@ const ReturnRefundPolicy = React.lazy(() => import('../pages/policies/ReturnRefu
 const ShippingPolicy = React.lazy(() => import('../pages/policies/ShippingPolicy'));
 const Terms = React.lazy(() => import('../pages/policies/Terms'));
 
+// Admin Pages
+const AdminLayout = React.lazy(() => import('../pages/admin/AdminLayout'));
+const AdminDashboard = React.lazy(() => import('../pages/admin/AdminDashboard'));
+const ManageProducts = React.lazy(() => import('../pages/admin/ManageProducts'));
+const AddProduct = React.lazy(() => import('../pages/admin/AddProduct'));
+const EditProduct = React.lazy(() => import('../pages/admin/EditProduct'));
+const ManageCategories = React.lazy(() => import('../pages/admin/ManageCategories'));
+const ManageOrders = React.lazy(() => import('../pages/admin/ManageOrders'));
+const ManageUsers = React.lazy(() => import('../pages/admin/ManageUsers'));
+const ManageCoupons = React.lazy(() => import('../pages/admin/ManageCoupons'));
+const ManageNewArrivals = React.lazy(() => import('../pages/admin/ManageNewArrivals'));
+const ManageSales = React.lazy(() => import('../pages/admin/ManageSales'));
+
 // ----------------------------------------------------------------------
+
+// ⛔ Protects admin routes — redirects non-admins to home
+function AdminRoute() {
+  const { user, isLoggedIn } = useAuth();
+  if (!isLoggedIn) return <Navigate to="/auth/login" replace />;
+  if (user?.role !== 'ROLE_ADMIN') return <Navigate to="/" replace />;
+  return <Outlet />;
+}
 
 export default function AppRouter() {
   return (
@@ -74,6 +96,13 @@ export default function AppRouter() {
               <Route path="/auth/forgot-password" element={<ForgotPassword />} />
               <Route path="/auth/reset-password" element={<ResetPassword />} />
               <Route path="/auth/verify-otp" element={<VerifyOTP />} />
+              
+              {/* Backwards compatibility / root-level paths */}
+              <Route path="/login" element={<Navigate to="/auth/login" replace />} />
+              <Route path="/signup" element={<Navigate to="/auth/signup" replace />} />
+              <Route path="/forgot-password" element={<Navigate to="/auth/forgot-password" replace />} />
+              <Route path="/reset-password" element={<Navigate to="/auth/reset-password" replace />} />
+              <Route path="/verify-otp" element={<Navigate to="/auth/verify-otp" replace />} />
             </Route>
           </Route>
 
@@ -103,6 +132,7 @@ export default function AppRouter() {
             <Route element={<ProtectedRoute />}>
               
               {/* Checkout Flow */}
+              <Route path="/checkout" element={<Navigate to="/checkout/address" replace />} />
               <Route path="/checkout/address" element={<Address />} />
               <Route path="/checkout/payment" element={<Payment />} />
               <Route path="/checkout/confirmation" element={<Confirmation />} />
@@ -120,6 +150,22 @@ export default function AppRouter() {
                 <Route path="password" element={<ProfilePassword />} />
               </Route>
 
+            </Route>
+          </Route>
+
+          {/* ADMIN ROUTES */}
+          <Route element={<AdminRoute />}>
+            <Route element={<AdminLayout />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/categories" element={<ManageCategories />} />
+              <Route path="/admin/products" element={<ManageProducts />} />
+              <Route path="/admin/products/add" element={<AddProduct />} />
+              <Route path="/admin/products/edit/:id" element={<EditProduct />} />
+              <Route path="/admin/orders" element={<ManageOrders />} />
+              <Route path="/admin/users" element={<ManageUsers />} />
+              <Route path="/admin/coupons" element={<ManageCoupons />} />
+              <Route path="/admin/new-arrivals" element={<ManageNewArrivals />} />
+              <Route path="/admin/sales" element={<ManageSales />} />
             </Route>
           </Route>
 

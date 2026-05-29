@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, X } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface LogoutModalProps {
   isOpen: boolean;
@@ -9,12 +10,13 @@ interface LogoutModalProps {
 
 export default function LogoutModal({ isOpen, onClose }: LogoutModalProps) {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   if (!isOpen) return null;
 
-  const handleLogout = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userEmail');
+  const handleLogout = async () => {
+    await logout();
+    onClose();
     window.location.href = '/';
   };
 

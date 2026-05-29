@@ -1,9 +1,9 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function GuestRoute() {
-  // Replace this with actual auth check later
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  const { isLoggedIn } = useAuth();
 
   if (isLoggedIn) {
     return <Navigate to="/" replace />;
