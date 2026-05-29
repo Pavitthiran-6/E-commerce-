@@ -2,6 +2,7 @@ package com.belledonne.ecommerce.exception;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     private record ErrorResponse(
@@ -36,36 +38,43 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex, HttpServletRequest req) {
+        log.warn("Resource not found: {}", ex.getMessage());
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), "RESOURCE_NOT_FOUND", req.getRequestURI(), null);
     }
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException ex, HttpServletRequest req) {
+        log.warn("Bad request: {}", ex.getMessage());
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), "BAD_REQUEST", req.getRequestURI(), null);
     }
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex, HttpServletRequest req) {
+        log.warn("Unauthorized access: {}", ex.getMessage());
         return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), "UNAUTHORIZED", req.getRequestURI(), null);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest req) {
+        log.warn("Access denied on path {}: {}", req.getRequestURI(), ex.getMessage());
         return build(HttpStatus.FORBIDDEN, "Access denied", "FORBIDDEN", req.getRequestURI(), null);
     }
 
     @ExceptionHandler(CouponException.class)
     public ResponseEntity<ErrorResponse> handleCoupon(CouponException ex, HttpServletRequest req) {
+        log.warn("Coupon error: {}", ex.getMessage());
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), "COUPON_ERROR", req.getRequestURI(), null);
     }
 
     @ExceptionHandler(PaymentException.class)
     public ResponseEntity<ErrorResponse> handlePayment(PaymentException ex, HttpServletRequest req) {
+        log.error("Payment error: ", ex);
         return build(HttpStatus.PAYMENT_REQUIRED, ex.getMessage(), "PAYMENT_ERROR", req.getRequestURI(), null);
     }
 
     @ExceptionHandler(ExpiredJwtException.class)
     public ResponseEntity<ErrorResponse> handleExpiredJwt(ExpiredJwtException ex, HttpServletRequest req) {
+        log.warn("JWT token expired: {}", ex.getMessage());
         return build(HttpStatus.UNAUTHORIZED, "JWT token has expired", "TOKEN_EXPIRED", req.getRequestURI(), null);
     }
 
@@ -75,6 +84,7 @@ public class GlobalExceptionHandler {
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             fieldErrors.put(error.getField(), error.getDefaultMessage());
         }
+        log.warn("Validation failed on path {}: {}", req.getRequestURI(), fieldErrors);
         return build(HttpStatus.BAD_REQUEST, "Validation failed", "VALIDATION_ERROR", req.getRequestURI(), fieldErrors);
     }
 
@@ -82,16 +92,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleDuplicate(DataIntegrityViolationException ex, HttpServletRequest req) {
         String message = ex.getMessage() != null && ex.getMessage().contains("email")
             ? "An account with this email already exists" : "Data integrity violation";
+        log.error("Data integrity violation: ", ex);
         return build(HttpStatus.CONFLICT, message, "DATA_CONFLICT", req.getRequestURI(), null);
     }
 
     @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthentication(org.springframework.security.core.AuthenticationException ex, HttpServletRequest req) {
+        log.warn("Authentication failed on path {}: {}", req.getRequestURI(), ex.getMessage());
         return build(HttpStatus.UNAUTHORIZED, "Invalid email or password", "INVALID_CREDENTIALS", req.getRequestURI(), null);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest req) {
+        log.error("Unhandled exception occurred on path {}: ", req.getRequestURI(), ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred. Please try again.",
             "INTERNAL_SERVER_ERROR", req.getRequestURI(), null);
     }
