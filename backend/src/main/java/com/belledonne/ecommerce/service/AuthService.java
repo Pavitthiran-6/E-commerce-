@@ -140,7 +140,7 @@ public class AuthService {
             .phone(user.getPhone())
             .dateOfBirth(user.getDateOfBirth())
             .gender(user.getGender())
-            .role(user.getRole().name())
+            .role(user.getRole() != null ? user.getRole().name() : com.belledonne.ecommerce.enums.Role.ROLE_USER.name())
             .isEmailVerified(user.getIsEmailVerified())
             .isBlocked(user.getIsBlocked())
             .blockedReason(user.getBlockedReason())

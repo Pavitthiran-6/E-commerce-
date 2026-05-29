@@ -21,8 +21,9 @@ public class UserPrincipal implements UserDetails {
     private final Collection<? extends GrantedAuthority> authorities;
 
     public static UserPrincipal create(User user) {
+        com.belledonne.ecommerce.enums.Role userRole = user.getRole() != null ? user.getRole() : com.belledonne.ecommerce.enums.Role.ROLE_USER;
         List<GrantedAuthority> authorities = List.of(
-            new SimpleGrantedAuthority(user.getRole().name())
+            new SimpleGrantedAuthority(userRole.name())
         );
         return new UserPrincipal(user.getId(), user.getEmail(), user.getPassword(), authorities);
     }
