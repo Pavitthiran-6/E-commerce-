@@ -73,8 +73,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isLoggedIn = !!user;
-  const userName = user ? extractNameFromEmail(user.email) : '';
-  const userInitial = user ? (userName ? userName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()) : '';
+  const userName = user && user.email ? extractNameFromEmail(user.email) : '';
+  const userInitial = user ? (userName ? userName.charAt(0).toUpperCase() : (user.email ? user.email.charAt(0).toUpperCase() : '')) : '';
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isLoggedIn, userInitial, userName }}>

@@ -40,7 +40,7 @@ export default function TrackOrder() {
       });
   }, [orderIdParam]);
 
-  const status = order?.status.charAt(0).toUpperCase() + (order?.status.slice(1).toLowerCase() || '') || 'Unknown';
+  const status = order?.status ? (order.status.charAt(0).toUpperCase() + order.status.slice(1).toLowerCase()) : 'Unknown';
 
   const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
 

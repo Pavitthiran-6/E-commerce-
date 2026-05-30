@@ -66,7 +66,7 @@ export default function ProfileDetails() {
   }
 
   const email = profile?.email || user?.email || '';
-  const avatarLetter = fullName ? fullName.charAt(0).toUpperCase() : email.charAt(0).toUpperCase();
+  const avatarLetter = fullName ? fullName.charAt(0).toUpperCase() : (email ? email.charAt(0).toUpperCase() : '');
 
   return (
     <div className="bg-white p-6 md:p-8 border border-outline-variant/30 rounded-xl">
