@@ -63,7 +63,7 @@ public class OrderService {
         BigDecimal discount = BigDecimal.ZERO;
         Coupon coupon = null;
         if (request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
-            Map<String, Object> couponResult = couponService.validateCoupon(request.getCouponCode(), subtotal);
+            Map<String, Object> couponResult = couponService.validateCoupon(request.getCouponCode(), subtotal, user.getId());
             discount = (BigDecimal) couponResult.get("discountAmount");
             couponService.incrementUsage(request.getCouponCode());
         }

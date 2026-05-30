@@ -16,6 +16,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecificationExecutor<Order> {
     Page<Order> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    boolean existsByUserIdAndCouponCodeIgnoreCaseAndStatusNot(UUID userId, String couponCode, OrderStatus status);
     Optional<Order> findByOrderNumber(String orderNumber);
     Page<Order> findAllByOrderByCreatedAtDesc(Pageable pageable);
     Page<Order> findByStatusOrderByCreatedAtDesc(OrderStatus status, Pageable pageable);

@@ -3,9 +3,11 @@ package com.belledonne.ecommerce.service;
 import com.belledonne.ecommerce.dto.request.CouponRequest;
 import com.belledonne.ecommerce.dto.response.CouponResponse;
 import com.belledonne.ecommerce.entity.Coupon;
+import com.belledonne.ecommerce.enums.OrderStatus;
 import com.belledonne.ecommerce.exception.CouponException;
 import com.belledonne.ecommerce.exception.ResourceNotFoundException;
 import com.belledonne.ecommerce.repository.CouponRepository;
+import com.belledonne.ecommerce.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,6 +26,7 @@ import java.util.stream.Collectors;
 public class CouponService {
 
     private final CouponRepository couponRepository;
+    private final OrderRepository orderRepository;
 
     public List<CouponResponse> getActiveCoupons() {
         return getAvailableCoupons();
@@ -104,6 +108,10 @@ public class CouponService {
     }
 
     public Map<String, Object> validateCoupon(String code, BigDecimal cartTotal) {
+        return validateCoupon(code, cartTotal, null);
+    }
+
+    public Map<String, Object> validateCoupon(String code, BigDecimal cartTotal, UUID userId) {
         Coupon coupon = couponRepository.findByCodeIgnoreCase(code)
             .orElseThrow(() -> new CouponException("Coupon code '" + code + "' is not valid"));
 
@@ -116,8 +124,13 @@ public class CouponService {
             String formattedVal = java.text.NumberFormat.getNumberInstance(new java.util.Locale("en", "IN")).format(coupon.getMinCartValue());
             throw new CouponException("Minimum order value is ₹" + formattedVal + " for this coupon");
         }
-        if (coupon.getUsageLimit() != null && coupon.getUsedCount() >= coupon.getUsageLimit())
+        if (coupon.getUsageLimit() != null && (coupon.getUsedCount() != null && coupon.getUsedCount() >= coupon.getUsageLimit()))
             throw new CouponException("This coupon has reached its usage limit");
+
+        // Enforce e-commerce rule: one usage per user (excluding cancelled orders)
+        if (userId != null && orderRepository.existsByUserIdAndCouponCodeIgnoreCaseAndStatusNot(userId, code, OrderStatus.CANCELLED)) {
+            throw new CouponException("You have already used this coupon code '" + code.toUpperCase() + "' once");
+        }
 
         BigDecimal discount = calculateDiscount(coupon, cartTotal);
         return Map.of(

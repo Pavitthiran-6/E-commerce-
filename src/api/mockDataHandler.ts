@@ -757,6 +757,22 @@ export const handleMockRequest = async (config: any): Promise<any> => {
         });
       }
 
+      // Check if this coupon has already been used by the current user (one-time rule)
+      const currentUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
+      if (currentUser && (currentUser.email || currentUser.id)) {
+        const orders = getStored('orders', []);
+        const hasUsed = orders.some((o: any) => 
+          (o.userId === currentUser.id || o.userEmail === currentUser.email || o.user?.email === currentUser.email) &&
+          o.couponCode?.toUpperCase() === code &&
+          o.status?.toLowerCase() !== 'cancelled'
+        );
+        if (hasUsed) {
+          return Promise.reject({
+            response: { status: 400, data: { message: `You have already used this coupon code '${code}' once.` } }
+          });
+        }
+      }
+
       if (!coupon.isActive) {
         return Promise.reject({
           response: { status: 400, data: { message: 'This coupon is not available.' } }
@@ -968,9 +984,12 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       const discountAmount = payload.couponCode === 'WELCOME10' ? cart.subtotal * 0.1 : 0;
       const totalAmount = cart.subtotal - discountAmount;
       
+      const currentUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
       const newOrder = {
         id: `ord_${Math.floor(100000 + Math.random() * 900000)}`,
         orderNumber: `BLD-${Math.floor(100000 + Math.random() * 900000)}`,
+        userId: currentUser?.id || 'demo-user-id',
+        userEmail: currentUser?.email || 'demo@example.com',
         status: 'processing',
         subtotal: cart.subtotal,
         shippingCharge: 0,

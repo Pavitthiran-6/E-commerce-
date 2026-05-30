@@ -61,6 +61,6 @@ public class CouponController {
         }
 
         return ResponseEntity.ok(ApiResponse.success("Coupon validated",
-            couponService.validateCoupon(finalCode, finalCartTotal)));
+            couponService.validateCoupon(finalCode, finalCartTotal, principal != null ? principal.getId() : null)));
     }
 }
