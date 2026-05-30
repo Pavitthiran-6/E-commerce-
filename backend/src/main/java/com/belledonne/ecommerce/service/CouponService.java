@@ -34,7 +34,7 @@ public class CouponService {
             .stream()
             .filter(coupon -> Boolean.TRUE.equals(coupon.getIsActive()))
             .filter(coupon -> coupon.getValidUntil() == null || coupon.getValidUntil().isAfter(now))
-            .filter(coupon -> coupon.getUsageLimit() == null || coupon.getUsedCount() < coupon.getUsageLimit())
+            .filter(coupon -> coupon.getUsageLimit() == null || (coupon.getUsedCount() != null && coupon.getUsedCount() < coupon.getUsageLimit()))
             .map(this::toResponse)
             .collect(Collectors.toList());
     }
@@ -144,7 +144,7 @@ public class CouponService {
 
     public void incrementUsage(String code) {
         couponRepository.findByCodeIgnoreCase(code).ifPresent(c -> {
-            c.setUsedCount(c.getUsedCount() + 1);
+            c.setUsedCount((c.getUsedCount() != null ? c.getUsedCount() : 0) + 1);
             couponRepository.save(c);
         });
     }
@@ -164,7 +164,7 @@ public class CouponService {
             .filter(coupon -> Boolean.TRUE.equals(coupon.getIsActive()))
             .filter(coupon -> Boolean.TRUE.equals(coupon.getShowOnHome()))
             .filter(coupon -> coupon.getValidUntil() == null || coupon.getValidUntil().isAfter(now))
-            .filter(coupon -> coupon.getUsageLimit() == null || coupon.getUsedCount() < coupon.getUsageLimit())
+            .filter(coupon -> coupon.getUsageLimit() == null || (coupon.getUsedCount() != null && coupon.getUsedCount() < coupon.getUsageLimit()))
             .map(this::toResponse)
             .collect(Collectors.toList());
     }
