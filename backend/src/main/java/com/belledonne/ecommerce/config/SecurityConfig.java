@@ -60,6 +60,8 @@ public class SecurityConfig {
                 })
             )
             .authorizeHttpRequests(auth -> auth
+                // Allow CORS preflight requests
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // Public auth routes
                 .requestMatchers("/api/auth/**").permitAll()
                 // Public product/category/review read routes
