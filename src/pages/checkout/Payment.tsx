@@ -7,6 +7,7 @@ import { LoadingButton } from '../../components/LoadingButton';
 import { coupons, calculateDiscount } from '../../utils/couponLogic';
 import { placeOrder } from '../../services/orderService';
 import { createPaymentOrder, verifyPayment } from '../../services/paymentService';
+import { getProductById } from '../../services/productService';
 
 /* ─── Custom Dropdown ─── */
 interface CustomDropdownProps {
@@ -149,6 +150,29 @@ export default function CheckoutPayment() {
   const [bank, setBank] = useState('');
   const [wallet, setWallet] = useState('');
   const [card, setCard] = useState({ number: '', name: '', expiry: '', cvv: '' });
+  const [codDisabled, setCodDisabled] = useState(false);
+
+  useEffect(() => {
+    const checkCodAvailability = async () => {
+      try {
+        const promises = cartItems.map(item => getProductById(item.id));
+        const products = await Promise.all(promises);
+        const hasNoCodProduct = products.some(p => p && p.codAvailable === false);
+        setCodDisabled(hasNoCodProduct);
+      } catch (err) {
+        console.warn('Failed to check COD availability for cart products', err);
+      }
+    };
+    if (cartItems.length > 0) {
+      checkCodAvailability();
+    }
+  }, [cartItems]);
+
+  useEffect(() => {
+    if (codDisabled && method === 'cod') {
+      setMethod('upi');
+    }
+  }, [codDisabled, method]);
 
   const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
@@ -180,8 +204,11 @@ export default function CheckoutPayment() {
   ];
 
   const METHODS = ALL_METHODS.filter(m => {
-    if (m.id === 'cod' && cartItems.some(item => item.id === '376d0483-9223-4338-be12-0861da0688cb')) {
-      return false;
+    if (m.id === 'cod') {
+      if (codDisabled) return false;
+      if (cartItems.some(item => item.id === '376d0483-9223-4338-be12-0861da0688cb')) {
+        return false;
+      }
     }
     return true;
   });
