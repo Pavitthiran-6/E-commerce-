@@ -197,12 +197,33 @@ export default function Product() {
     }
   };
 
-  const productPhotos = [
-    "https://lh3.googleusercontent.com/aida/ADBb0ugdJSLBhMOg17OKe5bEJVJiBOhqWn1_CUUSdpfLgqnS0r5rnqduDT4BHMLRSGcg-0QLdZ9mZ-xJDKkRLPv00aFS4YEjyzC2Y_9u3Ue9CIXPPs3C-VFKzrv-JUWkAZKNpej3W2G-so1vCRj_QuKcV5zNWSiRxnLpG08to022Vug_7Eq_NJ5rTgs__4F2qFl-ucJsozGDdMUZO1jXGXnEZBdn2YKT8sh9JNq-srHVfu-d86eGN6cdSo8XWhZC",
-    "https://lh3.googleusercontent.com/aida/ADBb0uj7lpaKtCv6nmi__My16-1qw2GYsH8kGgWFX8sUp721M_3ZV1MXIEiixNADIqC1jf-Rn59cGUE0vfnGsv0eaYIkXaBU2mD4UoqPL47zb5xDriq6Be_KER-k6w9iGYKoi3Gq3mahFAac52krcZcpiFptpAgz1Snfd21Oxzc8EpKqU4C_MQ3CKGYxVvvvMOLqEOUJmYN0MCg1Sj0PVKDgUO-eNTaGY_EHXre61DRpKfSMUG7vbzwE-NdNVtwC",
-    ...(id === 'b0-classic' ? ["https://images.unsplash.com/photo-1608231387042-66d1773070a5?q=80&w=2000&auto=format&fit=crop"] : []),
-    "https://lh3.googleusercontent.com/aida-public/AB6AXuCB7FrTQPZN7y1jyl2TYYUyxVUNWnJKIb4RBaa22BhfUShaM8hHCbw6KdNF_gn5eFdoas6M1kOz_AMKzZSSWibUf9NHuPD_ZhzdfoHsDoINSMF_7oJwC7hW6X6fRTAvKi5XeHRiOaVk-9WsjyoDAZv4gxfr9Ly7OW-ISIbkHXjZBRhXwORYc_OhcP_cfe-eF81i8NK8Ri-xjKi13fMi2sWFL28l-5LSGLOh-VI3whH1ApbIHo9raaOK6d8HCYLA9BGWRxw561reu3uR"
-  ];
+  const isCustomImages = product && product.images && product.images.length > 0;
+  const productPhotos = isCustomImages
+    ? product.images
+    : [
+        product?.image || "https://lh3.googleusercontent.com/aida/ADBb0ugdJSLBhMOg17OKe5bEJVJiBOhqWn1_CUUSdpfLgqnS0r5rnqduDT4BHMLRSGcg-0QLdZ9mZ-xJDKkRLPv00aFS4YEjyzC2Y_9u3Ue9CIXPPs3C-VFKzrv-JUWkAZKNpej3W2G-so1vCRj_QuKcV5zNWSiRxnLpG08to022Vug_7Eq_NJ5rTgs__4F2qFl-ucJsozGDdMUZO1jXGXnEZBdn2YKT8sh9JNq-srHVfu-d86eGN6cdSo8XWhZC",
+        "https://lh3.googleusercontent.com/aida/ADBb0uj7lpaKtCv6nmi__My16-1qw2GYsH8kGgWFX8sUp721M_3ZV1MXIEiixNADIqC1jf-Rn59cGUE0vfnGsv0eaYIkXaBU2mD4UoqPL47zb5xDriq6Be_KER-k6w9iGYKoi3Gq3mahFAac52krcZcpiFptpAgz1Snfd21Oxzc8EpKqU4C_MQ3CKGYxVvvvMOLqEOUJmYN0MCg1Sj0PVKDgUO-eNTaGY_EHXre61DRpKfSMUG7vbzwE-NdNVtwC",
+        ...(id === 'b0-classic' ? ["https://images.unsplash.com/photo-1608231387042-66d1773070a5?q=80&w=2000&auto=format&fit=crop"] : []),
+        "https://lh3.googleusercontent.com/aida-public/AB6AXuCB7FrTQPZN7y1jyl2TYYUyxVUNWnJKIb4RBaa22BhfUShaM8hHCbw6KdNF_gn5eFdoas6M1kOz_AMKzZSSWibUf9NHuPD_ZhzdfoHsDoINSMF_7oJwC7hW6X6fRTAvKi5XeHRiOaVk-9WsjyoDAZv4gxfr9Ly7OW-ISIbkHXjZBRhXwORYc_OhcP_cfe-eF81i8NK8Ri-xjKi13fMi2sWFL28l-5LSGLOh-VI3whH1ApbIHo9raaOK6d8HCYLA9BGWRxw561reu3uR"
+      ];
+
+  const defaultTextureUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuCB7FrTQPZN7y1jyl2TYYUyxVUNWnJKIb4RBaa22BhfUShaM8hHCbw6KdNF_gn5eFdoas6M1kOz_AMKzZSSWibUf9NHuPD_ZhzdfoHsDoINSMF_7oJwC7hW6X6fRTAvKi5XeHRiOaVk-9WsjyoDAZv4gxfr9Ly7OW-ISIbkHXjZBRhXwORYc_OhcP_cfe-eF81i8NK8Ri-xjKi13fMi2sWFL28l-5LSGLOh-VI3whH1ApbIHo9raaOK6d8HCYLA9BGWRxw561reu3uR";
+  
+  let thirdImageSrc = defaultTextureUrl;
+  let thirdImageClickIndex = isCustomImages ? 0 : (id === 'b0-classic' ? 3 : 2);
+
+  if (isCustomImages) {
+    if (productPhotos.length >= 3) {
+      thirdImageSrc = productPhotos[2];
+      thirdImageClickIndex = 2;
+    } else {
+      thirdImageSrc = defaultTextureUrl;
+      thirdImageClickIndex = 0;
+    }
+  } else {
+    thirdImageSrc = productPhotos[id === 'b0-classic' ? 3 : 2] || defaultTextureUrl;
+  }
+
   const [productLightboxIndex, setProductLightboxIndex] = useState<number | null>(null);
 
   const nextProductImage = (e: React.MouseEvent) => {
@@ -246,7 +267,7 @@ export default function Product() {
       {/* Left Column: Product Imagery */}
       <div className="w-full md:w-1/2 flex flex-col gap-4">
         <div className="w-full bg-[#f6f5f0] aspect-[4/5] flex items-center justify-center overflow-hidden">
-          <img alt={product.name} onClick={() => setProductLightboxIndex(0)} className="w-full h-full object-scale-down p-4 transform transition-transform duration-700 ease-in-out hover:scale-105 mix-blend-multiply cursor-pointer" src={product.image} />
+          <img alt={product.name} onClick={() => setProductLightboxIndex(0)} className="w-full h-full object-scale-down p-4 transform transition-transform duration-700 ease-in-out hover:scale-105 mix-blend-multiply cursor-pointer" src={product.image || productPhotos[0] || ''} />
         </div>
         {productPhotos.slice(1).map((photo, idx) => (
           <div key={idx} className="w-full bg-[#f6f5f0] aspect-[4/5] flex items-center justify-center overflow-hidden">
@@ -509,7 +530,7 @@ export default function Product() {
 
         {/* Right Side: Third Image */}
         <div className="w-full md:w-1/2 bg-[#f6f5f0] flex items-center justify-center overflow-hidden group h-[50vh] md:h-auto min-h-[500px]">
-          <img alt="Sneaker texture detail full width" onClick={() => setProductLightboxIndex(id === 'b0-classic' ? 3 : 2)} className="w-full h-full object-scale-down p-8 transform transition-transform duration-1000 ease-in-out group-hover:scale-105 mix-blend-multiply cursor-pointer" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCB7FrTQPZN7y1jyl2TYYUyxVUNWnJKIb4RBaa22BhfUShaM8hHCbw6KdNF_gn5eFdoas6M1kOz_AMKzZSSWibUf9NHuPD_ZhzdfoHsDoINSMF_7oJwC7hW6X6fRTAvKi5XeHRiOaVk-9WsjyoDAZv4gxfr9Ly7OW-ISIbkHXjZBRhXwORYc_OhcP_cfe-eF81i8NK8Ri-xjKi13fMi2sWFL28l-5LSGLOh-VI3whH1ApbIHo9raaOK6d8HCYLA9BGWRxw561reu3uR" />
+          <img alt="Sneaker texture detail full width" onClick={() => setProductLightboxIndex(thirdImageClickIndex)} className="w-full h-full object-scale-down p-8 transform transition-transform duration-1000 ease-in-out group-hover:scale-105 mix-blend-multiply cursor-pointer" src={thirdImageSrc} />
         </div>
       </section>
 
