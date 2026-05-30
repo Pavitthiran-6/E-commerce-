@@ -21,6 +21,20 @@ const setStored = (key: string, value: any) => {
 // Initialize mock products in localStorage if not set
 getStored('products', mockProducts);
 
+const defaultCategories = [
+  { id: 1, name: 'Footwear', slug: 'footwear', description: 'Premium collection of shoes, sneakers, and boots.', parentId: null },
+  { id: 2, name: 'Sneakers', slug: 'sneakers', description: 'Minimalist sneakers', parentId: 1 },
+  { id: 3, name: 'Boots', slug: 'boots', description: 'Handcrafted boots', parentId: 1 },
+  { id: 4, name: 'Apparel', slug: 'apparel', description: 'Designer clothing and outerwear.', parentId: null },
+  { id: 5, name: 'Outerwear', slug: 'outerwear', description: 'Jackets and coats', parentId: 4 },
+  { id: 6, name: 'Shirts', slug: 'shirts', description: 'Casual and formal shirts', parentId: 4 },
+  { id: 7, name: 'Accessories', slug: 'accessories', description: 'Fine leather bags, belts, and items.', parentId: null },
+  { id: 8, name: 'Bags', slug: 'bags', description: 'Leather travel bags and backpacks', parentId: 7 },
+  { id: 9, name: 'Belts', slug: 'belts', description: 'Classic leather belts', parentId: 7 }
+];
+
+getStored('categories_list', defaultCategories);
+
 export const handleMockRequest = async (config: any): Promise<any> => {
   const url = config.url || '';
   const method = (config.method || 'get').toLowerCase();
@@ -1306,6 +1320,93 @@ export const handleMockRequest = async (config: any): Promise<any> => {
         data: {
           data: updatedList.find((p: any) => p.id === productId)
         },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  // 19B. CATEGORIES (PUBLIC & ADMIN)
+  if (path === '/api/categories/tree') {
+    if (method === 'get') {
+      const allCats = getStored('categories_list', defaultCategories);
+      const mainCats = allCats.filter((c: any) => !c.parentId);
+      const tree = mainCats.map((parent: any) => {
+        const children = allCats.filter((c: any) => c.parentId === parent.id);
+        return {
+          ...parent,
+          children: children.map((child: any) => ({ ...child, children: [] }))
+        };
+      });
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: { data: tree },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  if (path === '/api/admin/categories') {
+    if (method === 'post') {
+      const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+      const allCats = getStored('categories_list', defaultCategories);
+      const newCat = {
+        id: Math.floor(100 + Math.random() * 900),
+        name: payload.name,
+        slug: payload.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        description: payload.description || '',
+        parentId: payload.parentId ? Number(payload.parentId) : null
+      };
+      allCats.push(newCat);
+      setStored('categories_list', allCats);
+      return {
+        status: 201,
+        statusText: 'Created',
+        data: { data: newCat },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  const adminCategoryMatch = path.match(/^\/api\/admin\/categories\/([^\/]+)$/);
+  if (adminCategoryMatch) {
+    const catId = Number(adminCategoryMatch[1]);
+    const allCats = getStored('categories_list', defaultCategories);
+    
+    if (method === 'put') {
+      const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+      const updatedCats = allCats.map((c: any) => {
+        if (c.id === catId) {
+          return {
+            ...c,
+            name: payload.name,
+            slug: payload.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+            description: payload.description || '',
+            parentId: payload.parentId ? Number(payload.parentId) : null
+          };
+        }
+        return c;
+      });
+      setStored('categories_list', updatedCats);
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: { data: updatedCats.find((c: any) => c.id === catId) },
+        headers: {},
+        config
+      };
+    }
+
+    if (method === 'delete') {
+      const filtered = allCats.filter((c: any) => c.id !== catId && c.parentId !== catId);
+      setStored('categories_list', filtered);
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: { data: true },
         headers: {},
         config
       };
