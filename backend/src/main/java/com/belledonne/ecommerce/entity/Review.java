@@ -49,6 +49,9 @@ public class Review {
     @Builder.Default
     private Boolean isApproved = true;
 
+    @Column(name = "images", columnDefinition = "text[]")
+    private String[] images;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

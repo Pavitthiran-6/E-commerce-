@@ -36,5 +36,13 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("Database migration coupons table cleanup skipped or failed: {}", e.getMessage());
         }
+
+        try {
+            // Add images column to reviews if not exists
+            jdbcTemplate.execute("ALTER TABLE reviews ADD COLUMN IF NOT EXISTS images text[]");
+            log.info("Database migration successfully added images column to reviews table!");
+        } catch (Exception e) {
+            log.warn("Database migration reviews.images alter skipped or failed: {}", e.getMessage());
+        }
     }
 }

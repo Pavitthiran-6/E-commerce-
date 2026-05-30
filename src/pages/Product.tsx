@@ -9,6 +9,7 @@ import { useToast } from '../context/ToastContext';
 import { LoadingButton } from '../components/LoadingButton';
 import { getProductById } from '../services/productService';
 import { getProductReviews, addReview } from '../services/reviewService';
+import { compressMultipleToBase64 } from '../utils/imageCompress';
 import type { Review } from '../services/reviewService';
 import type { Product as ProductType } from '../data/products';
 import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
@@ -108,7 +109,11 @@ export default function Product() {
     }
     setIsSubmittingReview(true);
     try {
-      const newReview = await addReview(product.id, reviewRating, reviewComment.trim());
+      // Compress and convert selected photos to base64 in parallel
+      const filesToCompress = reviewImages.map(img => img.file);
+      const base64Images = await compressMultipleToBase64(filesToCompress);
+
+      const newReview = await addReview(product.id, reviewRating, reviewComment.trim(), base64Images);
       setReviews(prev => [newReview, ...prev]);
       setTotalReviews(prev => prev + 1);
       showToast('Review submitted successfully!', 'success');
@@ -172,7 +177,13 @@ export default function Product() {
   }, [reviewImages]);
 
 
-  const reviewPhotos = [
+  const dynamicReviewPhotos = reviews
+    .filter(r => r.images && r.images.length > 0)
+    .flatMap(r => r.images!.map(img => ({ url: img, rating: r.rating })));
+
+  const reviewsWithPhotos = reviews.filter(r => r.images && r.images.length > 0);
+
+  const reviewPhotos = dynamicReviewPhotos.length > 0 ? dynamicReviewPhotos : [
     { url: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=1200&auto=format&fit=crop", rating: 5 },
     { url: "https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=1200&auto=format&fit=crop", rating: 5 },
     { url: "https://images.unsplash.com/photo-1608231387042-66d1773070a5?q=80&w=1200&auto=format&fit=crop", rating: 5 },
@@ -479,7 +490,7 @@ export default function Product() {
               {'★'.repeat(5)}
             </div>
             <a href="#reviews" className="font-body-sm text-on-surface-variant underline underline-offset-4 hover:text-primary transition-colors">
-              {totalReviews} Reviews
+              {reviewsWithPhotos.length} Reviews
             </a>
           </div>  {/* Customer Photos Gallery */}
             <div className="flex flex-col gap-3">
@@ -499,7 +510,7 @@ export default function Product() {
           </div>
 
           <div className="flex flex-col gap-8">
-            {reviews.slice(0, 2).map((review) => (
+            {reviewsWithPhotos.slice(0, 2).map((review) => (
               <div key={review.id} className="border-b border-outline-variant/30 pb-8">
                 <div className="flex justify-between items-center mb-3">
                   <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">{review.userName || 'Anonymous'}</span>
@@ -509,9 +520,25 @@ export default function Product() {
                   {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
                 </div>
                 <p className="font-body-md text-on-surface-variant leading-relaxed mb-4">{review.comment}</p>
+                {review.images && review.images.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {review.images.map((img, idx) => (
+                      <img 
+                        key={idx}
+                        src={img} 
+                        alt="Review attachment" 
+                        className="w-16 h-16 object-cover border border-outline-variant/30 rounded-sm cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => {
+                          const photoIdx = reviewPhotos.findIndex(p => p.url === img);
+                          if (photoIdx !== -1) setLightboxIndex(photoIdx);
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
-            {reviews.length === 0 && (
+            {reviewsWithPhotos.length === 0 && (
               <p className="font-body-md text-on-surface-variant italic">No reviews yet. Be the first to review this product!</p>
             )}
           </div>
@@ -523,12 +550,12 @@ export default function Product() {
             >
               Write a Review
             </button>
-            {totalReviews > 2 && (
+            {reviewsWithPhotos.length > 2 && (
               <button 
                 onClick={() => setIsReviewsModalOpen(true)}
                 className="bg-primary text-white font-button text-button uppercase py-3 px-8 hover:bg-primary/90 transition-colors duration-400 ease-in-out tracking-[0.1em]"
               >
-                View All Reviews ({totalReviews})
+                View All Reviews ({reviewsWithPhotos.length})
               </button>
             )}
           </div>
@@ -559,13 +586,13 @@ export default function Product() {
             <h3 className="font-headline-display text-2xl text-primary mb-2 text-center">All Customer Reviews</h3>
             <div className="flex items-center justify-center gap-3 mb-6">
               <div className="flex text-yellow-500 text-lg">★★★★★</div>
-              <span className="font-body-md text-on-surface-variant">{totalReviews} Reviews</span>
+              <span className="font-body-md text-on-surface-variant">{reviewsWithPhotos.length} Reviews</span>
             </div>
 
             {/* Customer Photos Gallery - Hiding mock photos for now since API doesn't support images */}
             
             <div className="flex flex-col gap-8">
-              {reviews.map((review) => (
+              {reviewsWithPhotos.map((review) => (
                 <div key={review.id} className="border-b border-outline-variant/30 pb-8">
                   <div className="flex justify-between items-center mb-3">
                     <span className="font-label-caps text-label-caps text-primary uppercase tracking-widest">{review.userName || 'Anonymous'}</span>
@@ -575,6 +602,22 @@ export default function Product() {
                     {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
                   </div>
                   <p className="font-body-md text-on-surface-variant leading-relaxed mb-4">{review.comment}</p>
+                  {review.images && review.images.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {review.images.map((img, idx) => (
+                        <img 
+                          key={idx}
+                          src={img} 
+                          alt="Review attachment" 
+                          className="w-16 h-16 object-cover border border-outline-variant/30 rounded-sm cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => {
+                            const photoIdx = reviewPhotos.findIndex(p => p.url === img);
+                            if (photoIdx !== -1) setLightboxIndex(photoIdx);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

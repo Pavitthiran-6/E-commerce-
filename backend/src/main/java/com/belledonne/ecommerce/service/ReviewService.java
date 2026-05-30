@@ -53,7 +53,8 @@ public class ReviewService {
         Review review = Review.builder()
             .product(product).user(user)
             .rating(request.getRating()).title(request.getTitle()).comment(request.getComment())
-            .isVerifiedPurchase(hasPurchased).isApproved(false) // Wait! Review defaults to false for approval in Part 5, so admin approves it
+            .images(request.getImages())
+            .isVerifiedPurchase(hasPurchased).isApproved(true) // Auto-approved for instant visibility
             .build();
         Review saved = reviewRepository.save(review);
         updateProductRating(request.getProductId());
@@ -140,6 +141,7 @@ public class ReviewService {
             .title(r.getTitle()).comment(r.getComment())
             .isVerifiedPurchase(r.getIsVerifiedPurchase())
             .isApproved(r.getIsApproved())
+            .images(r.getImages())
             .createdAt(r.getCreatedAt())
             .build();
     }

@@ -18,5 +18,6 @@ public class ReviewResponse {
     private String comment;
     private Boolean isVerifiedPurchase;
     private Boolean isApproved;
+    private String[] images;
     private LocalDateTime createdAt;
 }

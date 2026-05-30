@@ -8,6 +8,7 @@ export interface Review {
   productId: string;
   rating: number;
   comment: string;
+  images?: string[];
   createdAt: string;
 }
 
@@ -26,8 +27,8 @@ export const getProductReviews = async (productId: string, page = 0, size = 10):
   return response.data.data;
 };
 
-export const addReview = async (productId: string, rating: number, comment: string): Promise<Review> => {
-  const response = await axiosInstance.post(ENDPOINTS.REVIEWS, { productId, rating, comment });
+export const addReview = async (productId: string, rating: number, comment: string, images?: string[]): Promise<Review> => {
+  const response = await axiosInstance.post(ENDPOINTS.REVIEWS, { productId, rating, comment, images });
   return response.data.data;
 };
 

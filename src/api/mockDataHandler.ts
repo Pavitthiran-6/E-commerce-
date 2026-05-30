@@ -1170,6 +1170,62 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     }
   }
 
+  // 16B. REVIEWS
+  const reviewProductMatch = path.match(/^\/api\/reviews\/product\/([^\/]+)$/);
+  if (reviewProductMatch) {
+    if (method === 'get') {
+      const productId = reviewProductMatch[1];
+      const allReviews = getStored('reviews_list', []);
+      const productReviews = allReviews.filter((r: any) => r.productId === productId && r.isApproved !== false);
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: {
+          data: {
+            content: productReviews,
+            totalElements: productReviews.length,
+            totalPages: 1,
+            size: 20,
+            number: 0
+          }
+        },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  if (path === '/api/reviews') {
+    if (method === 'post') {
+      const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+      const currentUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
+      const allReviews = getStored('reviews_list', []);
+      const newReview = {
+        id: Math.floor(1000 + Math.random() * 9000),
+        productId: payload.productId,
+        userId: currentUser?.id || 'demo-user-id',
+        userName: currentUser?.name || 'Anonymous',
+        rating: payload.rating,
+        comment: payload.comment,
+        images: payload.images || [],
+        isApproved: true,
+        isVerifiedPurchase: true,
+        createdAt: new Date().toISOString()
+      };
+      allReviews.unshift(newReview);
+      setStored('reviews_list', allReviews);
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: {
+          data: newReview
+        },
+        headers: {},
+        config
+      };
+    }
+  }
+
   // 17. DEAL OF THE DAY (PUBLIC)
   if (path === '/api/sales/deal-of-the-day') {
     if (method === 'get') {
