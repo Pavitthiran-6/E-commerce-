@@ -77,6 +77,31 @@ export default function Sale() {
     }
   };
 
+  // Derived deal product to handle direct response & settings enrichment fallback
+  const activeDealProduct = dealProduct || (settings?.dealOfTheDayProductId ? {
+    id: settings.dealOfTheDayProductId,
+    name: settings.dealProductName || '',
+    brand: '',
+    category: '',
+    subCategory: '',
+    price: settings.dealProductPrice || 0,
+    originalPrice: settings.dealProductOriginalPrice || 0,
+    discount: settings.dealProductDiscountPercentage || 0,
+    discountPercentage: settings.dealProductDiscountPercentage || 0,
+    images: settings.dealProductImage ? [settings.dealProductImage] : [],
+    image: settings.dealProductImage || '',
+    colors: [],
+    sizes: [],
+    description: settings.dealProductDescription || '',
+    tags: [],
+    rating: 5,
+    reviewCount: 0,
+    inStock: true,
+    isNew: false,
+    isBestseller: false,
+    createdAt: ''
+  } as Product : null);
+
   const tabs = ['All Deals', 'Men', 'Women', 'Tech & Kitchen', 'Under ₹999', 'Under ₹1999'];
 
   const filteredProducts = saleProducts.filter(p => {
@@ -141,44 +166,44 @@ export default function Sale() {
       <div className="max-w-container mx-auto px-6 md:px-margin-edge mt-16">
 
         {/* Deal of the Day Banner */}
-        {dealProduct && (
+        {activeDealProduct && (
           <div className="bg-white border-2 border-red-500 rounded-2xl p-6 md:p-10 mb-16 flex flex-col md:flex-row items-center gap-8 md:gap-16 relative overflow-hidden shadow-[0_8px_30px_rgb(239,68,68,0.15)] hover:shadow-[0_8px_40px_rgb(239,68,68,0.25)] transition-shadow">
             <div className="absolute top-0 right-0 bg-red-500 text-white font-bold px-6 py-2 rounded-bl-2xl z-10 tracking-widest text-sm uppercase">
               Deal of the Day
             </div>
             <div className="w-full md:w-1/3 aspect-square bg-gray-50 rounded-xl overflow-hidden relative">
               <img
-                src={dealProduct.image || (dealProduct.images && dealProduct.images[0]) || ''}
-                alt={dealProduct.name}
+                src={activeDealProduct.image || (activeDealProduct.images && activeDealProduct.images[0]) || ''}
+                alt={activeDealProduct.name}
                 className="w-full h-full object-cover mix-blend-multiply"
               />
             </div>
             <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left">
-              <h3 className="font-serif text-3xl md:text-4xl text-charcoal-stone mb-2">{dealProduct.name}</h3>
+              <h3 className="font-serif text-3xl md:text-4xl text-charcoal-stone mb-2">{activeDealProduct.name}</h3>
               <p className="text-gray-500 mb-6 max-w-md">
-                {(dealProduct as any).shortDescription || dealProduct.description}
+                {(activeDealProduct as any).shortDescription || activeDealProduct.description}
               </p>
               <div className="flex items-center gap-4 mb-8">
-                {dealProduct.originalPrice && (dealProduct.originalPrice as any) > 0 && (
+                {activeDealProduct.originalPrice && (activeDealProduct.originalPrice as any) > 0 && (
                   <span className="text-gray-400 line-through text-xl">
-                    ₹{typeof dealProduct.originalPrice === 'number'
-                      ? dealProduct.originalPrice.toLocaleString('en-IN')
-                      : (dealProduct as any).originalPrice}
+                    ₹{typeof activeDealProduct.originalPrice === 'number'
+                      ? activeDealProduct.originalPrice.toLocaleString('en-IN')
+                      : (activeDealProduct as any).originalPrice}
                   </span>
                 )}
                 <span className="text-red-600 font-bold text-4xl">
-                  ₹{typeof dealProduct.price === 'number'
-                    ? dealProduct.price.toLocaleString('en-IN')
-                    : dealProduct.price}
+                  ₹{typeof activeDealProduct.price === 'number'
+                    ? activeDealProduct.price.toLocaleString('en-IN')
+                    : activeDealProduct.price}
                 </span>
-                {(dealProduct.discountPercentage || (dealProduct as any).discount) > 0 && (
+                {(activeDealProduct.discountPercentage || (activeDealProduct as any).discount) > 0 && (
                   <span className="bg-red-100 text-red-600 font-bold px-3 py-1 rounded text-sm tracking-wider">
-                    {dealProduct.discountPercentage || (dealProduct as any).discount}% OFF
+                    {activeDealProduct.discountPercentage || (activeDealProduct as any).discount}% OFF
                   </span>
                 )}
               </div>
               <Link
-                to={`/product/${dealProduct.id}`}
+                to={`/product/${activeDealProduct.id}`}
                 className="bg-red-600 text-white px-10 py-4 uppercase tracking-widest text-sm font-bold hover:bg-red-700 transition-colors rounded"
               >
                 Claim Deal Now

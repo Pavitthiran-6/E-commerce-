@@ -863,6 +863,138 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     };
   }
 
+  // 16. SALE SETTINGS (PUBLIC & ADMIN)
+  if (path === '/api/sales/settings' || path === '/api/admin/sales/settings') {
+    if (method === 'get') {
+      const settings = getStored('sale_settings', {
+        id: 1,
+        saleTitle: 'SALE IS LIVE 🔥',
+        saleSubtitle: 'Limited time deals — up to 70% off on selected products!',
+        maxDiscountText: 'up to 70% off',
+        saleEndDateTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        isActive: true,
+        dealOfTheDayProductId: 'bo-velcro',
+        dealProductName: 'Bo Velcro Sneaker',
+        dealProductImage: 'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=500',
+        dealProductPrice: 16500,
+        dealProductOriginalPrice: 22000,
+        dealProductDiscountPercentage: 25,
+        dealProductDescription: 'Classic minimalist sneaker featuring dual velcro straps for effortless style.'
+      });
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: {
+          data: settings
+        },
+        headers: {},
+        config
+      };
+    }
+    
+    if (method === 'put') {
+      const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+      const settings = getStored('sale_settings', {});
+      const updatedSettings = { ...settings, ...payload };
+      setStored('sale_settings', updatedSettings);
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: {
+          data: updatedSettings
+        },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  // 17. DEAL OF THE DAY (PUBLIC)
+  if (path === '/api/sales/deal-of-the-day') {
+    if (method === 'get') {
+      const settings = getStored('sale_settings', { dealOfTheDayProductId: 'bo-velcro' });
+      const dealProdId = settings.dealOfTheDayProductId;
+      const product = productsList.find((p: any) => p.id === dealProdId) || null;
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: {
+          data: product
+        },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  // 18. ADMIN UPDATE DEAL OF THE DAY
+  if (path === '/api/admin/sales/deal-of-the-day') {
+    if (method === 'put') {
+      const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+      const dealProdId = payload?.productId;
+      const product = productsList.find((p: any) => p.id === dealProdId);
+      
+      const settings = getStored('sale_settings', {});
+      if (product) {
+        settings.dealOfTheDayProductId = product.id;
+        settings.dealProductName = product.name;
+        settings.dealProductImage = product.image || (product.images && product.images[0]) || '';
+        settings.dealProductPrice = product.price;
+        settings.dealProductOriginalPrice = product.originalPrice || product.price;
+        settings.dealProductDiscountPercentage = product.discountPercentage || product.discount || 0;
+        settings.dealProductDescription = product.description || '';
+      } else {
+        settings.dealOfTheDayProductId = dealProdId || null;
+      }
+      setStored('sale_settings', settings);
+      
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: {
+          data: settings
+        },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  // 19. ADMIN UPDATE PRODUCT DISCOUNT
+  // /api/admin/products/:id/discount
+  const discountMatch = path.match(/^\/api\/admin\/products\/([^\/]+)\/discount$/);
+  if (discountMatch) {
+    if (method === 'put') {
+      const productId = discountMatch[1];
+      const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+      const discountPercentage = payload?.discountPercentage || 0;
+      const isOnSale = payload?.isOnSale || false;
+      
+      const updatedList = productsList.map((p: any) => {
+        if (p.id === productId) {
+          return {
+            ...p,
+            discount: discountPercentage,
+            discountPercentage: discountPercentage,
+            isOnSale: isOnSale
+          };
+        }
+        return p;
+      });
+      setStored('products', updatedList);
+      
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: {
+          data: updatedList.find((p: any) => p.id === productId)
+        },
+        headers: {},
+        config
+      };
+    }
+  }
+
   // Fallback default error response
   return Promise.reject({
     response: {
