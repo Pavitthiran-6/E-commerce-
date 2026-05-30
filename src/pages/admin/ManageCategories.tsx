@@ -59,7 +59,10 @@ export default function ManageCategories() {
     setError('');
     try {
       const res = await axiosInstance.get('/api/categories/tree');
-      setCategories(res.data?.data || []);
+      const data = res.data?.data || [];
+      setCategories(data);
+      // Auto-expand all parent categories by default
+      setExpanded(new Set(data.map((cat: Category) => cat.id)));
     } catch {
       setError('Failed to load categories.');
     } finally {

@@ -30,12 +30,14 @@ public class Category {
     @JoinColumn(name = "parent_id")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Category parent;
 
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Builder.Default
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private List<Category> children = new ArrayList<>();
 
     @Column(columnDefinition = "TEXT")
