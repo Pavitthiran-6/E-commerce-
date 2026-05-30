@@ -44,6 +44,102 @@ const defaultUsers = [
 
 getStored('users_list', defaultUsers);
 
+const defaultOrders = [
+  {
+    id: 'ord_1001',
+    orderNumber: 'BLD-894723',
+    userId: '2',
+    userEmail: 'demo@example.com',
+    status: 'delivered',
+    subtotal: 16500,
+    shippingCharge: 0,
+    taxAmount: 0,
+    discountAmount: 1650,
+    totalAmount: 14850,
+    couponCode: 'WELCOME10',
+    paymentMethod: 'UPI',
+    paymentStatus: 'PAID',
+    estimatedDelivery: '2026-05-15',
+    deliveredAt: '2026-05-14T14:30:00Z',
+    address: {
+      fullName: 'John Doe',
+      email: 'demo@example.com',
+      phone: '+919999999999',
+      addressLine1: '123 Avenue des Champs-Élysées',
+      addressLine2: 'Apt 4B',
+      city: 'Paris',
+      state: 'Île-de-France',
+      postalCode: '75008',
+      country: 'France'
+    },
+    items: [
+      {
+        id: 1,
+        productId: 'bo-velcro',
+        productName: 'Bo Velcro Sneaker',
+        productImage: 'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=500',
+        size: '42',
+        color: 'White',
+        quantity: 1,
+        unitPrice: 16500,
+        totalPrice: 16500
+      }
+    ],
+    trackingHistory: [
+      { status: 'pending', message: 'Order placed successfully.', trackingTime: '2026-05-10T10:00:00Z' },
+      { status: 'processing', message: 'Order is being packed.', trackingTime: '2026-05-11T12:00:00Z' },
+      { status: 'shipped', message: 'Order shipped via FedEx.', trackingTime: '2026-05-12T15:30:00Z' },
+      { status: 'delivered', message: 'Order delivered successfully.', trackingTime: '2026-05-14T14:30:00Z' }
+    ],
+    createdAt: '2026-05-10T10:00:00Z'
+  },
+  {
+    id: 'ord_1002',
+    orderNumber: 'BLD-452109',
+    userId: '3',
+    userEmail: 'amit@example.com',
+    status: 'processing',
+    subtotal: 8200,
+    shippingCharge: 79,
+    taxAmount: 0,
+    discountAmount: 0,
+    totalAmount: 8279,
+    paymentMethod: 'COD',
+    paymentStatus: 'PENDING',
+    address: {
+      fullName: 'Amit Kumar',
+      email: 'amit@example.com',
+      phone: '+919876543222',
+      addressLine1: '45 Park Street',
+      city: 'Kolkata',
+      state: 'West Bengal',
+      postalCode: '700016',
+      country: 'India'
+    },
+    items: [
+      {
+        id: 2,
+        productId: 'chelsea-boot',
+        productName: 'Classic Chelsea Boot',
+        productImage: 'https://images.unsplash.com/photo-1608256246200-53e635b5b65f?q=80&w=500',
+        size: '41',
+        color: 'Brown',
+        quantity: 1,
+        unitPrice: 8200,
+        totalPrice: 8200
+      }
+    ],
+    trackingHistory: [
+      { status: 'pending', message: 'Order placed successfully.', trackingTime: '2026-05-28T09:15:00Z' },
+      { status: 'processing', message: 'Order is being processed.', trackingTime: '2026-05-29T11:00:00Z' }
+    ],
+    createdAt: '2026-05-28T09:15:00Z'
+  }
+];
+
+getStored('orders', defaultOrders);
+
+
 export const handleMockRequest = async (config: any): Promise<any> => {
   const url = config.url || '';
   const method = (config.method || 'get').toLowerCase();
@@ -1487,6 +1583,101 @@ export const handleMockRequest = async (config: any): Promise<any> => {
         headers: {},
         config
       };
+    }
+  }
+
+  // 19D. ORDERS (ADMIN)
+  if (path === '/api/admin/orders') {
+    if (method === 'get') {
+      const allOrders = getStored('orders', defaultOrders);
+      // Support filtering by status, search query, and paymentMethod
+      const statusVal = (queryParams.status || '').toLowerCase();
+      const searchVal = (queryParams.search || '').toLowerCase();
+      const paymentMethodVal = (queryParams.paymentMethod || '').toLowerCase();
+      
+      let filtered = [...allOrders];
+      if (statusVal) {
+        filtered = filtered.filter((o: any) => o.status?.toLowerCase() === statusVal);
+      }
+      if (paymentMethodVal) {
+        filtered = filtered.filter((o: any) => o.paymentMethod?.toLowerCase() === paymentMethodVal);
+      }
+      if (searchVal) {
+        filtered = filtered.filter((o: any) =>
+          (o.orderNumber || '').toLowerCase().includes(searchVal) ||
+          (o.id || '').toLowerCase().includes(searchVal) ||
+          (o.address?.fullName || '').toLowerCase().includes(searchVal) ||
+          (o.address?.email || '').toLowerCase().includes(searchVal)
+        );
+      }
+
+      // Pagination
+      const pageNum = parseInt(queryParams.page || '0');
+      const pageSize = parseInt(queryParams.size || '10');
+      const startIndex = pageNum * pageSize;
+      const paginated = filtered.slice(startIndex, startIndex + pageSize);
+
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: {
+          data: {
+            content: paginated,
+            totalPages: Math.ceil(filtered.length / pageSize) || 1,
+            totalElements: filtered.length,
+            size: pageSize,
+            number: pageNum
+          }
+        },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  // 19E. UPDATE ORDER STATUS (ADMIN)
+  const adminOrderStatusMatch = path.match(/^\/api\/admin\/orders\/([^\/]+)\/status$/);
+  if (adminOrderStatusMatch) {
+    if (method === 'put') {
+      const orderId = adminOrderStatusMatch[1];
+      const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+      const newStatus = payload?.status;
+      
+      const allOrders = getStored('orders', defaultOrders);
+      const orderIndex = allOrders.findIndex((o: any) => o.id === orderId);
+      
+      if (orderIndex !== -1) {
+        const order = allOrders[orderIndex];
+        order.status = newStatus;
+        if (!order.trackingHistory) {
+          order.trackingHistory = [];
+        }
+        order.trackingHistory.push({
+          status: newStatus,
+          message: `Order status updated to ${newStatus} by admin.`,
+          trackingTime: new Date().toISOString()
+        });
+        
+        allOrders[orderIndex] = order;
+        setStored('orders', allOrders);
+        
+        return {
+          status: 200,
+          statusText: 'OK',
+          data: {
+            data: order
+          },
+          headers: {},
+          config
+        };
+      } else {
+        return Promise.reject({
+          response: {
+            status: 404,
+            data: { message: 'Order not found' }
+          }
+        });
+      }
     }
   }
 
