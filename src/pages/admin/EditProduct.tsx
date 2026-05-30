@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState, useId } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
+import { uploadToCloudinary, isCloudinaryConfigured } from '../../utils/cloudinaryUpload';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface CategoryNode {
@@ -305,6 +306,7 @@ export default function EditProduct() {
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Form states
   const [name, setName] = useState('');
@@ -507,7 +509,50 @@ export default function EditProduct() {
       : categoryId ? Number(categoryId) : undefined;
 
     try {
-      // 1. PUT main product details (no images — managed separately)
+      // 1. Upload new images directly to Cloudinary (browser → Cloudinary, no backend)
+      let finalImagesList = [...existingImages];
+
+      const hasNewImages = coverFile || editNewImages.length > 0;
+      if (hasNewImages) {
+        if (!isCloudinaryConfigured()) {
+          setError(
+            'Image upload requires Cloudinary setup. Please set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET in your Render frontend environment variables, then redeploy.'
+          );
+          setIsSaving(false);
+          return;
+        }
+
+        setIsUploading(true);
+        try {
+          // Upload cover image first
+          if (coverFile) {
+            const coverUrl = await uploadToCloudinary(coverFile, `belledonne/products/${id}`);
+            // Replace existing cover (index 0) or prepend
+            if (existingImages.length > 0) {
+              finalImagesList = [coverUrl, ...existingImages.slice(1)];
+            } else {
+              finalImagesList = [coverUrl];
+            }
+          }
+
+          // Upload additional gallery images
+          if (editNewImages.length > 0) {
+            const sorted = [...editNewImages].sort((a, b) => (b.isCover ? 1 : 0) - (a.isCover ? 1 : 0));
+            const newUrls = await Promise.all(
+              sorted.map(img => uploadToCloudinary(img.file, `belledonne/products/${id}`))
+            );
+            finalImagesList = [...finalImagesList, ...newUrls];
+          }
+        } catch (uploadErr: any) {
+          setError(`Image upload failed: ${uploadErr.message}`);
+          setIsSaving(false);
+          setIsUploading(false);
+          return;
+        }
+        setIsUploading(false);
+      }
+
+      // 2. PUT product details + image URLs together
       const payload = {
         name: name.trim(),
         brand: brand,
@@ -522,6 +567,7 @@ export default function EditProduct() {
         isBestseller: isBestseller,
         isApparelHighlights: isApparelHighlights,
         isTechHome: isTechHome,
+        images: finalImagesList,
         specifications: specs.filter(s => s.key.trim()).map((s, i) => ({ key: s.key.trim(), value: s.value.trim(), displayOrder: i })),
         materialsTitle: materialsTitle.trim(),
         materialsContent: materialsContent.trim(),
@@ -538,29 +584,6 @@ export default function EditProduct() {
         easyReturns: easyReturns,
       };
       await axiosInstance.put(`/api/admin/products/${id}`, payload);
-
-      // 2. Upload new cover image if changed
-      if (coverFile) {
-        const form = new FormData();
-        form.append('files', coverFile);
-        try {
-          await axiosInstance.post(`/api/admin/products/${id}/images`, form);
-        } catch (uploadErr) {
-          console.warn('Cover upload failed (Cloudinary not configured?):', uploadErr);
-        }
-      }
-
-      // 3. Upload additional new images
-      if (editNewImages.length > 0) {
-        const form = new FormData();
-        const sorted = [...editNewImages].sort((a, b) => (b.isCover ? 1 : 0) - (a.isCover ? 1 : 0));
-        sorted.forEach(img => form.append('files', img.file));
-        try {
-          await axiosInstance.post(`/api/admin/products/${id}/images`, form);
-        } catch (e) {
-          console.warn('Upload of additional new images failed (Cloudinary not configured?):', e);
-        }
-      }
 
       navigate('/admin/products');
     } catch (err: any) {
@@ -1056,10 +1079,18 @@ export default function EditProduct() {
             </Link>
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || isUploading}
               className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
             >
-              {isSaving ? (
+              {isUploading ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Uploading images…
+                </>
+              ) : isSaving ? (
                 <>
                   <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
