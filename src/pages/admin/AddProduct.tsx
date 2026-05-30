@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState, useId } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
+import { compressImageToBase64 } from '../../utils/imageCompress';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface CategoryNode {
@@ -303,6 +304,7 @@ export default function AddProduct() {
   const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Form states
   const [name, setName] = useState('');
@@ -431,36 +433,42 @@ export default function AddProduct() {
     setError('');
 
     try {
-      // 1. Create base product
-      const payload = {
-        name: name.trim(),
-        price: parseFloat(price),
-        originalPrice: parseFloat(price),
-        inStock: true,
-      };
-      const res = await axiosInstance.post('/api/admin/products', payload);
-      const newId: string = res.data?.data?.id;
-      if (!newId) throw new Error('No product ID returned');
+      // 1. Compress images to base64 (stored directly in PostgreSQL database)
+      let base64ImagesList: string[] = [];
 
-      // 2. Upload cover image
-      if (coverFile) {
-        const form = new FormData();
-        form.append('files', coverFile);
+      const hasImages = coverFile || additionalImages.length > 0;
+      if (hasImages) {
+        setIsUploading(true);
         try {
-          await axiosInstance.post(`/api/admin/products/${newId}/images`, form, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-        } catch (uploadErr) {
-          console.warn('Cover upload failed:', uploadErr);
+          // Compress and convert cover image first (goes at index 0)
+          if (coverFile) {
+            const coverBase64 = await compressImageToBase64(coverFile);
+            base64ImagesList.push(coverBase64);
+          }
+
+          // Compress and convert additional gallery images
+          if (additionalImages.length > 0) {
+            const sorted = [...additionalImages].sort((a, b) => (b.isCover ? 1 : 0) - (a.isCover ? 1 : 0));
+            const newBase64s = await Promise.all(
+              sorted.map(img => compressImageToBase64(img.file))
+            );
+            base64ImagesList = [...base64ImagesList, ...newBase64s];
+          }
+        } catch (uploadErr: any) {
+          setError(`Image compression failed: ${uploadErr.message}`);
+          setIsSaving(false);
+          setIsUploading(false);
+          return;
         }
+        setIsUploading(false);
       }
 
-      // 3. Update full details
+      // 2. Send single POST request to create the product with all details and images
       const finalCategoryId = subCategoryId
         ? Number(subCategoryId)
         : categoryId ? Number(categoryId) : undefined;
 
-      const finalPayload = {
+      const payload = {
         name: name.trim(),
         brand: brand,
         categoryId: finalCategoryId,
@@ -474,6 +482,7 @@ export default function AddProduct() {
         isBestseller: isBestseller,
         isApparelHighlights: isApparelHighlights,
         isTechHome: isTechHome,
+        images: base64ImagesList,
         specifications: specs.filter(s => s.key.trim()).map((s, i) => ({ key: s.key.trim(), value: s.value.trim(), displayOrder: i })),
         materialsTitle: materialsTitle.trim(),
         materialsContent: materialsContent.trim(),
@@ -489,21 +498,8 @@ export default function AddProduct() {
         codAvailable: codAvailable,
         easyReturns: easyReturns,
       };
-      await axiosInstance.put(`/api/admin/products/${newId}`, finalPayload);
 
-      // 4. Upload additional images
-      if (additionalImages.length > 0) {
-        const form = new FormData();
-        const sorted = [...additionalImages].sort((a, b) => (b.isCover ? 1 : 0) - (a.isCover ? 1 : 0));
-        sorted.forEach(img => form.append('files', img.file));
-        try {
-          await axiosInstance.post(`/api/admin/products/${newId}/images`, form, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-        } catch (e) {
-          console.warn('Additional image upload failed:', e);
-        }
-      }
+      await axiosInstance.post('/api/admin/products', payload);
 
       navigate('/admin/products');
     } catch (err: any) {
@@ -976,16 +972,16 @@ export default function AddProduct() {
             </Link>
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || isUploading}
               className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
             >
-              {isSaving ? (
+              {isSaving || isUploading ? (
                 <>
                   <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Publishing…
+                  {isUploading ? 'Compressing images…' : 'Publishing…'}
                 </>
               ) : (
                 <>

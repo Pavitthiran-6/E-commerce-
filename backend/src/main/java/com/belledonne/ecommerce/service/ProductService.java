@@ -230,7 +230,7 @@ public class ProductService {
             .discountPercentage(request.getDiscountPercentage() != null ? request.getDiscountPercentage() : 0)
             .stockQuantity(request.getStockQuantity() != null ? request.getStockQuantity() : 0)
             .tags(request.getTags())
-            .images(new String[0])
+            .images(request.getImages() != null ? request.getImages() : new String[0])
             .colors(request.getColors())
             .sizes(request.getSizes())
             .materialsTitle(request.getMaterialsTitle() != null ? request.getMaterialsTitle() : "MATERIALS")

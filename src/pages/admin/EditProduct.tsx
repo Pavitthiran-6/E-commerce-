@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState, useId } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
-import { uploadToCloudinary, isCloudinaryConfigured } from '../../utils/cloudinaryUpload';
+import { compressImageToBase64 } from '../../utils/imageCompress';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface CategoryNode {
@@ -509,42 +509,34 @@ export default function EditProduct() {
       : categoryId ? Number(categoryId) : undefined;
 
     try {
-      // 1. Upload new images directly to Cloudinary (browser → Cloudinary, no backend)
+      // 1. Compress new images to base64 (stored directly in PostgreSQL database)
       let finalImagesList = [...existingImages];
 
       const hasNewImages = coverFile || editNewImages.length > 0;
       if (hasNewImages) {
-        if (!isCloudinaryConfigured()) {
-          setError(
-            'Image upload requires Cloudinary setup. Please set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET in your Render frontend environment variables, then redeploy.'
-          );
-          setIsSaving(false);
-          return;
-        }
-
         setIsUploading(true);
         try {
-          // Upload cover image first
+          // Compress and convert cover image first
           if (coverFile) {
-            const coverUrl = await uploadToCloudinary(coverFile, `belledonne/products/${id}`);
+            const coverBase64 = await compressImageToBase64(coverFile);
             // Replace existing cover (index 0) or prepend
             if (existingImages.length > 0) {
-              finalImagesList = [coverUrl, ...existingImages.slice(1)];
+              finalImagesList = [coverBase64, ...existingImages.slice(1)];
             } else {
-              finalImagesList = [coverUrl];
+              finalImagesList = [coverBase64];
             }
           }
 
-          // Upload additional gallery images
+          // Compress and convert additional gallery images
           if (editNewImages.length > 0) {
             const sorted = [...editNewImages].sort((a, b) => (b.isCover ? 1 : 0) - (a.isCover ? 1 : 0));
-            const newUrls = await Promise.all(
-              sorted.map(img => uploadToCloudinary(img.file, `belledonne/products/${id}`))
+            const newBase64s = await Promise.all(
+              sorted.map(img => compressImageToBase64(img.file))
             );
-            finalImagesList = [...finalImagesList, ...newUrls];
+            finalImagesList = [...finalImagesList, ...newBase64s];
           }
         } catch (uploadErr: any) {
-          setError(`Image upload failed: ${uploadErr.message}`);
+          setError(`Image compression failed: ${uploadErr.message}`);
           setIsSaving(false);
           setIsUploading(false);
           return;
