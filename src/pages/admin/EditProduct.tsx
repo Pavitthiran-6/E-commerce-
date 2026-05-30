@@ -559,7 +559,7 @@ export default function EditProduct() {
         codAvailable: codAvailable,
         easyReturns: easyReturns,
       };
-      await axiosInstance.put(`/api/products/${id}`, payload);
+      await axiosInstance.put(`/api/admin/products/${id}`, payload);
 
       // 4. Upload additional new images
       if (editNewImages.length > 0) {

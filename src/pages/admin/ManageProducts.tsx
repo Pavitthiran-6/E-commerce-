@@ -38,7 +38,7 @@ export default function ManageProducts() {
     if (!deleteId) return;
     setIsDeleting(true);
     try {
-      await axiosInstance.delete(`/api/products/${deleteId}`);
+      await axiosInstance.delete(`/api/admin/products/${deleteId}`);
       setDeleteId(null);
       load(); // refresh product list
     } catch {

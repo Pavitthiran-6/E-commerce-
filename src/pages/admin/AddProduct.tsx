@@ -438,7 +438,7 @@ export default function AddProduct() {
         originalPrice: parseFloat(price),
         inStock: true,
       };
-      const res = await axiosInstance.post('/api/products', payload);
+      const res = await axiosInstance.post('/api/admin/products', payload);
       const newId: string = res.data?.data?.id;
       if (!newId) throw new Error('No product ID returned');
 
@@ -489,7 +489,7 @@ export default function AddProduct() {
         codAvailable: codAvailable,
         easyReturns: easyReturns,
       };
-      await axiosInstance.put(`/api/products/${newId}`, finalPayload);
+      await axiosInstance.put(`/api/admin/products/${newId}`, finalPayload);
 
       // 4. Upload additional images
       if (additionalImages.length > 0) {
