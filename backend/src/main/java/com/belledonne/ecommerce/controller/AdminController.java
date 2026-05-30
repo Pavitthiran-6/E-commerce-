@@ -133,16 +133,14 @@ public class AdminController {
     @PostMapping("/products")
     @Operation(summary = "Create a new product")
     public ResponseEntity<ApiResponse<?>> createProduct(@Valid @RequestBody ProductRequest request) {
-        Product product = productService.createProduct(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.success("Product created successfully", productService.toResponse(product)));
+            .body(ApiResponse.success("Product created successfully", productService.createProductResponse(request)));
     }
 
     @PutMapping("/products/{id}")
     @Operation(summary = "Update an existing product")
     public ResponseEntity<ApiResponse<?>> updateProduct(@PathVariable UUID id, @Valid @RequestBody ProductRequest request) {
-        Product product = productService.updateProduct(id, request);
-        return ResponseEntity.ok(ApiResponse.success("Product updated successfully", productService.toResponse(product)));
+        return ResponseEntity.ok(ApiResponse.success("Product updated successfully", productService.updateProductResponse(id, request)));
     }
 
     @DeleteMapping("/products/{id}")
@@ -155,23 +153,20 @@ public class AdminController {
     @PutMapping("/products/{id}/toggle-status")
     @Operation(summary = "Toggle active status of a product")
     public ResponseEntity<ApiResponse<?>> toggleProductStatus(@PathVariable UUID id) {
-        Product product = productService.toggleActive(id);
-        return ResponseEntity.ok(ApiResponse.success("Product status toggled", productService.toResponse(product)));
+        return ResponseEntity.ok(ApiResponse.success("Product status toggled", productService.toggleActiveResponse(id)));
     }
 
     @PutMapping("/products/{id}/toggle-featured")
     @Operation(summary = "Toggle featured status of a product")
     public ResponseEntity<ApiResponse<?>> toggleProductFeatured(@PathVariable UUID id) {
-        Product product = productService.toggleFeatured(id);
-        return ResponseEntity.ok(ApiResponse.success("Product featured status toggled", productService.toResponse(product)));
+        return ResponseEntity.ok(ApiResponse.success("Product featured status toggled", productService.toggleFeaturedResponse(id)));
     }
 
     @PutMapping("/products/{id}/arrival-tag")
     @Operation(summary = "Update arrival tag of a product")
     public ResponseEntity<ApiResponse<?>> updateArrivalTag(@PathVariable UUID id, @RequestBody Map<String, String> body) {
         String tag = body.get("arrivalTag");
-        Product product = productService.updateArrivalTag(id, tag);
-        return ResponseEntity.ok(ApiResponse.success("Product arrival tag updated successfully", productService.toResponse(product)));
+        return ResponseEntity.ok(ApiResponse.success("Product arrival tag updated successfully", productService.updateArrivalTagResponse(id, tag)));
     }
 
     @PostMapping("/products/{id}/variants")
@@ -206,9 +201,8 @@ public class AdminController {
         List<String> currentImages = product.getImages() != null ? new ArrayList<>(Arrays.asList(product.getImages())) : new ArrayList<>();
         currentImages.addAll(uploadedUrls);
         product.setImages(currentImages.toArray(new String[0]));
-        
-        Product saved = productService.saveProduct(product);
-        return ResponseEntity.ok(ApiResponse.success("Images uploaded successfully", productService.toResponse(saved)));
+
+        return ResponseEntity.ok(ApiResponse.success("Images uploaded successfully", productService.saveProductResponse(product)));
     }
 
     @DeleteMapping("/products/{id}/images")

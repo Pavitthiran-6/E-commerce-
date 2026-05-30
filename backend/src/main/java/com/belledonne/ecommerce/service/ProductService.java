@@ -256,6 +256,11 @@ public class ProductService {
         return productRepository.save(product);
     }
 
+    /** Creates a product and returns the response DTO — all within one transaction to avoid LazyInitializationException */
+    public ProductResponse createProductResponse(ProductRequest request) {
+        return toResponse(createProduct(request));
+    }
+
     public Product updateProduct(UUID id, ProductRequest request) {
         Product product = productRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Product", "id", id));
@@ -319,6 +324,11 @@ public class ProductService {
         return productRepository.save(product);
     }
 
+    /** Updates a product and returns the response DTO — all within one transaction to avoid LazyInitializationException */
+    public ProductResponse updateProductResponse(UUID id, ProductRequest request) {
+        return toResponse(updateProduct(id, request));
+    }
+
     // ─── Helper: convert request DTOs → entity SpecificationEntry ────────────────
     private List<com.belledonne.ecommerce.entity.Product.SpecificationEntry> toSpecEntries(
             List<ProductRequest.SpecificationDTO> dtos) {
@@ -342,6 +352,11 @@ public class ProductService {
         return productRepository.save(product);
     }
 
+    /** Toggles active and returns response DTO within one transaction */
+    public ProductResponse toggleActiveResponse(UUID id) {
+        return toResponse(toggleActive(id));
+    }
+
     public Product toggleFeatured(UUID id) {
         Product product = productRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Product", "id", id));
@@ -349,8 +364,18 @@ public class ProductService {
         return productRepository.save(product);
     }
 
+    /** Toggles featured and returns response DTO within one transaction */
+    public ProductResponse toggleFeaturedResponse(UUID id) {
+        return toResponse(toggleFeatured(id));
+    }
+
     public Product saveProduct(Product product) {
         return productRepository.save(product);
+    }
+
+    /** Saves product and returns response DTO within one transaction */
+    public ProductResponse saveProductResponse(Product product) {
+        return toResponse(productRepository.save(product));
     }
 
     public ProductVariant addVariant(UUID productId, VariantRequest request) {
@@ -414,5 +439,10 @@ public class ProductService {
             product.setIsNew(true);
         }
         return productRepository.save(product);
+    }
+
+    /** Updates arrival tag and returns response DTO within one transaction */
+    public ProductResponse updateArrivalTagResponse(UUID id, String arrivalTag) {
+        return toResponse(updateArrivalTag(id, arrivalTag));
     }
 }
