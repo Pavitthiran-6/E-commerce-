@@ -152,7 +152,8 @@ public class CouponService {
     public Coupon toggleShowOnHome(Long id) {
         Coupon coupon = couponRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Coupon", "id", id));
-        coupon.setShowOnHome(Boolean.FALSE.equals(coupon.getShowOnHome()) ? Boolean.TRUE : Boolean.FALSE);
+        boolean currentStatus = coupon.getShowOnHome() != null && coupon.getShowOnHome();
+        coupon.setShowOnHome(!currentStatus);
         return couponRepository.save(coupon);
     }
 
@@ -181,7 +182,7 @@ public class CouponService {
             .minOrderValue(c.getMinCartValue() != null ? c.getMinCartValue() : BigDecimal.ZERO)
             .discountType(discountType)
             .discountValue(c.getValue())
-            .showOnHome(c.getShowOnHome())
+            .showOnHome(c.getShowOnHome() != null && c.getShowOnHome())
             .build();
     }
 }

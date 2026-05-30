@@ -28,6 +28,9 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
             // Add show_on_home column to coupons if not exists
             jdbcTemplate.execute("ALTER TABLE coupons ADD COLUMN IF NOT EXISTS show_on_home BOOLEAN DEFAULT FALSE");
             log.info("Database migration successfully added show_on_home to coupons table!");
+            // Update any existing null show_on_home columns to false
+            jdbcTemplate.execute("UPDATE coupons SET show_on_home = FALSE WHERE show_on_home IS NULL");
+            log.info("Database migration successfully set existing null show_on_home values to false!");
         } catch (Exception e) {
             log.warn("Database migration coupons.show_on_home alter skipped or failed: {}", e.getMessage());
         }
