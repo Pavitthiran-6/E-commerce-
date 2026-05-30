@@ -35,6 +35,15 @@ const defaultCategories = [
 
 getStored('categories_list', defaultCategories);
 
+const defaultUsers = [
+  { id: '1', name: 'Demo Admin', email: 'admin@belledonne.in', phone: '+919876543210', role: 'ADMIN', createdAt: '2024-01-01T00:00:00Z', enabled: true },
+  { id: '2', name: 'Demo User', email: 'demo@example.com', phone: '+919999999999', role: 'CUSTOMER', createdAt: '2024-02-15T00:00:00Z', enabled: true },
+  { id: '3', name: 'Amit Kumar', email: 'amit@example.com', phone: '+919876543222', role: 'CUSTOMER', createdAt: '2024-03-10T00:00:00Z', enabled: true },
+  { id: '4', name: 'Priya Sharma', email: 'priya@example.com', phone: '+919876543233', role: 'CUSTOMER', createdAt: '2024-04-05T00:00:00Z', enabled: false }
+];
+
+getStored('users_list', defaultUsers);
+
 export const handleMockRequest = async (config: any): Promise<any> => {
   const url = config.url || '';
   const method = (config.method || 'get').toLowerCase();
@@ -1428,6 +1437,53 @@ export const handleMockRequest = async (config: any): Promise<any> => {
         status: 200,
         statusText: 'OK',
         data: { data: true },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  // 19C. USERS (ADMIN)
+  if (path === '/api/admin/users') {
+    if (method === 'get') {
+      const allUsers = getStored('users_list', defaultUsers);
+      const searchVal = (queryParams.search || '').toLowerCase();
+      const roleVal = (queryParams.role || '').toUpperCase();
+      const isBlockedVal = queryParams.isBlocked === 'true' ? true : queryParams.isBlocked === 'false' ? false : null;
+      
+      let filtered = [...allUsers];
+      if (searchVal) {
+        filtered = filtered.filter((u: any) =>
+          (u.name || '').toLowerCase().includes(searchVal) ||
+          (u.email || '').toLowerCase().includes(searchVal) ||
+          (u.phone && u.phone.toLowerCase().includes(searchVal))
+        );
+      }
+      if (roleVal) {
+        filtered = filtered.filter((u: any) => u.role === roleVal);
+      }
+      if (isBlockedVal !== null) {
+        filtered = filtered.filter((u: any) => u.isBlocked === isBlockedVal);
+      }
+
+      // Pagination
+      const pageNum = parseInt(queryParams.page || '0');
+      const pageSize = parseInt(queryParams.size || '15');
+      const startIndex = pageNum * pageSize;
+      const paginated = filtered.slice(startIndex, startIndex + pageSize);
+
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: {
+          data: {
+            content: paginated,
+            totalPages: Math.ceil(filtered.length / pageSize) || 1,
+            totalElements: filtered.length,
+            size: pageSize,
+            number: pageNum
+          }
+        },
         headers: {},
         config
       };

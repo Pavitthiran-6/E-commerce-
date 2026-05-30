@@ -31,6 +31,7 @@ public class User {
     private String email;
 
     @Column(nullable = false, length = 255)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String password;
 
     @Column(length = 15)
@@ -52,9 +53,11 @@ public class User {
     private Boolean isEmailVerified = false;
 
     @Column(length = 6)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String otp;
 
     @Column(name = "otp_expiry")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private LocalDateTime otpExpiry;
 
     @Column(name = "is_blocked")
@@ -76,10 +79,16 @@ public class User {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Builder.Default
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private List<Address> addresses = new ArrayList<>();
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Cart cart;
+
+    public boolean isEnabled() {
+        return isBlocked == null || !isBlocked;
+    }
 }
