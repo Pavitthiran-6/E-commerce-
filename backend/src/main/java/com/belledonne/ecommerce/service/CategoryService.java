@@ -35,12 +35,15 @@ public class CategoryService {
     }
 
     public Category createCategory(CategoryRequest request) {
-        String slug = (request.getSlug() != null && !request.getSlug().isBlank())
+        String baseSlug = (request.getSlug() != null && !request.getSlug().isBlank())
             ? SlugUtil.toSlug(request.getSlug())
             : SlugUtil.toSlug(request.getName());
 
-        if (categoryRepository.findBySlug(slug).isPresent()) {
-            throw new BadRequestException("Category with slug '" + slug + "' already exists");
+        String slug = baseSlug;
+        int count = 1;
+        while (categoryRepository.findBySlug(slug).isPresent()) {
+            slug = baseSlug + "-" + count;
+            count++;
         }
 
         Category parent = null;
@@ -65,12 +68,17 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Category", "id", id));
 
-        String slug = (request.getSlug() != null && !request.getSlug().isBlank())
+        String baseSlug = (request.getSlug() != null && !request.getSlug().isBlank())
             ? SlugUtil.toSlug(request.getSlug())
             : SlugUtil.toSlug(request.getName());
 
-        if (!category.getSlug().equals(slug) && categoryRepository.findBySlug(slug).isPresent()) {
-            throw new BadRequestException("Category with slug '" + slug + "' already exists");
+        String slug = baseSlug;
+        if (!category.getSlug().equals(slug)) {
+            int count = 1;
+            while (categoryRepository.findBySlug(slug).isPresent()) {
+                slug = baseSlug + "-" + count;
+                count++;
+            }
         }
 
         Category parent = null;

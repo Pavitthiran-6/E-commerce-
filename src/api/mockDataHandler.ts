@@ -1352,10 +1352,19 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     if (method === 'post') {
       const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
       const allCats = getStored('categories_list', defaultCategories);
+      
+      const baseSlug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      let slug = baseSlug;
+      let count = 1;
+      while (allCats.some((c: any) => c.slug === slug)) {
+        slug = `${baseSlug}-${count}`;
+        count++;
+      }
+
       const newCat = {
         id: Math.floor(100 + Math.random() * 900),
         name: payload.name,
-        slug: payload.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        slug: slug,
         description: payload.description || '',
         parentId: payload.parentId ? Number(payload.parentId) : null
       };
@@ -1378,12 +1387,24 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     
     if (method === 'put') {
       const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+      
+      const baseSlug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      let slug = baseSlug;
+      const oldCat = allCats.find((c: any) => c.id === catId);
+      if (oldCat && oldCat.slug !== slug) {
+        let count = 1;
+        while (allCats.some((c: any) => c.slug === slug)) {
+          slug = `${baseSlug}-${count}`;
+          count++;
+        }
+      }
+
       const updatedCats = allCats.map((c: any) => {
         if (c.id === catId) {
           return {
             ...c,
             name: payload.name,
-            slug: payload.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+            slug: slug,
             description: payload.description || '',
             parentId: payload.parentId ? Number(payload.parentId) : null
           };
