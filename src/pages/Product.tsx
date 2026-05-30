@@ -359,7 +359,9 @@ export default function Product() {
             
             {/* Pincode Checker */}
             <div className="flex flex-col gap-2 mt-4">
-              <label htmlFor="pincode" className="font-label-caps text-xs text-primary uppercase tracking-widest">Delivery & COD Options</label>
+              <label htmlFor="pincode" className="font-label-caps text-xs text-primary uppercase tracking-widest">
+                {product.codAvailable !== false && product.id !== '376d0483-9223-4338-be12-0861da0688cb' ? 'Delivery & COD Options' : 'Delivery Options'}
+              </label>
               <div className="flex w-full">
                 <input 
                   id="pincode" 
@@ -374,15 +376,19 @@ export default function Product() {
 
             {/* Trust Badges */}
             <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">🚚</span>
-                <span className="text-xs text-on-surface-variant">Free Shipping across India</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xl">🔁</span>
-                <span className="text-xs text-on-surface-variant">Easy 7-Day Returns</span>
-              </div>
-              {product.id !== '376d0483-9223-4338-be12-0861da0688cb' && (
+              {product.freeShipping !== false && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🚚</span>
+                  <span className="text-xs text-on-surface-variant">Free Shipping across India</span>
+                </div>
+              )}
+              {product.easyReturns !== false && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🔁</span>
+                  <span className="text-xs text-on-surface-variant">Easy 7-Day Returns</span>
+                </div>
+              )}
+              {product.codAvailable !== false && product.id !== '376d0483-9223-4338-be12-0861da0688cb' && (
                 <div className="flex items-center gap-3">
                   <span className="text-xl">💵</span>
                   <span className="text-xs text-on-surface-variant">Cash on Delivery Available</span>
