@@ -140,6 +140,15 @@ const defaultOrders = [
 getStored('orders', defaultOrders);
 
 
+const toSummaryProduct = (p: any) => {
+  const { images, ...rest } = p;
+  return {
+    ...rest,
+    images: null,
+    image: p.image || (images && images[0]) || ''
+  };
+};
+
 export const handleMockRequest = async (config: any): Promise<any> => {
   const url = config.url || '';
   const method = (config.method || 'get').toLowerCase();
@@ -185,14 +194,16 @@ export const handleMockRequest = async (config: any): Promise<any> => {
         );
       }
       
+      const mapped = filtered.map(toSummaryProduct);
+      
       return {
         status: 200,
         statusText: 'OK',
         data: {
           data: {
-            content: filtered,
+            content: mapped,
             totalPages: 1,
-            totalElements: filtered.length
+            totalElements: mapped.length
           }
         },
         headers: {},
@@ -205,12 +216,13 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   if (path === '/api/products/featured') {
     if (method === 'get') {
       const filtered = productsList.filter((p: any) => p.isBestseller);
+      const mapped = filtered.map(toSummaryProduct);
       return {
         status: 200,
         statusText: 'OK',
         data: {
           data: {
-            content: filtered
+            content: mapped
           }
         },
         headers: {},
@@ -223,12 +235,13 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   if (path === '/api/products/new-arrivals') {
     if (method === 'get') {
       const filtered = productsList.filter((p: any) => p.isNew || p.arrivalTag);
+      const mapped = filtered.map(toSummaryProduct);
       return {
         status: 200,
         statusText: 'OK',
         data: {
           data: {
-            content: filtered
+            content: mapped
           }
         },
         headers: {},
@@ -241,12 +254,13 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   if (path === '/api/products/sale') {
     if (method === 'get') {
       const filtered = productsList.filter((p: any) => p.discount > 0);
+      const mapped = filtered.map(toSummaryProduct);
       return {
         status: 200,
         statusText: 'OK',
         data: {
           data: {
-            content: filtered
+            content: mapped
           }
         },
         headers: {},
@@ -264,12 +278,13 @@ export const handleMockRequest = async (config: any): Promise<any> => {
         p.brand?.toLowerCase().includes(query) ||
         p.description?.toLowerCase().includes(query)
       );
+      const mapped = filtered.map(toSummaryProduct);
       return {
         status: 200,
         statusText: 'OK',
         data: {
           data: {
-            content: filtered
+            content: mapped
           }
         },
         headers: {},

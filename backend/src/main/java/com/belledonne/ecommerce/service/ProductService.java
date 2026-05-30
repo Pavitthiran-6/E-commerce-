@@ -37,7 +37,7 @@ public class ProductService {
     }
 
     public Page<ProductResponse> getAllResponses(Pageable pageable) {
-        return productRepository.findByIsActiveTrue(pageable).map(this::toResponse);
+        return productRepository.findByIsActiveTrue(pageable).map(p -> toResponse(p, false));
     }
 
     public Page<Product> search(String query, Pageable pageable) {
@@ -45,7 +45,7 @@ public class ProductService {
     }
 
     public Page<ProductResponse> searchResponses(String query, Pageable pageable) {
-        return productRepository.searchProducts(query, pageable).map(this::toResponse);
+        return productRepository.searchProducts(query, pageable).map(p -> toResponse(p, false));
     }
 
     public Product getById(UUID id) {
@@ -71,7 +71,7 @@ public class ProductService {
     }
 
     public Page<ProductResponse> getFeaturedResponses(Pageable pageable) {
-        return productRepository.findByIsFeaturedTrueAndIsActiveTrue(pageable).map(this::toResponse);
+        return productRepository.findByIsFeaturedTrueAndIsActiveTrue(pageable).map(p -> toResponse(p, false));
     }
 
     public Page<Product> getNewArrivals(Pageable pageable) {
@@ -79,7 +79,7 @@ public class ProductService {
     }
 
     public Page<ProductResponse> getNewArrivalsResponses(Pageable pageable) {
-        return productRepository.findByIsNewTrueAndIsActiveTrue(pageable).map(this::toResponse);
+        return productRepository.findByIsNewTrueAndIsActiveTrue(pageable).map(p -> toResponse(p, false));
     }
 
     public Page<Product> getBestsellers(Pageable pageable) {
@@ -87,7 +87,7 @@ public class ProductService {
     }
 
     public Page<ProductResponse> getBestsellersResponses(Pageable pageable) {
-        return productRepository.findByIsBestsellerTrueAndIsActiveTrue(pageable).map(this::toResponse);
+        return productRepository.findByIsBestsellerTrueAndIsActiveTrue(pageable).map(p -> toResponse(p, false));
     }
 
     public Page<Product> getApparelHighlights(Pageable pageable) {
@@ -95,7 +95,7 @@ public class ProductService {
     }
 
     public Page<ProductResponse> getApparelHighlightsResponses(Pageable pageable) {
-        return productRepository.findByIsApparelHighlightsTrueAndIsActiveTrue(pageable).map(this::toResponse);
+        return productRepository.findByIsApparelHighlightsTrueAndIsActiveTrue(pageable).map(p -> toResponse(p, false));
     }
 
     public Page<Product> getTechHome(Pageable pageable) {
@@ -103,7 +103,7 @@ public class ProductService {
     }
 
     public Page<ProductResponse> getTechHomeResponses(Pageable pageable) {
-        return productRepository.findByIsTechHomeTrueAndIsActiveTrue(pageable).map(this::toResponse);
+        return productRepository.findByIsTechHomeTrueAndIsActiveTrue(pageable).map(p -> toResponse(p, false));
     }
 
     public Page<Product> getSale(Pageable pageable) {
@@ -111,7 +111,7 @@ public class ProductService {
     }
 
     public Page<ProductResponse> getSaleResponses(Pageable pageable) {
-        return productRepository.findByIsOnSaleTrueAndIsActiveTrue(pageable).map(this::toResponse);
+        return productRepository.findByIsOnSaleTrueAndIsActiveTrue(pageable).map(p -> toResponse(p, false));
     }
 
     public ProductResponse updateProductDiscount(UUID id, Integer discountPercentage, Boolean isOnSale) {
@@ -136,6 +136,10 @@ public class ProductService {
     }
 
     public ProductResponse toResponse(Product p) {
+        return toResponse(p, true);
+    }
+
+    public ProductResponse toResponse(Product p, boolean includeImages) {
         List<ProductResponse.VariantResponse> variantResponses = p.getVariants().stream()
             .map(v -> ProductResponse.VariantResponse.builder()
                 .id(v.getId())
@@ -181,7 +185,7 @@ public class ProductService {
             .averageRating(p.getAverageRating())
             .reviewCount(p.getReviewCount())
             .tags(p.getTags())
-            .images(p.getImages())
+            .images(includeImages ? p.getImages() : null)
             .image(p.getImages() != null && p.getImages().length > 0 ? p.getImages()[0] : null)
             .colors(p.getColors())
             .sizes(p.getSizes())

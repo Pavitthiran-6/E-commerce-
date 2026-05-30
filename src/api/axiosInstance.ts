@@ -2,13 +2,20 @@ import axios from 'axios';
 import { handleMockRequest } from './mockDataHandler';
 
 // --------------------------------------------------------------------------
-// Retry / backoff helpers
+// Configuration
 // --------------------------------------------------------------------------
 
-const MAX_RETRIES = 3;
-const RETRY_DELAYS_MS = [500, 1500, 3000]; // exponential-ish backoff
+// Short connection probe timeout — just enough to know the backend is alive.
+// If it doesn't respond in 3s, treat it as unreachable and switch to mock.
+const CONNECT_TIMEOUT_MS = 3000;
 
-/** Returns true for errors that are worth retrying (network / server errors). */
+// After the first real failure, do ONE fast retry (800ms) before giving up.
+// We don't do long exponential backoff here because the mock handler is
+// instantaneous — waiting 5+ seconds serves no user.
+const MAX_RETRIES = 1;
+const RETRY_DELAY_MS = 800;
+
+/** Returns true for errors that are worth a single retry. */
 function isRetryable(error: any): boolean {
   if (!error.response) return true; // network error / timeout
   const status = error.response.status;
@@ -25,7 +32,7 @@ function sleep(ms: number) {
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
-  timeout: 12000,
+  timeout: CONNECT_TIMEOUT_MS, // Fast fail — don't block the UI for 12s
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -48,18 +55,17 @@ axiosInstance.interceptors.request.use(
     }
 
     // Fast-fallback: if backend was previously detected as down, skip the
-    // real HTTP request entirely and go straight to the mock handler.
-    // We do this by rejecting with a special tagged error that carries the
-    // original config — Axios does NOT attach .config to CancelToken errors,
-    // which caused "Cannot read properties of undefined (reading 'url')".
+    // real HTTP request and go straight to the mock handler immediately.
+    // We reject with a tagged error carrying the config so handleMockRequest
+    // always receives a valid config (Axios does NOT attach .config to
+    // CancelToken errors — that was the source of the TypeError bug).
     if (sessionStorage.getItem('belledonne_backend_unreachable') === 'true') {
       const mockError: any = new Error('Backend known to be unreachable');
       mockError.__isMockFallback = true;
-      mockError.config = config; // attach config manually so we can use it below
+      mockError.config = config;
       return Promise.reject(mockError);
     }
 
-    // Tag the config so the response interceptor knows the current retry count
     if (config._retryCount === undefined) config._retryCount = 0;
 
     return config;
@@ -71,28 +77,20 @@ axiosInstance.interceptors.request.use(
 // Response interceptor
 // --------------------------------------------------------------------------
 axiosInstance.interceptors.response.use(
-  // ✅ Success — pass through
+  // ✅ Success — pass through unchanged
   (response: any) => response,
 
   async (error: any) => {
-    // ── Fast-fallback (backend previously known to be down) ──────────────
-    // Handles both the new tagged error and the legacy CancelToken approach
-    if (
-      error?.__isMockFallback ||
-      (axios.isCancel(error) && error.message === 'Backend known to be unreachable')
-    ) {
+    // ── Immediate mock fallback (backend known to be down) ───────────────
+    if (error?.__isMockFallback) {
       const cfg = error.config;
-      if (!cfg) {
-        // Config is missing — cannot construct a mock response; reject cleanly
-        return Promise.reject(new Error('Mock fallback: missing request config'));
-      }
+      if (!cfg) return Promise.reject(new Error('Mock fallback: missing request config'));
       return handleMockRequest(cfg);
     }
 
-    // ── 401 Unauthorized ────────────────────────────────────────────────
+    // ── 401 Unauthorized ─────────────────────────────────────────────────
     if (error.response?.status === 401) {
-      const isMockMode =
-        sessionStorage.getItem('belledonne_backend_unreachable') === 'true';
+      const isMockMode = sessionStorage.getItem('belledonne_backend_unreachable') === 'true';
       if (!isMockMode) {
         localStorage.removeItem('auth_user');
         if (window.location.pathname !== '/auth/login') {
@@ -102,7 +100,7 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // ── 403 Forbidden ────────────────────────────────────────────────────
+    // ── 403 Forbidden ─────────────────────────────────────────────────────
     if (error.response?.status === 403) {
       const isAdminApiCall = error.config?.url?.includes('/api/admin');
       if (isAdminApiCall) {
@@ -116,45 +114,33 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // ── Network error / server error — retry with backoff ───────────────
+    // ── Network / server error — ONE fast retry then mock mode ───────────
     const config = error.config;
+
     if (config && isRetryable(error)) {
       const retryCount = config._retryCount ?? 0;
 
       if (retryCount < MAX_RETRIES) {
         config._retryCount = retryCount + 1;
-        const delay = RETRY_DELAYS_MS[retryCount] ?? 3000;
-        await sleep(delay);
+        await sleep(RETRY_DELAY_MS);
         try {
           return await axiosInstance(config);
-        } catch (retryError: any) {
-          // All retries exhausted with a network error → switch to mock mode
-          if (!retryError.response && (retryError._retryCount ?? 0) >= MAX_RETRIES) {
-            console.warn(
-              'Backend unreachable after retries. Falling back to Frontend Mock Mode...'
-            );
-            sessionStorage.setItem('belledonne_backend_unreachable', 'true');
-            return handleMockRequest(config);
-          }
-          return Promise.reject(retryError);
+        } catch {
+          // Retry also failed — fall through to mock mode below
         }
       }
 
-      // Exhausted retries with a network error → switch to mock mode
+      // Backend is genuinely unreachable — switch to mock mode instantly
       if (!error.response) {
-        console.warn(
-          'Backend unreachable after retries. Falling back to Frontend Mock Mode...'
-        );
+        console.warn('Backend unreachable. Switching to Frontend Mock Mode...');
         sessionStorage.setItem('belledonne_backend_unreachable', 'true');
         return handleMockRequest(config);
       }
     }
 
-    // First-time network error (no config or no retries set up)
+    // Catch-all network error with no config
     if (!error.response && config) {
-      console.warn(
-        'Backend unreachable. Falling back to Frontend Mock Mode for client demo...'
-      );
+      console.warn('Backend unreachable. Switching to Frontend Mock Mode...');
       sessionStorage.setItem('belledonne_backend_unreachable', 'true');
       return handleMockRequest(config);
     }
@@ -162,5 +148,71 @@ axiosInstance.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// --------------------------------------------------------------------------
+// Client-side GET Cache Layer
+// --------------------------------------------------------------------------
+
+const cache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL_MS = 120000; // Cache for 2 minutes
+
+const CACHEABLE_URLS = [
+  '/api/products',
+  '/api/categories',
+  '/api/coupons',
+  '/api/sales',
+  '/api/admin/products',
+  '/api/admin/categories',
+  '/api/admin/coupons',
+  '/api/admin/orders',
+  '/api/admin/users'
+];
+
+function isCacheable(url: string | undefined): boolean {
+  if (!url) return false;
+  const cleanUrl = url.replace(/^https?:\/\/[^\/]+/, '');
+  return CACHEABLE_URLS.some(p => cleanUrl.startsWith(p));
+}
+
+export const clearProductCache = () => {
+  cache.clear();
+};
+
+const originalRequest = axiosInstance.request;
+axiosInstance.request = async function (config: any): Promise<any> {
+  const method = (config.method || 'get').toLowerCase();
+  const url = config.url || '';
+  
+  if (method === 'get' && isCacheable(url)) {
+    const token = localStorage.getItem('auth_user') || '';
+    const cacheKey = `${url}:${JSON.stringify(config.params || {})}:${token}`;
+    
+    const cached = cache.get(cacheKey);
+    const now = Date.now();
+    if (cached && (now - cached.timestamp < CACHE_TTL_MS)) {
+      return Promise.resolve(cached.data);
+    }
+    
+    try {
+      const response = await originalRequest.call(this, config);
+      cache.set(cacheKey, { data: response, timestamp: Date.now() });
+      return response;
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+  
+  if (method !== 'get') {
+    try {
+      const response = await originalRequest.call(this, config);
+      cache.clear(); // Clear all cache on any successful mutation
+      return response;
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+  
+  return originalRequest.call(this, config);
+};
 
 export default axiosInstance;

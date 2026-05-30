@@ -589,6 +589,8 @@ export default function Collection() {
                       alt={product.name}
                       className="product-img object-cover object-center w-full h-full transition-transform ease-out duration-500 group-hover:scale-105 group-hover:opacity-90 mix-blend-multiply"
                       src={product.image}
+                      loading="lazy"
+                      decoding="async"
                     />
                     <div className="absolute inset-0 bg-surface-tint/0 group-hover:bg-surface-tint/5 transition-colors duration-400"></div>
                     <button 

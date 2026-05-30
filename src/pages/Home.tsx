@@ -179,7 +179,7 @@ export default function Home() {
           <div className="grid grid-rows-3 gap-4 lg:col-span-1 h-full">
             {/* Banner 1: 3-Day Delivery */}
             <Link to="/cart" className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm block">
-              <img alt="3-Day Delivery" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600" />
+              <img alt="3-Day Delivery" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600" loading="eager" decoding="async" />
               <div className="absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors duration-300" />
               <div className="absolute inset-y-0 left-0 w-full flex items-center z-10">
                 <div className="w-[85%] bg-gradient-to-r from-black/90 via-black/70 to-transparent py-3 pl-5 pr-8 transition-transform duration-300 group-hover:translate-x-1">
@@ -192,7 +192,7 @@ export default function Home() {
 
             {/* Banner 2: Weekly Sale */}
             <Link to="/sale" className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm block">
-              <img alt="Weekly Sale" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=600" />
+              <img alt="Weekly Sale" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=600" loading="lazy" decoding="async" />
               <div className="absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors duration-300" />
               <div className="absolute inset-y-0 left-0 w-full flex items-center z-10">
                 <div className="w-[85%] bg-gradient-to-r from-black/90 via-black/70 to-transparent py-3 pl-5 pr-8 transition-transform duration-300 group-hover:translate-x-1">
@@ -205,7 +205,7 @@ export default function Home() {
 
             {/* Banner 3: Belledonne Club */}
             <Link to="/collection" className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm block">
-              <img alt="Belledonne Club" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=600" />
+              <img alt="Belledonne Club" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=600" loading="lazy" decoding="async" />
               <div className="absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors duration-300" />
               <div className="absolute inset-y-0 left-0 w-full flex items-center z-10">
                 <div className="w-[85%] bg-gradient-to-r from-black/90 via-black/70 to-transparent py-3 pl-5 pr-8 transition-transform duration-300 group-hover:translate-x-1">
@@ -229,7 +229,9 @@ export default function Home() {
                   <img 
                     alt={slide.title} 
                     className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-10000 ease-out group-hover:scale-102" 
-                    src={slide.image} 
+                    src={slide.image}
+                    loading={idx === 0 ? 'eager' : 'lazy'}
+                    decoding="async"
                   />
                   {/* Dark Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/25 to-black/55" />
@@ -309,7 +311,7 @@ export default function Home() {
           {/* Right Column: 3 small cool-toned/darker banners */}
           <div className="grid grid-rows-3 gap-4 lg:col-span-1 h-full">
             <Link to="/collection?promo=clearance" className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm block">
-              <img alt="Clearance" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600" />
+              <img alt="Clearance" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600" loading="lazy" decoding="async" />
               <div className="absolute inset-0 bg-neutral-950/20 group-hover:bg-neutral-950/30 transition-colors duration-300" />
               <div className="absolute inset-y-0 right-0 w-full flex items-center justify-end z-10">
                 <div className="w-[85%] bg-gradient-to-l from-black/90 via-black/70 to-transparent py-3 pr-5 pl-8 transition-transform duration-300 group-hover:-translate-x-1 text-right">
@@ -320,7 +322,7 @@ export default function Home() {
               </div>
             </Link>
             <Link to="/collection?promo=flash-deals" className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm block">
-              <img alt="Flash Deals" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=600" />
+              <img alt="Flash Deals" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=600" loading="lazy" decoding="async" />
               <div className="absolute inset-0 bg-neutral-950/20 group-hover:bg-neutral-950/30 transition-colors duration-300" />
               <div className="absolute inset-y-0 right-0 w-full flex items-center justify-end z-10">
                 <div className="w-[85%] bg-gradient-to-l from-black/90 via-black/70 to-transparent py-3 pr-5 pl-8 transition-transform duration-300 group-hover:-translate-x-1 text-right">
@@ -331,7 +333,7 @@ export default function Home() {
               </div>
             </Link>
             <Link to="/collection?promo=last-chance" className="relative rounded-2xl overflow-hidden group min-h-[140px] shadow-sm block">
-              <img alt="Last Chance" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=600" />
+              <img alt="Last Chance" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=600" loading="lazy" decoding="async" />
               <div className="absolute inset-0 bg-neutral-950/20 group-hover:bg-neutral-950/30 transition-colors duration-300" />
               <div className="absolute inset-y-0 right-0 w-full flex items-center justify-end z-10">
                 <div className="w-[85%] bg-gradient-to-l from-black/90 via-black/70 to-transparent py-3 pr-5 pl-8 transition-transform duration-300 group-hover:-translate-x-1 text-right">
@@ -386,7 +388,7 @@ export default function Home() {
               products.slice(0, 10).map((item) => (
                 <Link to={`/product/${item.id}`} key={item.id} className="group block cursor-pointer min-w-[85vw] sm:min-w-[45vw] md:min-w-[22%] snap-start relative">
                   <div className="aspect-[3/4] bg-warm-sand mb-3 overflow-hidden relative">
-                    <img alt={item.name} className="w-full h-full object-cover transition-transform duration-[600ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-105" src={item.image} />
+                    <img alt={item.name} className="w-full h-full object-cover transition-transform duration-[600ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-105" src={item.image} loading="lazy" decoding="async" />
                     <button 
                       onClick={(e) => handleWishlistToggle(e, item)}
                       className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-charcoal-stone hover:scale-110 transition-transform z-10"
@@ -534,7 +536,7 @@ export default function Home() {
             }
           ].map((cat, idx) => (
             <Link to={cat.link} key={idx} className="relative aspect-[4/5] rounded-2xl overflow-hidden group shadow-sm hover:shadow-lg transition-all duration-500 block bg-neutral-950">
-              <img alt={cat.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-85 group-hover:opacity-75" src={cat.image} />
+              <img alt={cat.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-85 group-hover:opacity-75" src={cat.image} loading="lazy" decoding="async" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10 transition-opacity duration-300" />
               <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col justify-end text-white">
                 <h3 className="font-serif text-xl font-bold tracking-wide mb-1">{cat.title}</h3>
@@ -589,7 +591,7 @@ export default function Home() {
               apparelHighlights.map((item) => (
                 <Link to={`/product/${item.id}`} key={item.id} className="group block cursor-pointer min-w-[85vw] sm:min-w-[45vw] md:min-w-[22%] snap-start relative">
                   <div className="aspect-[3/4] bg-[#f6f5f0] mb-3 overflow-hidden relative">
-                    <img alt={item.name} className="w-full h-full object-cover transition-transform duration-[600ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-105" src={item.image} />
+                    <img alt={item.name} className="w-full h-full object-cover transition-transform duration-[600ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-105" src={item.image} loading="lazy" decoding="async" />
                     <button 
                       onClick={(e) => handleWishlistToggle(e, item)}
                       className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-charcoal-stone hover:scale-110 transition-transform z-10"
@@ -671,7 +673,9 @@ export default function Home() {
                   <img 
                     alt={item.name} 
                     className="w-full h-full object-cover transition-opacity duration-300 opacity-100 group-hover/models:opacity-0 group-hover/card:!opacity-100" 
-                    src={item.image} 
+                    src={item.image}
+                    loading="lazy"
+                    decoding="async"
                   />
                   <button 
                     onClick={(e) => handleWishlistToggle(e, item)}
