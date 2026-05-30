@@ -507,28 +507,7 @@ export default function EditProduct() {
       : categoryId ? Number(categoryId) : undefined;
 
     try {
-      // 1. If we have a new cover file, upload it first to backend
-      if (coverFile) {
-        const form = new FormData();
-        form.append('files', coverFile);
-        try {
-          await axiosInstance.post(`/api/admin/products/${id}/images`, form, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-        } catch (uploadErr) {
-          console.warn('Cover upload failed:', uploadErr);
-        }
-      }
-
-      // 2. Gather remaining original images list to send
-      // If we replaced the cover with coverFile, remove the previous cover image URL from backend list
-      let finalImagesList = [...existingImages];
-      if (coverFile && existingImages.length > 0) {
-        // Remove the original first index (which was the old cover)
-        finalImagesList = finalImagesList.slice(1);
-      }
-
-      // 3. Put main details update
+      // 1. PUT main product details (no images — managed separately)
       const payload = {
         name: name.trim(),
         brand: brand,
@@ -543,7 +522,6 @@ export default function EditProduct() {
         isBestseller: isBestseller,
         isApparelHighlights: isApparelHighlights,
         isTechHome: isTechHome,
-        images: finalImagesList,
         specifications: specs.filter(s => s.key.trim()).map((s, i) => ({ key: s.key.trim(), value: s.value.trim(), displayOrder: i })),
         materialsTitle: materialsTitle.trim(),
         materialsContent: materialsContent.trim(),
@@ -561,23 +539,33 @@ export default function EditProduct() {
       };
       await axiosInstance.put(`/api/admin/products/${id}`, payload);
 
-      // 4. Upload additional new images
+      // 2. Upload new cover image if changed
+      if (coverFile) {
+        const form = new FormData();
+        form.append('files', coverFile);
+        try {
+          await axiosInstance.post(`/api/admin/products/${id}/images`, form);
+        } catch (uploadErr) {
+          console.warn('Cover upload failed (Cloudinary not configured?):', uploadErr);
+        }
+      }
+
+      // 3. Upload additional new images
       if (editNewImages.length > 0) {
         const form = new FormData();
         const sorted = [...editNewImages].sort((a, b) => (b.isCover ? 1 : 0) - (a.isCover ? 1 : 0));
         sorted.forEach(img => form.append('files', img.file));
         try {
-          await axiosInstance.post(`/api/admin/products/${id}/images`, form, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
+          await axiosInstance.post(`/api/admin/products/${id}/images`, form);
         } catch (e) {
-          console.warn('Upload of additional new images failed:', e);
+          console.warn('Upload of additional new images failed (Cloudinary not configured?):', e);
         }
       }
 
       navigate('/admin/products');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save changes. Please try again.');
+      const msg = err.response?.data?.message || err.message || 'Failed to save changes. Please try again.';
+      setError(msg);
       setIsSaving(false);
     }
   };
