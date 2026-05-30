@@ -353,7 +353,7 @@ export default function Product() {
                 disabled={stockStatus === 'out_of_stock'}
                 className={`w-1/2 font-button text-button uppercase py-3 transition-colors duration-400 ease-in-out tracking-[0.1em] border bg-white text-primary border-primary hover:bg-warm-sand disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                Buy it Now
+                Buy Now
               </button>
             </div>
             
