@@ -33,6 +33,7 @@ public class ProductResponse {
     private Integer reviewCount;
     private String[] tags;
     private String[] images;
+    private String image;
     private String[] colors;
     private String[] sizes;
     private String materialsTitle;

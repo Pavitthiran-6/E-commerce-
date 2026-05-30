@@ -182,6 +182,7 @@ public class ProductService {
             .reviewCount(p.getReviewCount())
             .tags(p.getTags())
             .images(p.getImages())
+            .image(p.getImages() != null && p.getImages().length > 0 ? p.getImages()[0] : null)
             .colors(p.getColors())
             .sizes(p.getSizes())
             .materialsTitle(p.getMaterialsTitle())
