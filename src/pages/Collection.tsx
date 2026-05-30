@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { Product } from '../data/products';
 import { getAllProducts, searchProducts } from '../services/productService';
@@ -6,6 +6,7 @@ import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
 import ErrorState from '../components/common/ErrorState';
 import { SparkleHeart } from '../components/icons/SparkleHeart';
 import { useWishlist } from '../context/WishlistContext';
+import { useNetworkRecovery } from '../hooks/useNetworkRecovery';
 
 export default function Collection() {
   const location = useLocation();
@@ -30,31 +31,45 @@ export default function Collection() {
     }
   };
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-
   const [sortBy, setSortBy] = useState('Recommended');
   const [currentPage, setCurrentPage] = useState(1);
   const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isRecovering, setIsRecovering] = useState(false);
+  const hasFetchedOnce = useRef(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [productType, setProductType] = useState<'all' | 'footwear' | 'apparel' | 'electronics'>('all');
 
-  useEffect(() => {
-    const fetchProducts = async () => {
+
+  const fetchProducts = useCallback(async (silent = false) => {
+    if (!silent) {
       setIsLoading(true);
       setError('');
-      try {
-        const data = searchQuery ? await searchProducts(searchQuery) : await getAllProducts();
-        setProducts(data);
-      } catch (err) {
-        setError('Failed to load products');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    }
+    try {
+      const data = searchQuery ? await searchProducts(searchQuery) : await getAllProducts();
+      setProducts(data);
+      setError('');
+    } catch (err) {
+      if (products.length === 0) setError('Failed to load products');
+    } finally {
+      setIsLoading(false);
+      setIsRecovering(false);
+    }
+  }, [searchQuery, products.length]);
+
+  useEffect(() => {
+    hasFetchedOnce.current = true;
     fetchProducts();
   }, [searchQuery]);
+
+  useNetworkRecovery(useCallback(() => {
+    if (!hasFetchedOnce.current) return;
+    setIsRecovering(true);
+    fetchProducts(true);
+  }, [fetchProducts]));
 
   // Filter Configurations based on Product Type
   const filterConfigs = {

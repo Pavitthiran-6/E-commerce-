@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -14,6 +14,7 @@ import type { Review } from '../services/reviewService';
 import type { Product as ProductType } from '../data/products';
 import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
 import ErrorState from '../components/common/ErrorState';
+import { useNetworkRecovery } from '../hooks/useNetworkRecovery';
 
 export default function Product() {
   const { productId: id } = useParams();
@@ -140,28 +141,41 @@ export default function Product() {
   };
 
   // Fetch product
-  useEffect(() => {
+  const fetchProduct = useCallback(async (silent = false) => {
     if (!id) return;
-    const fetchProduct = async () => {
+    if (!silent) {
       setIsLoading(true);
       setError('');
-      try {
-        const data = await getProductById(id);
-        setProduct(data);
-        setStockStatus((data.stockQuantity ?? 0) > 0 ? 'in_stock' : 'out_of_stock');
-        
-        // Fetch reviews
-        const reviewsData = await getProductReviews(id);
-        setReviews(reviewsData.content);
-        setTotalReviews(reviewsData.totalElements);
-      } catch (err) {
-        setError('Failed to load product details');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    }
+    try {
+      const data = await getProductById(id);
+      setProduct(data);
+      setStockStatus((data.stockQuantity ?? 0) > 0 ? 'in_stock' : 'out_of_stock');
+      setError('');
+      // Fetch reviews
+      const reviewsData = await getProductReviews(id);
+      setReviews(reviewsData.content);
+      setTotalReviews(reviewsData.totalElements);
+    } catch (err) {
+      if (!product) setError('Failed to load product details');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id, product]);
+
+  const hasFetchedOnce = useRef(false);
+
+  useEffect(() => {
+    if (!id) return;
+    hasFetchedOnce.current = true;
     fetchProduct();
   }, [id]);
+
+  // Auto-recover on network reconnect or sleep-wake
+  useNetworkRecovery(useCallback(() => {
+    if (!hasFetchedOnce.current || !id) return;
+    fetchProduct(true);
+  }, [id, fetchProduct]));
 
 
   // Scroll to top on mount

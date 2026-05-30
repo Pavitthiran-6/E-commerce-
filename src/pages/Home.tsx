@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { SparkleHeart } from '../components/icons/SparkleHeart';
 import { useWishlist } from '../context/WishlistContext';
@@ -7,6 +7,7 @@ import { getFeaturedCoupons, type Coupon } from '../services/couponService';
 import type { Product } from '../data/products';
 import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
 import ErrorState from '../components/common/ErrorState';
+import { useNetworkRecovery } from '../hooks/useNetworkRecovery';
 
 export default function Home() {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
@@ -24,31 +25,42 @@ export default function Home() {
   };
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  // true while auto-recovering after a network interruption
+  const [isRecovering, setIsRecovering] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const hasFetchedOnce = useRef(false);
 
-  const fetchProducts = async () => {
-    setIsLoading(true);
-    setError('');
+  const fetchProducts = useCallback(async (silent = false) => {
+    if (!silent) {
+      setIsLoading(true);
+      setError('');
+    }
     try {
       const data = await getAllProducts();
       setProducts(data);
+      // Successfully loaded — clear any previous error
+      setError('');
     } catch (err) {
-      setError('Failed to load products');
+      // Only show the error screen if we have no data to fall back to
+      if (products.length === 0) {
+        setError('Failed to load products');
+      }
     } finally {
       setIsLoading(false);
+      setIsRecovering(false);
     }
-  };
+  }, [products.length]);
 
-  const fetchFeatured = async () => {
+  const fetchFeatured = useCallback(async () => {
     try {
       const data = await getFeaturedProducts();
       setFeaturedProducts(data);
     } catch (err) {
       console.error('Failed to load featured products', err);
     }
-  };
+  }, []);
 
-  const fetchHighlightsAndTech = async () => {
+  const fetchHighlightsAndTech = useCallback(async () => {
     try {
       const [apparelData, techData] = await Promise.all([
         getApparelHighlights(),
@@ -59,23 +71,37 @@ export default function Home() {
     } catch (err) {
       console.error('Failed to load highlight products', err);
     }
-  };
+  }, []);
 
-  const fetchFeaturedCoupons = async () => {
+  const fetchFeaturedCoupons = useCallback(async () => {
     try {
       const data = await getFeaturedCoupons();
       setFeaturedCoupons(data || []);
     } catch (err) {
       console.error('Failed to load featured coupons', err);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    hasFetchedOnce.current = true;
     fetchProducts();
     fetchFeatured();
     fetchHighlightsAndTech();
     fetchFeaturedCoupons();
   }, []);
+
+  // ── Network / sleep-wake recovery ───────────────────────────────────────────
+  // When the browser comes back online or the user returns from sleep, silently
+  // refetch stale data instead of leaving a permanent error state.
+  useNetworkRecovery(useCallback(() => {
+    if (!hasFetchedOnce.current) return;
+    setIsRecovering(true);
+    // Silent fetch — keeps existing stale data visible while refetching
+    fetchProducts(true);
+    fetchFeatured();
+    fetchHighlightsAndTech();
+    fetchFeaturedCoupons();
+  }, [fetchProducts, fetchFeatured, fetchHighlightsAndTech, fetchFeaturedCoupons]));
 
   const defaultSlides = [
     {
@@ -127,12 +153,24 @@ export default function Home() {
     }
   };
 
-  if (error) {
-    return <ErrorState message={error} onRetry={fetchProducts} className="mt-24 mx-4" />;
+  // Show the blocking error screen ONLY when we have absolutely no data.
+  // If we have stale products cached, keep showing them with a small banner.
+  if (error && products.length === 0) {
+    return <ErrorState message={error} onRetry={() => fetchProducts()} className="mt-24 mx-4" />;
   }
 
   return (
     <div className="bg-parchment text-charcoal-stone font-body-lg antialiased selection:bg-muted-gold selection:text-white">
+      {/* Reconnecting / recovering banner — non-blocking */}
+      {isRecovering && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs font-medium py-1.5 px-4">
+          <svg className="w-3.5 h-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+          </svg>
+          Reconnecting…
+        </div>
+      )}
       {/* Hero Section */}
       <section className="max-w-[1400px] mx-auto px-6 pt-8 pb-12">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-stretch lg:h-[550px]">
