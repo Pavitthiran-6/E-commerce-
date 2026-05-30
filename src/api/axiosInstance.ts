@@ -25,7 +25,7 @@ function sleep(ms: number) {
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
-  timeout: 12000, // slightly more generous timeout
+  timeout: 12000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -47,12 +47,16 @@ axiosInstance.interceptors.request.use(
       // corrupted storage — ignore silently
     }
 
-    // Fast-fallback: if backend was previously detected as down, cancel the
-    // real request and route it straight through the mock handler.
+    // Fast-fallback: if backend was previously detected as down, skip the
+    // real HTTP request entirely and go straight to the mock handler.
+    // We do this by rejecting with a special tagged error that carries the
+    // original config — Axios does NOT attach .config to CancelToken errors,
+    // which caused "Cannot read properties of undefined (reading 'url')".
     if (sessionStorage.getItem('belledonne_backend_unreachable') === 'true') {
-      config.cancelToken = new axios.CancelToken((cancel) =>
-        cancel('Backend known to be unreachable')
-      );
+      const mockError: any = new Error('Backend known to be unreachable');
+      mockError.__isMockFallback = true;
+      mockError.config = config; // attach config manually so we can use it below
+      return Promise.reject(mockError);
     }
 
     // Tag the config so the response interceptor knows the current retry count
@@ -71,17 +75,22 @@ axiosInstance.interceptors.response.use(
   (response: any) => response,
 
   async (error: any) => {
-    // ── Fast-fallback cancels ────────────────────────────────────────────
+    // ── Fast-fallback (backend previously known to be down) ──────────────
+    // Handles both the new tagged error and the legacy CancelToken approach
     if (
-      axios.isCancel(error) &&
-      error.message === 'Backend known to be unreachable'
+      error?.__isMockFallback ||
+      (axios.isCancel(error) && error.message === 'Backend known to be unreachable')
     ) {
-      return handleMockRequest(error.config);
+      const cfg = error.config;
+      if (!cfg) {
+        // Config is missing — cannot construct a mock response; reject cleanly
+        return Promise.reject(new Error('Mock fallback: missing request config'));
+      }
+      return handleMockRequest(cfg);
     }
 
     // ── 401 Unauthorized ────────────────────────────────────────────────
     if (error.response?.status === 401) {
-      // Only clear token if this is a genuine auth failure (not a mock request)
       const isMockMode =
         sessionStorage.getItem('belledonne_backend_unreachable') === 'true';
       if (!isMockMode) {
@@ -116,12 +125,11 @@ axiosInstance.interceptors.response.use(
         config._retryCount = retryCount + 1;
         const delay = RETRY_DELAYS_MS[retryCount] ?? 3000;
         await sleep(delay);
-        // Retry via the same instance (interceptors fire again)
         try {
           return await axiosInstance(config);
         } catch (retryError: any) {
-          // If ALL retries exhausted and it's still a network error:
-          if (!retryError.response && retryError._retryCount >= MAX_RETRIES) {
+          // All retries exhausted with a network error → switch to mock mode
+          if (!retryError.response && (retryError._retryCount ?? 0) >= MAX_RETRIES) {
             console.warn(
               'Backend unreachable after retries. Falling back to Frontend Mock Mode...'
             );
@@ -142,7 +150,7 @@ axiosInstance.interceptors.response.use(
       }
     }
 
-    // First-time network error (no retries yet for non-retryable configs)
+    // First-time network error (no config or no retries set up)
     if (!error.response && config) {
       console.warn(
         'Backend unreachable. Falling back to Frontend Mock Mode for client demo...'
