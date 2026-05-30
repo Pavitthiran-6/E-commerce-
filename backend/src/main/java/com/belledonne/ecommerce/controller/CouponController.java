@@ -32,6 +32,11 @@ public class CouponController {
         return ResponseEntity.ok(ApiResponse.success("Available coupons", couponService.getAvailableCoupons()));
     }
 
+    @GetMapping("/featured")
+    public ResponseEntity<ApiResponse<List<CouponResponse>>> getFeaturedCoupons() {
+        return ResponseEntity.ok(ApiResponse.success("Featured coupons", couponService.getFeaturedCoupons()));
+    }
+
     @PostMapping("/validate")
     public ResponseEntity<ApiResponse<?>> validate(
         @AuthenticationPrincipal UserPrincipal principal,

@@ -14,4 +14,5 @@ public class CouponResponse {
     private BigDecimal minOrderValue;
     private String discountType;      // 'PERCENTAGE' or 'FIXED'
     private BigDecimal discountValue;
+    private Boolean showOnHome;
 }

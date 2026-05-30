@@ -15,13 +15,21 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        log.info("Starting automatic database migration for product images column type...");
+        log.info("Starting automatic database migrations...");
         try {
             // Upgrade images array type from varchar(255)[] to text[] to support base64 images
             jdbcTemplate.execute("ALTER TABLE products ALTER COLUMN images TYPE text[] USING images::text[]");
             log.info("Database migration successfully upgraded products.images to text[]!");
         } catch (Exception e) {
-            log.warn("Database migration products.images alter skipped or not needed (this is normal if table doesn't exist yet or already altered): {}", e.getMessage());
+            log.warn("Database migration products.images alter skipped or not needed: {}", e.getMessage());
+        }
+
+        try {
+            // Add show_on_home column to coupons if not exists
+            jdbcTemplate.execute("ALTER TABLE coupons ADD COLUMN IF NOT EXISTS show_on_home BOOLEAN DEFAULT FALSE");
+            log.info("Database migration successfully added show_on_home to coupons table!");
+        } catch (Exception e) {
+            log.warn("Database migration coupons.show_on_home alter skipped or failed: {}", e.getMessage());
         }
     }
 }

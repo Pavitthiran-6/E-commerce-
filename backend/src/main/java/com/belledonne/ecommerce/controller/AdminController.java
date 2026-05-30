@@ -441,6 +441,12 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("Coupon status toggled", couponService.toggleCoupon(id)));
     }
 
+    @PutMapping("/coupons/{id}/toggle-home")
+    @Operation(summary = "Toggle show on home status of a coupon")
+    public ResponseEntity<ApiResponse<?>> toggleShowOnHome(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success("Coupon show-on-home status toggled", couponService.toggleShowOnHome(id)));
+    }
+
     // ---- 5F: REVIEW MANAGEMENT (Admin) ----
     @GetMapping("/reviews")
     @Operation(summary = "Get filtered reviews list with pagination")

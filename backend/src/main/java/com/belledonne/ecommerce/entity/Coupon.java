@@ -49,6 +49,10 @@ public class Coupon {
     @Builder.Default
     private Boolean isActive = true;
 
+    @Column(name = "show_on_home")
+    @Builder.Default
+    private Boolean showOnHome = false;
+
     @Column(name = "valid_from")
     private LocalDateTime validFrom;
 

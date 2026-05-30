@@ -29,4 +29,6 @@ public class CouponRequest {
     private LocalDateTime validFrom;
 
     private LocalDateTime validUntil;
+
+    private Boolean showOnHome;
 }

@@ -15,6 +15,7 @@ interface Coupon {
   isActive: boolean;
   validFrom: string | null;
   validUntil: string | null;
+  showOnHome?: boolean;
 }
 
 export default function ManageCoupons() {
@@ -34,6 +35,7 @@ export default function ManageCoupons() {
   const [usageLimit, setUsageLimit] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [showOnHome, setShowOnHome] = useState(false);
   
   // Custom dropdown states
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -112,6 +114,7 @@ export default function ManageCoupons() {
         minCartValue: minCartValue ? parseFloat(minCartValue) : 0,
         maxDiscount: type === 'PERCENTAGE' && maxDiscount ? parseFloat(maxDiscount) : null,
         usageLimit: usageLimit ? parseInt(usageLimit) : null,
+        showOnHome: showOnHome,
         validFrom: new Date().toISOString().split('.')[0], // current local time
         validUntil: expiryDate ? `${expiryDate}T23:59:59` : null, // end of that expiry day
       };
@@ -133,6 +136,7 @@ export default function ManageCoupons() {
       setUsageLimit('');
       setExpiryDate('');
       setIsActive(true);
+      setShowOnHome(false);
 
       loadCoupons(); // refresh table
     } catch (err: any) {
@@ -140,6 +144,19 @@ export default function ManageCoupons() {
       showToast(msg, 'error');
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  // Toggle show on home status directly from table row
+  const handleToggleHomeStatus = async (coupon: Coupon) => {
+    try {
+      await axiosInstance.put(`/api/admin/coupons/${coupon.id}/toggle-home`);
+      setCoupons(prev =>
+        prev.map(c => (c.id === coupon.id ? { ...c, showOnHome: !c.showOnHome } : c))
+      );
+      showToast(`Coupon ${coupon.code} home status updated!`, 'success');
+    } catch (err) {
+      showToast('Failed to update show on home status.', 'error');
     }
   };
 
@@ -349,19 +366,36 @@ export default function ManageCoupons() {
 
           {/* Form Actions (Submit / Align end) */}
           <div className="md:col-span-3 flex items-center justify-between pt-2 border-t border-gray-50">
-            {/* Active Toggle Switch */}
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => setIsActive(!isActive)}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none
-                  ${isActive ? 'bg-gray-900' : 'bg-gray-200'}`}
-              >
-                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out
-                  ${isActive ? 'translate-x-5' : 'translate-x-0'}`}
-                />
-              </button>
-              <span className="text-sm font-medium text-gray-700">Set active immediately</span>
+            <div className="flex items-center gap-6">
+              {/* Active Toggle Switch */}
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsActive(!isActive)}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none
+                    ${isActive ? 'bg-gray-900' : 'bg-gray-200'}`}
+                >
+                  <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out
+                    ${isActive ? 'translate-x-5' : 'translate-x-0'}`}
+                  />
+                </button>
+                <span className="text-sm font-medium text-gray-700">Set active immediately</span>
+              </div>
+
+              {/* Show on Home Toggle Switch */}
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowOnHome(!showOnHome)}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none
+                    ${showOnHome ? 'bg-gray-900' : 'bg-gray-200'}`}
+                >
+                  <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out
+                    ${showOnHome ? 'translate-x-5' : 'translate-x-0'}`}
+                  />
+                </button>
+                <span className="text-sm font-medium text-gray-700">Show on Home Page</span>
+              </div>
             </div>
 
             <button
@@ -411,6 +445,7 @@ export default function ManageCoupons() {
                   <th className="px-6 py-3.5">Min. Order Value</th>
                   <th className="px-6 py-3.5">Usage</th>
                   <th className="px-6 py-3.5">Expiry Date</th>
+                  <th className="px-6 py-3.5">Show on Home</th>
                   <th className="px-6 py-3.5">Status</th>
                   <th className="px-6 py-3.5 text-right">Actions</th>
                 </tr>
@@ -464,8 +499,8 @@ export default function ManageCoupons() {
                           {coupon.usageLimit && (
                             <div className="w-16 h-1 bg-gray-100 rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-gray-900 transition-all duration-300"
-                                style={{ width: `${Math.min((coupon.usedCount / coupon.usageLimit) * 100, 100)}%` }}
+                                  className="h-full bg-gray-900 transition-all duration-300"
+                                  style={{ width: `${Math.min((coupon.usedCount / coupon.usageLimit) * 100, 100)}%` }}
                               />
                             </div>
                           )}
@@ -486,6 +521,22 @@ export default function ManageCoupons() {
                         ) : (
                           <span className="text-gray-400 font-normal">—</span>
                         )}
+                      </td>
+
+                      {/* Show on Home Toggle directly in row */}
+                      <td className="px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleHomeStatus(coupon)}
+                          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none
+                            ${coupon.showOnHome && !expired ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                          disabled={expired}
+                          title={expired ? 'Cannot toggle expired coupon' : 'Toggle show on home'}
+                        >
+                          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out
+                            ${coupon.showOnHome && !expired ? 'translate-x-4' : 'translate-x-0'}`}
+                          />
+                        </button>
                       </td>
 
                       {/* Status Toggle directly in row */}

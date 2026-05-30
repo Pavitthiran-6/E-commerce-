@@ -56,6 +56,7 @@ public class CouponService {
             .maxDiscount(request.getMaxDiscount())
             .usageLimit(request.getUsageLimit())
             .isActive(true)
+            .showOnHome(request.getShowOnHome() != null ? request.getShowOnHome() : false)
             .validFrom(request.getValidFrom())
             .validUntil(request.getValidUntil())
             .build();
@@ -80,6 +81,9 @@ public class CouponService {
         coupon.setMinCartValue(request.getMinCartValue() != null ? request.getMinCartValue() : BigDecimal.ZERO);
         coupon.setMaxDiscount(request.getMaxDiscount());
         coupon.setUsageLimit(request.getUsageLimit());
+        if (request.getShowOnHome() != null) {
+            coupon.setShowOnHome(request.getShowOnHome());
+        }
         coupon.setValidFrom(request.getValidFrom());
         coupon.setValidUntil(request.getValidUntil());
 
@@ -145,6 +149,25 @@ public class CouponService {
         });
     }
 
+    public Coupon toggleShowOnHome(Long id) {
+        Coupon coupon = couponRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Coupon", "id", id));
+        coupon.setShowOnHome(Boolean.FALSE.equals(coupon.getShowOnHome()) ? Boolean.TRUE : Boolean.FALSE);
+        return couponRepository.save(coupon);
+    }
+
+    public List<CouponResponse> getFeaturedCoupons() {
+        LocalDateTime now = LocalDateTime.now();
+        return couponRepository.findAll()
+            .stream()
+            .filter(coupon -> Boolean.TRUE.equals(coupon.getIsActive()))
+            .filter(coupon -> Boolean.TRUE.equals(coupon.getShowOnHome()))
+            .filter(coupon -> coupon.getValidUntil() == null || coupon.getValidUntil().isAfter(now))
+            .filter(coupon -> coupon.getUsageLimit() == null || coupon.getUsedCount() < coupon.getUsageLimit())
+            .map(this::toResponse)
+            .collect(Collectors.toList());
+    }
+
     public CouponResponse toResponse(Coupon c) {
         String discountType = c.getType();
         if ("FLAT".equalsIgnoreCase(discountType)) {
@@ -158,6 +181,7 @@ public class CouponService {
             .minOrderValue(c.getMinCartValue() != null ? c.getMinCartValue() : BigDecimal.ZERO)
             .discountType(discountType)
             .discountValue(c.getValue())
+            .showOnHome(c.getShowOnHome())
             .build();
     }
 }

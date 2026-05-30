@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { SparkleHeart } from '../components/icons/SparkleHeart';
 import { useWishlist } from '../context/WishlistContext';
 import { getAllProducts, getFeaturedProducts, getApparelHighlights, getTechHome } from '../services/productService';
+import { getFeaturedCoupons, type Coupon } from '../services/couponService';
 import type { Product } from '../data/products';
 import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
 import ErrorState from '../components/common/ErrorState';
@@ -14,6 +15,7 @@ export default function Home() {
   const [apparelHighlights, setApparelHighlights] = useState<Product[]>([]);
   const [techHome, setTechHome] = useState<Product[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [featuredCoupons, setFeaturedCoupons] = useState<Coupon[]>([]);
 
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -59,10 +61,20 @@ export default function Home() {
     }
   };
 
+  const fetchFeaturedCoupons = async () => {
+    try {
+      const data = await getFeaturedCoupons();
+      setFeaturedCoupons(data || []);
+    } catch (err) {
+      console.error('Failed to load featured coupons', err);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
     fetchFeatured();
     fetchHighlightsAndTech();
+    fetchFeaturedCoupons();
   }, []);
 
   const defaultSlides = [
@@ -405,12 +417,18 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { code: 'WELCOME10', discount: '10% OFF', desc: 'On your first order', minCart: '999' },
-            { code: 'SUMMER20', discount: '20% OFF', desc: 'Summer special discount', minCart: '1,499' },
-            { code: 'SAVE500', discount: '₹500 OFF', desc: 'Flat savings on big carts', minCart: '5,000' }
-          ].map((offer) => {
+          {(featuredCoupons.length > 0 ? featuredCoupons : [
+            { code: 'WELCOME10', discountValue: 10, discountType: 'PERCENTAGE', description: 'On your first order', minOrderValue: 999 },
+            { code: 'SUMMER20', discountValue: 20, discountType: 'PERCENTAGE', description: 'Summer special discount', minOrderValue: 1499 },
+            { code: 'SAVE500', discountValue: 500, discountType: 'FIXED', description: 'Flat savings on big carts', minOrderValue: 5000 }
+          ] as Coupon[]).map((offer) => {
             const isCopied = copiedCode === offer.code;
+            const discountLabel = offer.discountType === 'PERCENTAGE' 
+              ? `${offer.discountValue}% OFF` 
+              : `₹${offer.discountValue?.toLocaleString('en-IN')} OFF`;
+            const minCartLabel = offer.minOrderValue > 0 
+              ? offer.minOrderValue.toLocaleString('en-IN') 
+              : '0';
 
             return (
               <div key={offer.code} className="border border-dashed border-outline-variant/60 rounded-xl p-6 bg-white flex flex-col justify-between hover:shadow-lg transition-all duration-300 group">
@@ -419,10 +437,10 @@ export default function Home() {
                     <span className="bg-muted-gold/10 text-muted-gold text-[10px] font-bold tracking-widest px-2.5 py-1 rounded-full">
                       VOUCHER
                     </span>
-                    <span className="text-gray-400 text-xs font-medium">Min Spend: ₹{offer.minCart}</span>
+                    <span className="text-gray-400 text-xs font-medium">Min Spend: ₹{minCartLabel}</span>
                   </div>
-                  <h3 className="font-serif text-3xl font-extrabold text-charcoal-stone mb-1">{offer.discount}</h3>
-                  <p className="font-body-md text-xs text-gray-500 mb-6">{offer.desc}</p>
+                  <h3 className="font-serif text-3xl font-extrabold text-charcoal-stone mb-1">{discountLabel}</h3>
+                  <p className="font-body-md text-xs text-gray-500 mb-6">{offer.description}</p>
                 </div>
                 <div className="flex items-center justify-between border-t border-gray-100 pt-4">
                   <div className="bg-warm-sand px-4 py-2 border border-outline-variant/40 rounded font-mono text-sm font-semibold tracking-wider text-charcoal-stone select-all">

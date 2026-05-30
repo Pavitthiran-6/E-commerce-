@@ -648,34 +648,276 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     }
   }
 
-  // 13. COUPONS
+  // 13. COUPONS (PUBLIC & ADMIN)
+  const mockCouponsList = getStored('coupons_list', [
+    {
+      id: 1,
+      code: 'WELCOME10',
+      description: 'On your first order',
+      type: 'PERCENTAGE',
+      value: 10,
+      minCartValue: 999,
+      maxDiscount: 300,
+      usageLimit: 500,
+      usedCount: 12,
+      isActive: true,
+      showOnHome: true,
+      validFrom: null,
+      validUntil: null
+    },
+    {
+      id: 2,
+      code: 'SUMMER20',
+      description: 'Summer special discount',
+      type: 'PERCENTAGE',
+      value: 20,
+      minCartValue: 1499,
+      maxDiscount: 500,
+      usageLimit: 300,
+      usedCount: 45,
+      isActive: true,
+      showOnHome: true,
+      validFrom: null,
+      validUntil: null
+    },
+    {
+      id: 3,
+      code: 'SAVE500',
+      description: 'Flat savings on big carts',
+      type: 'FLAT',
+      value: 500,
+      minCartValue: 5000,
+      maxDiscount: null,
+      usageLimit: 100,
+      usedCount: 8,
+      isActive: true,
+      showOnHome: true,
+      validFrom: null,
+      validUntil: null
+    }
+  ]);
+
+  // Public available list
+  if (path === '/api/coupons/available') {
+    if (method === 'get') {
+      const activeOnly = mockCouponsList
+        .filter((c: any) => c.isActive)
+        .map((c: any) => ({
+          code: c.code,
+          description: c.description,
+          minOrderValue: c.minCartValue || 0,
+          discountType: c.type === 'FLAT' ? 'FIXED' : 'PERCENTAGE',
+          discountValue: c.value,
+          showOnHome: c.showOnHome
+        }));
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: { data: activeOnly },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  // Public featured list
+  if (path === '/api/coupons/featured') {
+    if (method === 'get') {
+      const featured = mockCouponsList
+        .filter((c: any) => c.isActive && c.showOnHome)
+        .map((c: any) => ({
+          code: c.code,
+          description: c.description,
+          minOrderValue: c.minCartValue || 0,
+          discountType: c.type === 'FLAT' ? 'FIXED' : 'PERCENTAGE',
+          discountValue: c.value,
+          showOnHome: c.showOnHome
+        }));
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: { data: featured },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  // Validate coupon (using live mock database)
   if (path === '/api/coupons/validate') {
     if (method === 'post') {
-      const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
-      const code = (payload?.code || '').toUpperCase();
-      if (code === 'WELCOME10') {
-        return {
-          status: 200,
-          statusText: 'OK',
-          data: {
-            data: {
-              code: 'WELCOME10',
-              discountType: 'percentage',
-              discountValue: 10,
-              minPurchase: 1000,
-              maxDiscount: 1000
-            }
-          },
-          headers: {},
-          config
-        };
+      // Cart validation can pass query params or body fields
+      const code = (queryParams.code || '').toUpperCase();
+      const cartTotal = parseFloat(queryParams.cartTotal || '0');
+      
+      const coupon = mockCouponsList.find((c: any) => c.code.toUpperCase() === code);
+      if (!coupon) {
+        return Promise.reject({
+          response: { status: 400, data: { message: 'Coupon code not found.' } }
+        });
       }
-      return Promise.reject({
-        response: {
-          status: 400,
-          data: { message: 'Invalid or expired coupon code.' }
+
+      if (!coupon.isActive) {
+        return Promise.reject({
+          response: { status: 400, data: { message: 'This coupon is not available.' } }
+        });
+      }
+
+      if (coupon.minCartValue && cartTotal < coupon.minCartValue) {
+        return Promise.reject({
+          response: { status: 400, data: { message: `Minimum order value is ₹${coupon.minCartValue} for this coupon.` } }
+        });
+      }
+
+      if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+        return Promise.reject({
+          response: { status: 400, data: { message: 'This coupon has reached its usage limit.' } }
+        });
+      }
+
+      let discount = 0;
+      if (coupon.type === 'PERCENTAGE') {
+        discount = (cartTotal * coupon.value) / 100;
+        if (coupon.maxDiscount && discount > coupon.maxDiscount) {
+          discount = coupon.maxDiscount;
         }
+      } else {
+        discount = coupon.value;
+      }
+      discount = Math.min(discount, cartTotal);
+
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: {
+          data: {
+            valid: true,
+            discountAmount: discount,
+            message: `Coupon applied! You save ₹${discount}`,
+            coupon: {
+              code: coupon.code,
+              description: coupon.description,
+              minOrderValue: coupon.minCartValue || 0,
+              discountType: coupon.type === 'FLAT' ? 'FIXED' : 'PERCENTAGE',
+              discountValue: coupon.value,
+              showOnHome: coupon.showOnHome
+            }
+          }
+        },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  // Admin GET coupons
+  if (path === '/api/admin/coupons') {
+    if (method === 'get') {
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: { data: mockCouponsList },
+        headers: {},
+        config
+      };
+    }
+
+    if (method === 'post') {
+      const payload = typeof config.data === 'string' ? JSON.parse(config.data) : config.data;
+      
+      if (mockCouponsList.some((c: any) => c.code.toLowerCase() === payload.code.toLowerCase())) {
+        return Promise.reject({
+          response: { status: 400, data: { message: `Coupon with code '${payload.code}' already exists.` } }
+        });
+      }
+
+      const newCoupon = {
+        id: Math.floor(Math.random() * 10000) + 10,
+        code: payload.code.toUpperCase().trim(),
+        description: payload.description,
+        type: payload.type.toUpperCase().trim(),
+        value: payload.value,
+        minCartValue: payload.minCartValue || 0,
+        maxDiscount: payload.maxDiscount || null,
+        usageLimit: payload.usageLimit || null,
+        usedCount: 0,
+        isActive: true,
+        showOnHome: payload.showOnHome || false,
+        validFrom: payload.validFrom || null,
+        validUntil: payload.validUntil || null
+      };
+
+      mockCouponsList.push(newCoupon);
+      setStored('coupons_list', mockCouponsList);
+
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: { data: newCoupon },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  // Admin operations by ID
+  const adminCouponIdMatch = path.match(/^\/api\/admin\/coupons\/([^\/]+)$/);
+  if (adminCouponIdMatch) {
+    const couponId = parseInt(adminCouponIdMatch[1]);
+    
+    if (method === 'delete') {
+      const filtered = mockCouponsList.filter((c: any) => c.id !== couponId);
+      setStored('coupons_list', filtered);
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: { data: true },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  // Admin toggles
+  const adminCouponToggleMatch = path.match(/^\/api\/admin\/coupons\/([^\/]+)\/toggle$/);
+  if (adminCouponToggleMatch) {
+    if (method === 'put') {
+      const couponId = parseInt(adminCouponToggleMatch[1]);
+      const updated = mockCouponsList.map((c: any) => {
+        if (c.id === couponId) {
+          return { ...c, isActive: !c.isActive };
+        }
+        return c;
       });
+      setStored('coupons_list', updated);
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: { data: updated.find((c: any) => c.id === couponId) },
+        headers: {},
+        config
+      };
+    }
+  }
+
+  const adminCouponToggleHomeMatch = path.match(/^\/api\/admin\/coupons\/([^\/]+)\/toggle-home$/);
+  if (adminCouponToggleHomeMatch) {
+    if (method === 'put') {
+      const couponId = parseInt(adminCouponToggleHomeMatch[1]);
+      const updated = mockCouponsList.map((c: any) => {
+        if (c.id === couponId) {
+          return { ...c, showOnHome: !c.showOnHome };
+        }
+        return c;
+      });
+      setStored('coupons_list', updated);
+      return {
+        status: 200,
+        statusText: 'OK',
+        data: { data: updated.find((c: any) => c.id === couponId) },
+        headers: {},
+        config
+      };
     }
   }
 

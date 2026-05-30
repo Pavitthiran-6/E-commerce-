@@ -2,15 +2,22 @@ import axiosInstance from '../api/axiosInstance';
 import { ENDPOINTS } from '../api/endpoints';
 
 export interface Coupon {
+  id?: number;
   code: string;
   description: string;
   minOrderValue: number;
   discountType: 'PERCENTAGE' | 'FIXED';
   discountValue: number;
+  showOnHome?: boolean;
 }
 
 export const getActiveCoupons = async (): Promise<Coupon[]> => {
   const response = await axiosInstance.get(`${ENDPOINTS.COUPONS}/available`);
+  return response.data.data;
+};
+
+export const getFeaturedCoupons = async (): Promise<Coupon[]> => {
+  const response = await axiosInstance.get(ENDPOINTS.COUPONS_FEATURED);
   return response.data.data;
 };
 

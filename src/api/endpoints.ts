@@ -35,7 +35,9 @@ export const ENDPOINTS = {
 
   // Coupons
   COUPONS: '/api/coupons',
+  COUPONS_FEATURED: '/api/coupons/featured',
   VALIDATE_COUPON: '/api/coupons/validate',
+  ADMIN_COUPONS_TOGGLE_HOME: (id: number) => `/api/admin/coupons/${id}/toggle-home`,
 
   // Reviews
   REVIEWS: '/api/reviews',
