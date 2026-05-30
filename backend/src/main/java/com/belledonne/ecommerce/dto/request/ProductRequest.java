@@ -36,6 +36,14 @@ public class ProductRequest {
 
     private String[] sizes;
 
+    private String[] images;
+
+    private Boolean isNew;
+
+    private Boolean isBestseller;
+
+    private Boolean inStock;
+
     private String materialsTitle;
 
     private String materialsContent;

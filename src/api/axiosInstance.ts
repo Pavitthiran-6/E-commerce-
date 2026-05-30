@@ -27,9 +27,14 @@ axiosInstance.interceptors.response.use(
       }
     }
     if (error.response?.status === 403) {
-      const isConfigUrlAdmin = error.config?.url?.includes('/api/admin');
-      const isCurrentPageAdmin = window.location.pathname.startsWith('/admin');
-      if (!isConfigUrlAdmin && !isCurrentPageAdmin) {
+      const isAdminApiCall = error.config?.url?.includes('/api/admin');
+      if (isAdminApiCall) {
+        // 403 on admin API = token expired/invalid — force re-login
+        localStorage.removeItem('auth_user');
+        if (window.location.pathname !== '/auth/login') {
+          window.location.href = '/auth/login';
+        }
+      } else {
         window.location.href = '/';
       }
     }

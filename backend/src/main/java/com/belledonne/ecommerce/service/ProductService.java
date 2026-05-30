@@ -287,6 +287,15 @@ public class ProductService {
         product.setTags(request.getTags());
         product.setColors(request.getColors());
         product.setSizes(request.getSizes());
+        if (request.getImages() != null) {
+            product.setImages(request.getImages());
+        }
+        if (request.getIsNew() != null) {
+            product.setIsNew(request.getIsNew());
+        }
+        if (request.getIsBestseller() != null) {
+            product.setIsBestseller(request.getIsBestseller());
+        }
         product.setMaterialsTitle(request.getMaterialsTitle());
         product.setMaterialsContent(request.getMaterialsContent());
         product.setShippingTitle(request.getShippingTitle());
