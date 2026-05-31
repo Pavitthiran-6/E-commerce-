@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { SparkleHeart } from '../components/icons/SparkleHeart';
 import { useWishlist } from '../context/WishlistContext';
-import { getAllProducts, getFeaturedProducts, getApparelHighlights, getTechHome } from '../services/productService';
+import { getAllProducts, getFeaturedProducts, getBestsellers, getApparelHighlights, getTechHome } from '../services/productService';
 import { getFeaturedCoupons, type Coupon } from '../services/couponService';
 import type { Product } from '../types/product';
 import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
@@ -13,6 +13,7 @@ export default function Home() {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [products, setProducts] = useState<Product[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [bestsellers, setBestsellers] = useState<Product[]>([]);
   const [apparelHighlights, setApparelHighlights] = useState<Product[]>([]);
   const [techHome, setTechHome] = useState<Product[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -60,6 +61,15 @@ export default function Home() {
     }
   }, []);
 
+  const fetchBestsellers = useCallback(async () => {
+    try {
+      const data = await getBestsellers();
+      setBestsellers(data);
+    } catch (err) {
+      console.error('Failed to load bestsellers', err);
+    }
+  }, []);
+
   const fetchHighlightsAndTech = useCallback(async () => {
     try {
       const [apparelData, techData] = await Promise.all([
@@ -86,6 +96,7 @@ export default function Home() {
     hasFetchedOnce.current = true;
     fetchProducts();
     fetchFeatured();
+    fetchBestsellers();
     fetchHighlightsAndTech();
     fetchFeaturedCoupons();
   }, []);
@@ -99,9 +110,10 @@ export default function Home() {
     // Silent fetch — keeps existing stale data visible while refetching
     fetchProducts(true);
     fetchFeatured();
+    fetchBestsellers();
     fetchHighlightsAndTech();
     fetchFeaturedCoupons();
-  }, [fetchProducts, fetchFeatured, fetchHighlightsAndTech, fetchFeaturedCoupons]));
+  }, [fetchProducts, fetchFeatured, fetchBestsellers, fetchHighlightsAndTech, fetchFeaturedCoupons]));
 
   const defaultSlides = [
     {
@@ -365,16 +377,16 @@ export default function Home() {
               const scrollLeft = el.scrollLeft;
               const maxScrollLeft = el.scrollWidth - el.clientWidth;
               
-              // Map the scroll position proportionally from 0 to 9 (for 10 items)
               let index = 0;
-              if (maxScrollLeft > 0) {
+              const totalItems = Math.min(10, bestsellers.length);
+              if (maxScrollLeft > 0 && totalItems > 0) {
                 const scrollPercentage = scrollLeft / maxScrollLeft;
-                index = Math.round(scrollPercentage * 9);
+                index = Math.round(scrollPercentage * (totalItems - 1));
               }
               
               const pagination = document.getElementById('bestseller-pagination');
               if (pagination) {
-                pagination.innerText = `${index + 1}/10`;
+                pagination.innerText = `${index + 1}/${totalItems || 1}`;
               }
             }}
           >
@@ -385,7 +397,7 @@ export default function Home() {
                 </div>
               ))
             ) : (
-              products.slice(0, 10).map((item) => (
+              bestsellers.slice(0, 10).map((item) => (
                 <Link to={`/product/${item.id}`} key={item.id} className="group block cursor-pointer min-w-[85vw] sm:min-w-[45vw] md:min-w-[22%] snap-start relative">
                   <div className="aspect-[3/4] bg-warm-sand mb-3 overflow-hidden relative">
                     <img alt={item.name} className="w-full h-full object-cover transition-transform duration-[600ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-105" src={item.image} loading="lazy" decoding="async" />
@@ -427,7 +439,7 @@ export default function Home() {
             </button>
             
             <span id="bestseller-pagination" className="text-sm font-medium text-charcoal-stone tracking-widest">
-              1/10
+              1/{Math.min(10, bestsellers.length) || 1}
             </span>
 
             <button 

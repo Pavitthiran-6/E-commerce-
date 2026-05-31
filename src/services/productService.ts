@@ -49,6 +49,11 @@ export const getFeaturedProducts = async (): Promise<Product[]> => {
   return response.data.data?.content || [];
 };
 
+export const getBestsellers = async (): Promise<Product[]> => {
+  const response = await axiosInstance.get(`${ENDPOINTS.PRODUCTS}/bestsellers?size=100`);
+  return response.data.data?.content || [];
+};
+
 export const getNewArrivals = async (): Promise<Product[]> => {
   const response = await axiosInstance.get(`${ENDPOINTS.PRODUCTS}/new-arrivals?size=100`);
   return response.data.data?.content || [];

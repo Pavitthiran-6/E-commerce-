@@ -156,6 +156,10 @@ public class Product {
     @Builder.Default
     private Boolean easyReturns = true;
 
+    @Column(name = "in_stock")
+    @Builder.Default
+    private Boolean inStock = true;
+
     // ─── Dynamic product specifications (stored as JSONB) ────────────────────────
     @Column(name = "specifications")
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)

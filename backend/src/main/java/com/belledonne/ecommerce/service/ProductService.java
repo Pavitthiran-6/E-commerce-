@@ -202,6 +202,7 @@ public class ProductService {
             .freeShipping(p.getFreeShipping())
             .codAvailable(p.getCodAvailable())
             .easyReturns(p.getEasyReturns())
+            .inStock(p.getInStock())
             .variants(variantResponses)
             .specifications(specDTOs)
             .createdAt(p.getCreatedAt())
@@ -251,6 +252,9 @@ public class ProductService {
             .freeShipping(request.getFreeShipping() != null ? request.getFreeShipping() : true)
             .codAvailable(request.getCodAvailable() != null ? request.getCodAvailable() : true)
             .easyReturns(request.getEasyReturns() != null ? request.getEasyReturns() : true)
+            .inStock(request.getInStock() != null ? request.getInStock() : true)
+            .isNew(request.getIsNew() != null ? request.getIsNew() : false)
+            .isBestseller(request.getIsBestseller() != null ? request.getIsBestseller() : false)
             .isApparelHighlights(request.getIsApparelHighlights() != null ? request.getIsApparelHighlights() : false)
             .isTechHome(request.getIsTechHome() != null ? request.getIsTechHome() : false)
             .isOnSale(request.getIsOnSale() != null ? request.getIsOnSale() : false)
@@ -319,6 +323,7 @@ public class ProductService {
         product.setFreeShipping(request.getFreeShipping() != null ? request.getFreeShipping() : true);
         product.setCodAvailable(request.getCodAvailable() != null ? request.getCodAvailable() : true);
         product.setEasyReturns(request.getEasyReturns() != null ? request.getEasyReturns() : true);
+        product.setInStock(request.getInStock() != null ? request.getInStock() : true);
         product.setIsApparelHighlights(request.getIsApparelHighlights() != null ? request.getIsApparelHighlights() : false);
         product.setIsTechHome(request.getIsTechHome() != null ? request.getIsTechHome() : false);
         product.setIsOnSale(request.getIsOnSale() != null ? request.getIsOnSale() : false);

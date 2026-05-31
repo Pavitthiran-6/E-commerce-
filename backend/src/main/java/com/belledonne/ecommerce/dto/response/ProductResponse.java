@@ -49,6 +49,7 @@ public class ProductResponse {
     private Boolean freeShipping;
     private Boolean codAvailable;
     private Boolean easyReturns;
+    private Boolean inStock;
     private Boolean isApparelHighlights;
     private Boolean isTechHome;
     private Boolean isOnSale;
