@@ -7,7 +7,7 @@ import { handleMockRequest } from './mockDataHandler';
 
 // Short connection probe timeout — just enough to know the backend is alive.
 // If it doesn't respond in 3s, treat it as unreachable and switch to mock.
-const CONNECT_TIMEOUT_MS = 3000;
+const CONNECT_TIMEOUT_MS = 60000;
 
 // After the first real failure, do ONE fast retry (800ms) before giving up.
 // We don't do long exponential backoff here because the mock handler is

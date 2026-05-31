@@ -102,7 +102,7 @@ public class Product {
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.ARRAY)
     private String[] tags;
 
-    @Column(name = "images", columnDefinition = "text[]")
+    @Column(name = "images")
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.ARRAY)
     private String[] images;
 
@@ -157,7 +157,7 @@ public class Product {
     private Boolean easyReturns = true;
 
     // ─── Dynamic product specifications (stored as JSONB) ────────────────────────
-    @Column(name = "specifications", columnDefinition = "jsonb")
+    @Column(name = "specifications")
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Builder.Default
     private List<SpecificationEntry> specifications = new ArrayList<>();

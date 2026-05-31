@@ -49,7 +49,8 @@ public class Review {
     @Builder.Default
     private Boolean isApproved = true;
 
-    @Column(name = "images", columnDefinition = "text[]")
+    @Column(name = "images")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.ARRAY)
     private String[] images;
 
     @CreationTimestamp
