@@ -168,7 +168,8 @@ public class Product {
     @Builder.Default
     private List<ProductVariant> variants = new ArrayList<>();
 
-    // ─── Inner DTO for specification key-value pair ───────────────────────────────
+    // ─── Inner DTO for specification key-value pair
+    // ───────────────────────────────
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
