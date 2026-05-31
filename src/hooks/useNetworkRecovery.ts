@@ -8,7 +8,7 @@
  *
  * Calls the provided `onRecover` callback whenever the browser appears to
  * have come back online or the user has returned to the tab after a period
- * of inactivity.  The callback is debounced (300 ms) so that rapid re-fires
+ * of inactivity. The callback is debounced (300 ms) so that rapid re-fires
  * (e.g. flapping connection) don't result in multiple simultaneous fetches.
  *
  * Usage:
@@ -30,9 +30,6 @@ export function useNetworkRecovery(onRecover: () => void) {
 
   useEffect(() => {
     const handleOnline = () => {
-      // Clear the "backend unreachable" fast-fallback flag so the next
-      // real request actually reaches the server again.
-      sessionStorage.removeItem('belledonne_backend_unreachable');
       debounced();
     };
 
@@ -48,7 +45,6 @@ export function useNetworkRecovery(onRecover: () => void) {
         // Only refetch if the tab was hidden for more than 30 seconds
         // (catches sleep / lock-screen scenarios without firing on every alt-tab)
         if (hiddenDuration > 30_000 || navigator.onLine) {
-          sessionStorage.removeItem('belledonne_backend_unreachable');
           debounced();
         }
       }

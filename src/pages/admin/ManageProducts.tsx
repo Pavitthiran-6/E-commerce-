@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllProducts } from '../../services/productService';
 import axiosInstance from '../../api/axiosInstance';
-import type { Product } from '../../data/products';
+import type { Product } from '../../types/product';
 
 export default function ManageProducts() {
   const navigate = useNavigate();

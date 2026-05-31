@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { getAllProducts } from '../../services/productService';
 import axiosInstance from '../../api/axiosInstance';
-import type { Product } from '../../data/products';
+import type { Product } from '../../types/product';
 import { useToast } from '../../context/ToastContext';
 
 interface CustomDropdownProps {

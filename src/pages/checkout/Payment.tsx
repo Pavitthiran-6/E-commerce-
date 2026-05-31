@@ -4,7 +4,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { CheckCircle2, Lock, ShieldCheck, ChevronDown, Check } from 'lucide-react';
 import { LoadingButton } from '../../components/LoadingButton';
-import { coupons, calculateDiscount } from '../../utils/couponLogic';
+import { isFreeShippingCoupon } from '../../utils/couponLogic';
 import { placeOrder } from '../../services/orderService';
 import { createPaymentOrder, verifyPayment } from '../../services/paymentService';
 import { getProductById } from '../../services/productService';
@@ -179,8 +179,8 @@ export default function CheckoutPayment() {
   const appliedCoupon = sessionStorage.getItem('appliedCoupon');
 
   const subtotal = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
-  const discountAmount = appliedCoupon ? calculateDiscount(appliedCoupon, subtotal) : 0;
-  const isFreeShipping = appliedCoupon ? coupons.find(c => c.code === appliedCoupon)?.type === 'freeshipping' : false;
+  const discountAmount = 0; // Backend calculates final discount at order placement
+  const isFreeShipping = appliedCoupon ? isFreeShippingCoupon(appliedCoupon, []) : false;
 
   const shipping = isFreeShipping ? 0 : (subtotal > 5000 ? 0 : 250);
   const tax = Math.round((subtotal - discountAmount) * 0.18);
@@ -367,23 +367,6 @@ export default function CheckoutPayment() {
                     return;
                   }
 
-                  if (user?.role === 'ROLE_ADMIN') {
-                    const mockOrderId = 'ORD-' + Math.floor(Math.random() * 900000 + 100000);
-                    localStorage.setItem('lastOrderId', mockOrderId);
-
-                    let paymentDetails = '';
-                    if (method === 'upi') paymentDetails = `UPI · ${upiId || 'admin@upi'}`;
-                    else if (method === 'card') paymentDetails = `Card ending in •••• ${card.number.slice(-4) || '1111'}`;
-                    else if (method === 'cod') paymentDetails = 'Cash on Delivery';
-                    else if (method === 'netbanking') paymentDetails = `Net Banking · ${bank || 'SBI'}`;
-                    else if (method === 'wallet') paymentDetails = 'Paytm Wallet';
-                    
-                    localStorage.setItem('lastPaymentMethod', method);
-                    localStorage.setItem('lastPaymentDetails', paymentDetails);
-
-                    navigate('/checkout/confirmation');
-                    return;
-                  }
 
                   try {
                     // 1. Place order on backend

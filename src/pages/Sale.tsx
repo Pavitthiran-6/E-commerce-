@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { SparkleHeart } from '../components/icons/SparkleHeart';
 import { useWishlist } from '../context/WishlistContext';
 import { getSaleSettings, getDealOfTheDay, getSaleProducts, type SaleSettingsData } from '../services/productService';
-import type { Product } from '../data/products';
+import type { Product } from '../types/product';
 
 export default function Sale() {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();

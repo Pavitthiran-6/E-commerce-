@@ -70,8 +70,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let cancelled = false;
 
     const validate = async () => {
-      // If we're in mock mode, skip server validation — the mock is always "valid"
-      if (sessionStorage.getItem('belledonne_backend_unreachable') === 'true') return;
+      // Skip validation if no token
+      if (!user?.token) return;
 
       try {
         await axiosInstance.get('/api/user/profile');

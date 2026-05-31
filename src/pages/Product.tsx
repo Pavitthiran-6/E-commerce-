@@ -11,7 +11,7 @@ import { getProductById } from '../services/productService';
 import { getProductReviews, addReview } from '../services/reviewService';
 import { compressMultipleToBase64 } from '../utils/imageCompress';
 import type { Review } from '../services/reviewService';
-import type { Product as ProductType } from '../data/products';
+import type { Product as ProductType } from '../types/product';
 import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
 import ErrorState from '../components/common/ErrorState';
 import { useNetworkRecovery } from '../hooks/useNetworkRecovery';

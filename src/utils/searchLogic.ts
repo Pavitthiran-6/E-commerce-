@@ -1,4 +1,4 @@
-import type { Product } from '../data/products';
+import type { Product } from '../types/product';
 
 export const synonymMap: Record<string, string[]> = {
   'shoes': ['sneakers', 'boots', 'heels', 'footwear', 'shoe'],

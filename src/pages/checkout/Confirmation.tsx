@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { CheckCircle2, MapPin, Package, Truck } from 'lucide-react';
-import { products } from '../../data/products';
-import { coupons, calculateDiscount } from '../../utils/couponLogic';
+import { isFreeShippingCoupon } from '../../utils/couponLogic';
 
 const STEPS = ['Address', 'Payment', 'Confirmation'];
 
@@ -121,17 +120,15 @@ export default function CheckoutConfirmation() {
   const appliedCoupon = sessionStorage.getItem('appliedCoupon');
 
   const subtotal = orderItems.reduce((s, i) => s + i.price * i.quantity, 0);
-  const discountAmount = appliedCoupon ? calculateDiscount(appliedCoupon, subtotal) : 0;
-  const isFreeShipping = appliedCoupon ? coupons.find(c => c.code === appliedCoupon)?.type === 'freeshipping' : false;
+  const discountAmount = 0; // Discount already applied by backend — shown for display only
+  const isFreeShipping = appliedCoupon ? isFreeShippingCoupon(appliedCoupon, []) : false;
 
   const shipping = isFreeShipping ? 0 : (subtotal > 5000 ? 0 : 250);
   const tax = Math.round((subtotal - discountAmount) * 0.18);
   const codFee = paymentMethod === 'cod' ? 49 : 0;
   const total = (subtotal - discountAmount) + shipping + tax + codFee;
 
-  // Recommended products (different from ordered)
-  const orderedIds = new Set(orderItems.map(i => i.id));
-  const recommendations = products.filter(p => !orderedIds.has(p.id)).slice(0, 4);
+
 
   return (
     <main className="min-h-screen bg-[#f7f6f2] pt-28 pb-20 px-4 sm:px-8">
@@ -248,31 +245,7 @@ export default function CheckoutConfirmation() {
           </Link>
         </div>
 
-        {/* ── You May Also Like ── */}
-        {recommendations.length > 0 && (
-          <div>
-            <h2 className="font-serif text-xl text-charcoal-stone mb-6 text-center">You May Also Like</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {recommendations.map(p => (
-                <Link
-                  key={p.id}
-                  to={`/product/${p.id}`}
-                  className="group block"
-                >
-                  <div className="aspect-[3/4] bg-[#f6f5f0] overflow-hidden mb-3">
-                    <img
-                      src={p.image}
-                      alt={p.name}
-                      className="w-full h-full object-cover mix-blend-multiply transition-transform duration-500 group-hover:scale-105"
-                    />
-                  </div>
-                  <p className="text-xs font-medium text-charcoal-stone truncate">{p.name}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{p.price}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
+
       </div>
     </main>
   );

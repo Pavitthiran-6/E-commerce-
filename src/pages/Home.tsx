@@ -4,7 +4,7 @@ import { SparkleHeart } from '../components/icons/SparkleHeart';
 import { useWishlist } from '../context/WishlistContext';
 import { getAllProducts, getFeaturedProducts, getApparelHighlights, getTechHome } from '../services/productService';
 import { getFeaturedCoupons, type Coupon } from '../services/couponService';
-import type { Product } from '../data/products';
+import type { Product } from '../types/product';
 import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
 import ErrorState from '../components/common/ErrorState';
 import { useNetworkRecovery } from '../hooks/useNetworkRecovery';

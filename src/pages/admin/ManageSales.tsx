@@ -7,7 +7,7 @@ import {
   getAllProductsPaged,
   type SaleSettingsData,
 } from '../../services/productService';
-import type { Product } from '../../data/products';
+import type { Product } from '../../types/product';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 

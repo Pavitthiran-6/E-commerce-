@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import type { Product } from '../data/products';
+import type { Product } from '../types/product';
 import { getAllProducts, searchProducts } from '../services/productService';
 import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
 import ErrorState from '../components/common/ErrorState';

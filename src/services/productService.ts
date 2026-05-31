@@ -1,6 +1,6 @@
 import axiosInstance from '../api/axiosInstance';
 import { ENDPOINTS } from '../api/endpoints';
-import type { Product } from '../data/products'; // Keep type definition if it's there
+import type { Product } from '../types/product';
 
 export interface SaleSettingsData {
   id?: number;

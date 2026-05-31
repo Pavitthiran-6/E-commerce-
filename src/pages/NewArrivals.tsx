@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getNewArrivals } from '../services/productService';
-import type { Product } from '../data/products';
+import type { Product } from '../types/product';
 import { SparkleHeart } from '../components/icons/SparkleHeart';
 import { useWishlist } from '../context/WishlistContext';
 

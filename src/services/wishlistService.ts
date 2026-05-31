@@ -1,6 +1,6 @@
 import axiosInstance from '../api/axiosInstance';
 import { ENDPOINTS } from '../api/endpoints';
-import type { Product } from '../data/products';
+import type { Product } from '../types/product';
 
 export const getWishlistAPI = async (): Promise<Product[]> => {
   const response = await axiosInstance.get(ENDPOINTS.WISHLIST);
