@@ -102,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(loggedInUser));
       setUser(loggedInUser);
+      window.dispatchEvent(new CustomEvent('belledonne:login'));
       showToast('Welcome back! 👋', 'success');
 
       const redirectPath = localStorage.getItem('redirectAfterLogin');

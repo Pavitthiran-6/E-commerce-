@@ -37,6 +37,14 @@ public class CartItem {
     @EqualsAndHashCode.Exclude
     private ProductVariant variant;
 
+    /** Denormalized size string (e.g. "M", "42") — matches frontend selection */
+    @Column(length = 20)
+    private String size;
+
+    /** Denormalized color string (e.g. "black", "navy") — matches frontend selection */
+    @Column(length = 50)
+    private String color;
+
     @Column(nullable = false)
     @Builder.Default
     private Integer quantity = 1;

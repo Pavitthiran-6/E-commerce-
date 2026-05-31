@@ -26,3 +26,8 @@ export const clearWishlistAPI = async () => {
   const response = await axiosInstance.delete(`${ENDPOINTS.WISHLIST}/clear`);
   return response.data;
 };
+
+export const mergeWishlistAPI = async (productIds: string[]): Promise<Product[]> => {
+  const response = await axiosInstance.post(ENDPOINTS.WISHLIST_MERGE, { productIds });
+  return response.data.data;
+};

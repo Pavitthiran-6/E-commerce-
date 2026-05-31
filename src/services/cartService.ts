@@ -25,12 +25,32 @@ export const getCart = async (): Promise<Cart> => {
   return response.data.data;
 };
 
-export const addToCartAPI = async (productId: string, quantity: number, variantId?: number) => {
+export const addToCartAPI = async (
+  productId: string,
+  quantity: number,
+  size?: string,
+  color?: string,
+  variantId?: number
+) => {
   const response = await axiosInstance.post(ENDPOINTS.CART + '/add', {
     productId,
     quantity,
+    size,
+    color,
     variantId
   });
+  return response.data.data;
+};
+
+export interface MergeCartItemInput {
+  productId: string;
+  quantity: number;
+  size?: string;
+  color?: string;
+}
+
+export const mergeCartAPI = async (items: MergeCartItemInput[]): Promise<Cart> => {
+  const response = await axiosInstance.post(ENDPOINTS.CART_MERGE, { items });
   return response.data.data;
 };
 

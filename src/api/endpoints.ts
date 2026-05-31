@@ -14,9 +14,11 @@ export const ENDPOINTS = {
 
   // Cart
   CART: '/api/cart',
+  CART_MERGE: '/api/cart/merge',
 
   // Wishlist
   WISHLIST: '/api/wishlist',
+  WISHLIST_MERGE: '/api/wishlist/merge',
 
   // Orders
   ORDERS: '/api/orders',
