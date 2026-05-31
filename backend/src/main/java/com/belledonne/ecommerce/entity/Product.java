@@ -102,7 +102,7 @@ public class Product {
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.ARRAY)
     private String[] tags;
 
-    @Column(name = "images")
+    @Column(name = "images", columnDefinition = "TEXT[]")
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.ARRAY)
     private String[] images;
 
