@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LoadingButton } from '../components/LoadingButton';
-import { Minus, Plus, Trash2, ArrowRight, X } from 'lucide-react';
+import { Minus, Plus, Trash2, X, ShoppingBag, Tag, ChevronRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { getActiveCoupons, validateCoupon } from '../services/couponService';
@@ -9,10 +9,7 @@ import type { Coupon } from '../services/couponService';
 
 export default function Cart() {
   const navigate = useNavigate();
-  // Scroll to top on mount
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+  useEffect(() => { window.scrollTo(0, 0); }, []);
 
   const { cartItems, removeFromCart, updateQuantity } = useCart();
   const { isLoggedIn } = useAuth();
@@ -29,19 +26,13 @@ export default function Cart() {
     getActiveCoupons().then(setAvailableCoupons).catch(console.error);
   }, []);
 
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   useEffect(() => {
     if (appliedCouponCode && subtotal > 0) {
       validateCoupon(appliedCouponCode, subtotal)
-        .then(details => {
-          setAppliedCouponDetails(details);
-          setCouponError(null);
-        })
-        .catch(err => {
-          console.error(err);
-          handleRemoveCoupon();
-        });
+        .then((details) => { setAppliedCouponDetails(details); setCouponError(null); })
+        .catch(() => handleRemoveCoupon());
     } else {
       setAppliedCouponDetails(null);
     }
@@ -51,11 +42,8 @@ export default function Cart() {
     if (appliedCouponCode) {
       if (window.confirm('A coupon is already applied. Remove it first?')) {
         handleRemoveCoupon();
-      } else {
-        return;
-      }
+      } else return;
     }
-    
     setIsValidating(true);
     setCouponError(null);
     try {
@@ -79,265 +67,319 @@ export default function Cart() {
     setCouponError(null);
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
+  const fmt = (price: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(price);
 
+  const calculatedDiscount = appliedCouponDetails
+    ? appliedCouponDetails.discountType === 'PERCENTAGE'
+      ? (subtotal * appliedCouponDetails.discountValue) / 100
+      : appliedCouponDetails.discountValue
+    : 0;
 
-
-  // Discount Calculations
-  const calculatedDiscount = appliedCouponDetails ? (appliedCouponDetails.discountType === 'PERCENTAGE' ? (subtotal * appliedCouponDetails.discountValue) / 100 : appliedCouponDetails.discountValue) : 0;
-  
-  const isFreeShipping = false; // Add logic if free shipping coupons are supported
-
-  const shipping = isFreeShipping ? 0 : (subtotal > 5000 ? 0 : 250);
+  const shipping = subtotal > 5000 ? 0 : 250;
   const tax = Math.round((subtotal - calculatedDiscount) * 0.18);
-  const total = (subtotal - calculatedDiscount) + shipping + tax;
+  const total = subtotal - calculatedDiscount + shipping + tax;
 
+  // Empty cart
   if (cartItems.length === 0) {
     return (
-      <main className="w-full min-h-[80vh] flex flex-col items-center justify-center pt-32 pb-24 px-6 bg-surface">
-        <div className="text-center max-w-md">
-          <h1 className="font-headline-display text-4xl text-primary mb-4">Your Cart is Empty</h1>
-          <p className="font-body-md text-on-surface-variant mb-8">
-            Looks like you haven't added anything to your cart yet. Discover our latest collection.
-          </p>
-          <Link 
-            to="/collection"
-            className="inline-flex items-center gap-2 bg-primary text-white font-button uppercase tracking-[0.1em] px-8 py-4 hover:bg-primary/90 transition-colors"
-          >
-            Start Shopping
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+      <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-20 bg-[#F8F8F8]">
+        <div className="w-20 h-20 bg-[#E8F5E9] rounded-full flex items-center justify-center mb-5">
+          <ShoppingBag className="w-10 h-10 text-[#0C831F]" />
         </div>
-      </main>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h1>
+        <p className="text-sm text-gray-500 text-center mb-6 max-w-xs">
+          Looks like you haven't added anything yet. Explore our collections!
+        </p>
+        <Link
+          to="/collection"
+          className="bg-[#0C831F] text-white font-bold px-8 py-3 rounded-xl hover:bg-[#0A6B19] transition-colors"
+        >
+          Start Shopping
+        </Link>
+      </div>
     );
   }
 
   return (
-    <main className="w-full min-h-screen pt-32 pb-24 px-6 md:px-12 xl:px-24 bg-surface">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="font-headline-display text-4xl text-primary tracking-wide mb-10">Shopping Cart</h1>
-        
-        <div className="flex flex-col lg:flex-row gap-12 lg:gap-16">
-          {/* Cart Items */}
-          <div className="w-full lg:w-2/3 flex flex-col gap-6">
-            <div className="hidden md:grid grid-cols-12 gap-4 pb-4 border-b border-outline-variant/30 text-xs font-label-caps uppercase tracking-widest text-on-surface-variant">
-              <div className="col-span-6">Product</div>
-              <div className="col-span-2 text-center">Price</div>
-              <div className="col-span-2 text-center">Quantity</div>
-              <div className="col-span-2 text-right">Total</div>
-            </div>
+    <div className="bg-[#F8F8F8] min-h-screen pb-32 md:pb-8">
+      <div className="max-w-[1440px] mx-auto px-3 md:px-6 lg:px-10 py-4">
+        <h1 className="text-xl font-bold text-gray-900 mb-4">
+          My Cart <span className="text-sm font-medium text-gray-500">({cartItems.length} items)</span>
+        </h1>
 
-            <div className="flex flex-col gap-6">
-              {cartItems.map(item => (
-                <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center py-4 border-b border-outline-variant/20">
-                  {/* Product Info */}
-                  <div className="col-span-1 md:col-span-6 flex gap-4">
-                    <Link to={`/product/${item.id}`} className="shrink-0">
-                      <img src={item.image} alt={item.name} className="w-24 h-32 object-cover bg-surface-variant/30 mix-blend-multiply" />
-                    </Link>
-                    <div className="flex flex-col justify-center">
-                      <Link to={`/product/${item.id}`} className="font-serif text-lg hover:text-primary/70 transition-colors mb-1">
-                        {item.name}
-                      </Link>
-                      <p className="text-sm text-on-surface-variant mb-2">Color: {item.color} | Size: {item.size}</p>
-                      <button 
-                        onClick={() => removeFromCart(item.id, item.size, item.color)}
-                        className="text-xs text-red-500 flex items-center gap-1 w-fit hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" /> Remove
-                      </button>
-                    </div>
+        <div className="flex flex-col lg:flex-row gap-4 items-start">
+          {/* ── Cart items list ──────────────────────── */}
+          <div className="flex-1 space-y-3">
+            {cartItems.map((item) => (
+              <div key={`${item.id}-${item.size}-${item.color}`} className="bg-white rounded-2xl p-3 flex gap-3 shadow-sm">
+                {/* Product image */}
+                <Link to={`/product/${item.id}`} className="flex-shrink-0">
+                  <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-50">
+                    <img src={item.image} alt={item.name} className="w-full h-full object-contain p-1" loading="lazy" />
                   </div>
+                </Link>
 
-                  {/* Price (Desktop) */}
-                  <div className="hidden md:block col-span-2 text-center font-medium">
-                    {formatPrice(item.price)}
-                  </div>
+                {/* Details */}
+                <div className="flex-1 min-w-0">
+                  <Link to={`/product/${item.id}`} className="text-sm font-semibold text-gray-900 line-clamp-2 hover:text-[#0C831F] transition-colors leading-snug">
+                    {item.name}
+                  </Link>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {item.color !== 'Standard' && `Color: ${item.color}`}
+                    {item.color !== 'Standard' && item.size !== 'Standard' && ' · '}
+                    {item.size !== 'Standard' && `Size: ${item.size}`}
+                  </p>
 
-                  {/* Quantity */}
-                  <div className="col-span-1 md:col-span-2 flex items-center md:justify-center mt-2 md:mt-0">
-                    <div className="flex items-center border border-outline-variant rounded-sm">
-                      <button 
+                  <div className="flex items-center justify-between mt-2">
+                    {/* Stepper */}
+                    <div className="flex items-center bg-[#F8F8F8] rounded-xl overflow-hidden border border-[#E8E8E8]">
+                      <button
                         onClick={() => updateQuantity(item.id, item.size, item.color, -1)}
-                        className="p-2 text-on-surface-variant hover:text-primary hover:bg-surface-variant/30 transition-colors"
+                        className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                      <button 
+                      <span className="w-8 text-center text-sm font-bold text-gray-900">{item.quantity}</span>
+                      <button
                         onClick={() => updateQuantity(item.id, item.size, item.color, 1)}
-                        className="p-2 text-on-surface-variant hover:text-primary hover:bg-surface-variant/30 transition-colors"
+                        className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors"
                       >
                         <Plus className="w-3 h-3" />
                       </button>
                     </div>
-                  </div>
 
-                  {/* Total & Mobile Price */}
-                  <div className="col-span-1 md:col-span-2 flex justify-between md:justify-end items-center mt-2 md:mt-0">
-                    <span className="md:hidden text-sm text-on-surface-variant">Total:</span>
-                    <span className="font-semibold">{formatPrice(item.price * item.quantity)}</span>
+                    {/* Price + remove */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-900">{fmt(item.price * item.quantity)}</span>
+                      <button
+                        onClick={() => removeFromCart(item.id, item.size, item.color)}
+                        className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                        aria-label="Remove item"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
+
+            {/* Continue shopping */}
+            <Link to="/collection" className="flex items-center gap-1.5 text-sm font-semibold text-[#0C831F] hover:text-[#0A6B19] transition-colors py-1">
+              + Continue Shopping
+            </Link>
           </div>
 
-          {/* Order Summary */}
-          <div className="w-full lg:w-1/3">
-            <div className="bg-white border border-outline-variant/30 p-8 sticky top-32">
-              <h2 className="font-serif text-2xl mb-6">Order Summary</h2>
-              
-              <div className="flex flex-col gap-4 text-sm mb-6 border-b border-outline-variant/30 pb-6">
-                <div className="flex justify-between">
-                  <span className="text-on-surface-variant">Subtotal</span>
-                  <span className="font-medium">{formatPrice(subtotal)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-on-surface-variant">Shipping</span>
-                  <span className="font-medium">{shipping === 0 ? 'Free' : formatPrice(shipping)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-on-surface-variant">Estimated Tax</span>
-                  <span className="font-medium">{formatPrice(tax)}</span>
-                </div>
-                {appliedCouponCode && (
-                  <div className="flex justify-between text-green-600 font-medium">
-                    <span>Discount ({appliedCouponCode})</span>
-                    <span>- {formatPrice(calculatedDiscount)}</span>
+          {/* ── Order summary ───────────────────────── */}
+          <div className="w-full lg:w-80 flex-shrink-0 lg:sticky lg:top-24 space-y-3">
+            {/* Coupon section */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              {!appliedCouponCode ? (
+                <button
+                  onClick={() => setIsCouponModalOpen(true)}
+                  className="w-full flex items-center justify-between text-sm font-semibold text-gray-700 hover:text-[#0C831F] transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-[#0C831F]" />
+                    Apply Coupon / Promo Code
                   </div>
-                )}
-              </div>
-
-              {/* Apply Coupon Section */}
-              <div className="mb-6">
-                {!appliedCouponCode ? (
-                  <button 
-                    onClick={() => setIsCouponModalOpen(true)}
-                    className="w-full border border-charcoal-stone bg-white text-charcoal-stone font-bold uppercase tracking-widest text-xs py-3 rounded hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <span>🎟️</span> Apply Coupon Code
-                  </button>
-                ) : (
-                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded px-4 py-3">
-                    <div className="flex items-center gap-2 text-green-700 text-sm font-medium">
-                      <span>✅</span>
-                      <span>{appliedCouponCode} applied — You saved {formatPrice(calculatedDiscount)}!</span>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[#0C831F]">
+                    <span className="text-lg">✅</span>
+                    <div>
+                      <p className="text-xs font-bold">{appliedCouponCode}</p>
+                      <p className="text-xs text-[#0C831F]">Saving {fmt(calculatedDiscount)}</p>
                     </div>
-                    <button onClick={handleRemoveCoupon} className="text-xs text-green-700 underline hover:text-green-800 font-bold ml-2">
-                      Remove
-                    </button>
+                  </div>
+                  <button onClick={handleRemoveCoupon} className="text-xs font-bold text-red-500 hover:text-red-700">
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Price breakdown */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <h2 className="text-base font-bold text-gray-900 mb-3">Order Summary</h2>
+              <div className="space-y-2.5 text-sm mb-3 pb-3 border-b border-[#E8E8E8]">
+                <div className="flex justify-between text-gray-700">
+                  <span>Subtotal ({cartItems.length} items)</span>
+                  <span className="font-semibold">{fmt(subtotal)}</span>
+                </div>
+                {calculatedDiscount > 0 && (
+                  <div className="flex justify-between text-[#0C831F] font-semibold">
+                    <span>Discount</span>
+                    <span>− {fmt(calculatedDiscount)}</span>
                   </div>
                 )}
+                <div className="flex justify-between text-gray-700">
+                  <span>Shipping</span>
+                  <span className={`font-semibold ${shipping === 0 ? 'text-[#0C831F]' : ''}`}>
+                    {shipping === 0 ? 'FREE' : fmt(shipping)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-gray-700">
+                  <span>Estimated Tax (18%)</span>
+                  <span className="font-semibold">{fmt(tax)}</span>
+                </div>
+              </div>
+              <div className="flex justify-between mb-4">
+                <span className="text-base font-bold text-gray-900">Total</span>
+                <span className="text-lg font-black text-gray-900">{fmt(total)}</span>
               </div>
 
-              <div className="flex justify-between items-end mb-8 border-t border-outline-variant/30 pt-6">
-                <span className="font-serif text-lg">Total</span>
-                <span className="font-serif text-2xl text-primary">{formatPrice(total)}</span>
-              </div>
+              {calculatedDiscount > 0 && (
+                <div className="bg-[#E8F5E9] rounded-xl px-3 py-2 mb-3 text-xs font-semibold text-[#0C831F]">
+                  🎉 You're saving {fmt(calculatedDiscount)} on this order!
+                </div>
+              )}
 
               <LoadingButton
                 onClickAsync={async () => {
                   if (!isLoggedIn) {
                     localStorage.setItem('redirectAfterLogin', '/checkout/address');
-                    navigate('/auth/login');
+                    navigate('/login');
                     return;
                   }
-                  await new Promise(r => setTimeout(r, 600));
+                  await new Promise((r) => setTimeout(r, 400));
                   navigate('/checkout/address');
                 }}
-                className="w-full bg-primary text-white font-button uppercase tracking-[0.1em] py-4 hover:bg-primary/90 transition-colors text-center block"
+                className="w-full bg-[#0C831F] text-white font-bold py-3.5 rounded-xl hover:bg-[#0A6B19] transition-colors text-sm"
               >
-                Proceed to Checkout
+                Proceed to Checkout →
               </LoadingButton>
 
-              <div className="mt-4 text-center">
-                <Link to="/collection" className="text-xs text-on-surface-variant underline underline-offset-4 hover:text-primary transition-colors">
-                  Continue Shopping
-                </Link>
-              </div>
+              {!isLoggedIn && (
+                <p className="text-center text-xs text-gray-500 mt-2">
+                  You'll need to log in to checkout
+                </p>
+              )}
+
+              {shipping > 0 && (
+                <p className="text-center text-xs text-gray-500 mt-2">
+                  Add {fmt(5000 - subtotal)} more for free shipping
+                </p>
+              )}
+            </div>
+
+            {/* Trust badges */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm grid grid-cols-2 gap-2">
+              {[
+                { icon: '🔒', label: 'Secure Checkout' },
+                { icon: '🚚', label: 'Free Shipping ₹5000+' },
+                { icon: '↩️', label: '7-Day Returns' },
+                { icon: '💵', label: 'COD Available' },
+              ].map((badge) => (
+                <div key={badge.label} className="flex items-center gap-2">
+                  <span className="text-base">{badge.icon}</span>
+                  <span className="text-[11px] text-gray-600 font-medium">{badge.label}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Coupon Modal */}
+      {/* ── Sticky bottom checkout bar (mobile) ─── */}
+      <div className="fixed bottom-16 left-0 right-0 z-40 md:hidden bg-white border-t border-[#E8E8E8] px-4 py-3 flex items-center justify-between shadow-xl">
+        <div>
+          <p className="text-xs text-gray-500">Total Amount</p>
+          <p className="text-base font-black text-gray-900">{fmt(total)}</p>
+        </div>
+        <button
+          onClick={async () => {
+            if (!isLoggedIn) {
+              localStorage.setItem('redirectAfterLogin', '/checkout/address');
+              navigate('/login');
+              return;
+            }
+            navigate('/checkout/address');
+          }}
+          className="bg-[#0C831F] text-white font-bold px-6 py-3 rounded-xl hover:bg-[#0A6B19] transition-colors text-sm"
+        >
+          Checkout →
+        </button>
+      </div>
+
+      {/* ── Coupon modal ────────────────────────── */}
       {isCouponModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsCouponModalOpen(false)}></div>
-          
-          <div className="bg-[#fafaf8] rounded-xl shadow-2xl relative z-10 w-full max-w-md max-h-[85vh] flex flex-col transform transition-all scale-100 opacity-100">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white rounded-t-xl">
-              <h3 className="font-serif text-xl text-charcoal-stone">Available Coupons 🎁</h3>
-              <button onClick={() => setIsCouponModalOpen(false)} className="text-gray-400 hover:text-charcoal-stone p-1">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50" onClick={() => setIsCouponModalOpen(false)}>
+          <div
+            className="bg-white w-full md:max-w-md md:rounded-2xl rounded-t-2xl max-h-[85vh] flex flex-col animate-slide-up shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Handle + header */}
+            <div className="flex justify-center pt-3 md:hidden">
+              <div className="w-10 h-1 rounded-full bg-gray-300" />
+            </div>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8E8E8]">
+              <h3 className="text-base font-bold text-gray-900">🎟️ Apply Coupon</h3>
+              <button onClick={() => setIsCouponModalOpen(false)} className="p-1.5 text-gray-500 hover:text-gray-800">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6" data-lenis-prevent="true">
-              
-              {/* Manual Input */}
-              <div className="flex flex-col gap-2">
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              {/* Manual input */}
+              <div className="space-y-2">
                 <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    placeholder="Enter coupon code manually..."
+                  <input
+                    type="text"
+                    placeholder="Enter coupon code"
                     value={couponInput}
                     onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                    className="flex-1 border border-gray-300 rounded px-4 py-2 text-sm focus:outline-none focus:border-charcoal-stone uppercase font-mono"
+                    className="flex-1 border border-[#E8E8E8] rounded-xl px-3 py-2.5 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[#0C831F]"
                   />
-                  <button 
+                  <button
                     onClick={() => handleApplyCoupon(couponInput)}
-                    className="bg-charcoal-stone text-white px-6 font-bold text-xs uppercase tracking-widest rounded hover:bg-gray-800"
+                    disabled={!couponInput || isValidating}
+                    className="bg-[#0C831F] text-white font-bold text-sm px-4 rounded-xl disabled:opacity-50 hover:bg-[#0A6B19] transition-colors"
                   >
-                    Apply
+                    {isValidating ? '...' : 'Apply'}
                   </button>
                 </div>
-                {couponError && <p className="text-red-500 text-xs font-medium">{couponError}</p>}
+                {couponError && <p className="text-xs font-semibold text-red-500">{couponError}</p>}
               </div>
 
-              <div className="border-t border-dashed border-gray-300"></div>
-
-              {/* Coupon List */}
-              <div className="flex flex-col gap-4">
-                {availableCoupons.map(coupon => {
-                  const meetsMinCart = subtotal >= (coupon.minOrderValue || 0);
-                  return (
-                    <div key={coupon.code} className={`border rounded-lg p-4 flex flex-col gap-3 ${meetsMinCart ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-75'}`}>
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex flex-col gap-1.5">
-                          <span className="font-mono bg-gray-100 border border-gray-200 px-2 py-1 rounded text-sm font-bold text-charcoal-stone inline-block w-fit">
-                            {coupon.code}
-                          </span>
-                          <p className="text-charcoal-stone text-sm font-medium">{coupon.description}</p>
-                          <p className="text-xs text-gray-500">Min order {formatPrice(coupon.minOrderValue || 0)}</p>
+              {/* Available coupons */}
+              {availableCoupons.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Available Coupons</p>
+                  <div className="space-y-3">
+                    {availableCoupons.map((coupon) => {
+                      const meetsMin = subtotal >= (coupon.minOrderValue || 0);
+                      return (
+                        <div key={coupon.code} className={`border rounded-xl p-3 ${meetsMin ? 'border-[#E8E8E8] bg-white' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <span className="font-mono text-xs font-bold bg-[#E8F5E9] text-[#0C831F] px-2 py-1 rounded-lg">
+                                {coupon.code}
+                              </span>
+                              <p className="text-xs text-gray-700 font-medium mt-1">{coupon.description}</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">Min order {fmt(coupon.minOrderValue || 0)}</p>
+                            </div>
+                            <button
+                              onClick={() => handleApplyCoupon(coupon.code)}
+                              disabled={!meetsMin || isValidating}
+                              className={`text-xs font-bold uppercase whitespace-nowrap disabled:opacity-40 ${meetsMin ? 'text-[#0C831F] hover:underline' : 'text-gray-400 cursor-not-allowed'}`}
+                            >
+                              Apply
+                            </button>
+                          </div>
                         </div>
-                        <button 
-                          onClick={() => handleApplyCoupon(coupon.code)}
-                          disabled={!meetsMinCart || isValidating}
-                          className={`font-bold text-xs uppercase tracking-widest whitespace-nowrap pt-2 disabled:opacity-50 ${meetsMinCart ? 'text-primary hover:underline' : 'text-gray-400 cursor-not-allowed'}`}
-                        >
-                          Apply
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
-
-    </main>
+    </div>
   );
 }

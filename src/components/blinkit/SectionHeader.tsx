@@ -1,0 +1,36 @@
+import { Link } from 'react-router-dom';
+
+interface SectionHeaderProps {
+  title: string;
+  subtitle?: string;
+  seeAllLink?: string;
+  seeAllLabel?: string;
+  className?: string;
+}
+
+export default function SectionHeader({
+  title,
+  subtitle,
+  seeAllLink,
+  seeAllLabel = 'See all',
+  className = '',
+}: SectionHeaderProps) {
+  return (
+    <div className={`flex items-start justify-between mb-3 ${className}`}>
+      <div>
+        <h2 className="text-base font-bold text-gray-900 leading-tight">{title}</h2>
+        {subtitle && (
+          <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
+        )}
+      </div>
+      {seeAllLink && (
+        <Link
+          to={seeAllLink}
+          className="text-xs font-semibold text-[#0C831F] hover:text-[#0A6B19] transition-colors whitespace-nowrap ml-4 mt-0.5"
+        >
+          {seeAllLabel} →
+        </Link>
+      )}
+    </div>
+  );
+}

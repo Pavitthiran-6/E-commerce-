@@ -1,6 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
+  /* ─── Legacy tokens (kept for backward compat with admin/auth) ─ */
   --color-on-background: #1a1c1b;
   --color-outline: #7b766e;
   --color-on-primary: #ffffff;
@@ -8,96 +10,121 @@
   --color-inverse-on-surface: #f1f1ef;
   --color-primary-container: #3e3b35;
   --color-on-tertiary-fixed: #1c1b1e;
-  --color-surface-bright: #f9f9f7;
+  --color-surface-bright: #F8F8F8;
   --color-primary-fixed: #e8e2d9;
-  --color-on-surface: #1a1c1b;
+  --color-on-surface: #3D3D3D;
   --color-error-container: #ffdad6;
   --color-tertiary-fixed-dim: #c9c5c9;
-  --color-surface-container-low: #f4f4f2;
-  --color-surface-dim: #dadad8;
-  --color-error: #ba1a1a;
+  --color-surface-container-low: #F2F2F2;
+  --color-surface-dim: #E8E8E8;
+  --color-error: #E53935;
   --color-secondary-fixed-dim: #dfc480;
   --color-on-tertiary: #ffffff;
-  --color-on-surface-variant: #4a463f;
+  --color-on-surface-variant: #666666;
   --color-secondary-container: #fde099;
   --color-tertiary-container: #3c3b3e;
-  --color-surface-variant: #e2e3e1;
-  --color-outline-variant: #ccc6bc;
-  --color-background: #f9f9f7;
+  --color-surface-variant: #F2F2F2;
+  --color-outline-variant: #E8E8E8;
+  --color-background: #F8F8F8;
   --color-on-primary-container: #aaa59d;
-  --color-surface-container-highest: #e2e3e1;
+  --color-surface-container-highest: #E8E8E8;
   --color-inverse-primary: #ccc6bd;
-  --color-charcoal-stone: #3E3B35;
-  --color-warm-sand: #F2F2E9;
+
+  /* ─── Mapped to Blinkit palette ──────────────────────────────── */
+  --color-primary: #3D3D3D;
+  --color-charcoal-stone: #3D3D3D;
+  --color-warm-sand: #F2F2F2;
+  --color-parchment: #F8F8F8;
+  --color-surface: #F8F8F8;
+  --color-muted-gold: #F3C900;
+
   --color-on-secondary: #ffffff;
   --color-on-error: #ffffff;
   --color-surface-container-lowest: #ffffff;
   --color-tertiary-fixed: #e5e1e5;
   --color-primary-fixed-dim: #ccc6bd;
   --color-on-tertiary-fixed-variant: #474649;
-  --color-secondary: #705c23;
+  --color-secondary: #0C831F;
   --color-surface-tint: #625e57;
   --color-on-secondary-fixed: #241a00;
-  --color-surface-container-high: #e8e8e6;
-  --color-on-secondary-container: #776228;
-  --color-surface-container: #eeeeec;
+  --color-surface-container-high: #E8E8E8;
+  --color-on-secondary-container: #0C831F;
+  --color-surface-container: #F2F2F2;
   --color-on-error-container: #93000a;
-  --color-primary: #282520;
   --color-on-tertiary-container: #a8a5a8;
   --color-tertiary: #262528;
   --color-on-primary-fixed: #1e1b16;
-  --color-surface: #f9f9f7;
-  --color-parchment: #FAFAF8;
-  --color-muted-gold: #C9AF6D;
   --color-on-secondary-fixed-variant: #57440c;
   --color-on-primary-fixed-variant: #4a4640;
   --color-secondary-fixed: #fde099;
 
-  --spacing-section-gap: 120px;
-  --spacing-margin-edge: 40px;
-  --spacing-gutter: 24px;
+  /* ─── Blinkit Design System (Bolt) ──────────────────────────── */
+  --color-blinkit-yellow: #F3C900;
+  --color-blinkit-yellow-light: #FFF8D6;
+  --color-blinkit-yellow-dark: #D4A900;
+  --color-blinkit-green: #0C831F;
+  --color-blinkit-green-light: #E8F5E9;
+  --color-blinkit-green-dark: #0A6B19;
+  --color-blinkit-bg: #F8F8F8;
+  --color-blinkit-card: #FFFFFF;
+  --color-blinkit-dark: #3D3D3D;
+  --color-blinkit-mid: #666666;
+  --color-blinkit-light: #AAAAAA;
+  --color-blinkit-border: #E8E8E8;
+  --color-blinkit-red: #E53935;
+  --color-blinkit-orange: #FF6B00;
+  /* ─────────────────────────────────────────────────────────── */
+
+  --spacing-section-gap: 32px;
+  --spacing-margin-edge: 16px;
+  --spacing-gutter: 12px;
   --spacing-container-max: 1440px;
-  --spacing-stack-lg: 32px;
+  --spacing-stack-lg: 24px;
   --spacing-stack-md: 16px;
   --spacing-stack-sm: 8px;
 
-  --font-body-md: "Hanken Grotesk", sans-serif;
-  --font-body-lg: "Hanken Grotesk", sans-serif;
-  --font-button: "Hanken Grotesk", sans-serif;
-  --font-headline-md: "EB Garamond", serif;
-  --font-headline-lg: "EB Garamond", serif;
-  --font-headline-display: "EB Garamond", serif;
-  --font-label-caps: "Hanken Grotesk", sans-serif;
+  --font-body-md: "Inter", sans-serif;
+  --font-body-lg: "Inter", sans-serif;
+  --font-button: "Inter", sans-serif;
+  --font-headline-md: "Inter", sans-serif;
+  --font-headline-lg: "Inter", sans-serif;
+  --font-headline-display: "Inter", sans-serif;
+  --font-label-caps: "Inter", sans-serif;
+  --font-serif: "Inter", sans-serif;
 
-  --text-body-md: 16px;
-  --text-body-md--line-height: 1.6;
-  --text-body-lg: 18px;
-  --text-body-lg--line-height: 1.6;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 1.5;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 1.5;
   --text-button: 14px;
   --text-button--line-height: 1.2;
-  --text-button--letter-spacing: 0.05em;
-  --text-button--font-weight: 500;
-  --text-headline-md: 32px;
+  --text-button--letter-spacing: 0.01em;
+  --text-button--font-weight: 600;
+  --text-headline-md: 24px;
   --text-headline-md--line-height: 1.3;
-  --text-headline-lg: 48px;
+  --text-headline-lg: 32px;
   --text-headline-lg--line-height: 1.2;
   --text-headline-lg--letter-spacing: -0.01em;
-  --text-headline-display: 64px;
+  --text-headline-display: 40px;
   --text-headline-display--line-height: 1.1;
   --text-headline-display--letter-spacing: -0.02em;
-  --text-label-caps: 12px;
+  --text-label-caps: 11px;
   --text-label-caps--line-height: 1.2;
-  --text-label-caps--letter-spacing: 0.1em;
+  --text-label-caps--letter-spacing: 0.05em;
   --text-label-caps--font-weight: 600;
 }
 
 @layer base {
   body {
-    background-color: var(--color-parchment);
-    color: var(--color-charcoal-stone);
-    font-family: var(--font-body-md);
+    background-color: #F8F8F8;
+    color: #3D3D3D;
+    font-family: "Inter", sans-serif;
     min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
+  }
+
+  * {
+    box-sizing: border-box;
   }
 }
 
@@ -108,16 +135,54 @@
 }
 
 /* Custom Scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background-color: #E8E8E8; border-radius: 10px; }
+.custom-scrollbar:hover::-webkit-scrollbar-thumb { background-color: #AAAAAA; }
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Line clamp utilities */
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: var(--color-outline-variant);
-  border-radius: 10px;
+
+/* Bottom nav safe area */
+.pb-bottom-nav { padding-bottom: 72px; }
+
+/* Blinkit animations */
+@keyframes blinkit-scale {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
-.custom-scrollbar:hover::-webkit-scrollbar-thumb {
-  background-color: var(--color-outline);
+@keyframes slide-up-from-bottom {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes bk-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes bk-spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-slide-up { animation: slide-up-from-bottom 0.3s cubic-bezier(0.32,0.72,0,1); }
+.animate-fade-in { animation: bk-fade-in 0.25s ease-out; }
+.animate-blinkit-pulse { animation: blinkit-scale 0.18s ease-in-out; }
+.animate-slide-in-left { animation: slide-in-left 0.3s cubic-bezier(0.32,0.72,0,1); }
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
 }

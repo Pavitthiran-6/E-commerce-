@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route, useLocation, Outlet } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import BottomNav from './components/blinkit/BottomNav';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import Collection from './pages/Collection';
@@ -67,10 +68,11 @@ function Layout() {
   return (
     <>
       <Navbar />
-      <main className="flex-grow">
+      <main className="flex-grow pb-16 md:pb-0">
         <Outlet />
       </main>
       <Footer />
+      <BottomNav />
     </>
   );
 }
