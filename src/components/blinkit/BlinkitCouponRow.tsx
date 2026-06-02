@@ -64,7 +64,6 @@ export default function BlinkitCouponRow({ coupons, onCopy, copiedCode, classNam
       <div
         ref={scrollRef}
         className="flex gap-3 overflow-x-auto no-scrollbar pb-1"
-        style={{ justifyContent: 'safe center' }}
       >
         {coupons.map((coupon) => {
           const isCopied = copiedCode === coupon.code;
