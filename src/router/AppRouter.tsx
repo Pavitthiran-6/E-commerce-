@@ -10,19 +10,56 @@ import ProtectedRoute from './ProtectedRoute';
 import GuestRoute from './GuestRoute';
 import { useAuth } from '../context/AuthContext';
 
-// Helper utility to reload the page when a chunk load error occurs (like after a new deployment)
-const lazyWithRetry = (importFn: () => Promise<any>) => {
+const lazyWithRetry = (
+  importFn: () => Promise<{ default: React.ComponentType<any> }>,
+  componentName?: string
+) => {
   return React.lazy(async () => {
+    // Generate a unique storage key based on the component's import path to isolate retries
+    const name = componentName || importFn.toString();
+    const storageKey = `chunk_retry_${name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
     try {
-      return await importFn();
+      const component = await importFn();
+      // On success, clear any previous retry flags for this chunk
+      try {
+        sessionStorage.removeItem(storageKey);
+      } catch (e) {
+        // Silently capture storage exceptions (e.g. sandboxed iframe or disabled cookies)
+      }
+      return component;
     } catch (error) {
-      // Handle the Vite dynamic import failure gracefully
-      if (
+      console.error(`[lazyWithRetry] Failed to load dynamic chunk for: ${name}`, error);
+
+      const isChunkError =
         error instanceof TypeError ||
         String(error).includes('Failed to fetch') ||
-        String(error).includes('dynamically imported module')
-      ) {
-        window.location.reload();
+        String(error).includes('dynamically imported module');
+
+      if (isChunkError) {
+        let hasRetried = null;
+        try {
+          hasRetried = sessionStorage.getItem(storageKey);
+        } catch (e) {
+          // Silently capture storage exceptions
+        }
+
+        if (!hasRetried) {
+          console.warn(`[lazyWithRetry] Chunk load failure detected. Forcing page reload to sync assets...`);
+          try {
+            sessionStorage.setItem(storageKey, 'true');
+          } catch (e) {
+            // Silently capture storage exceptions
+          }
+          window.location.reload();
+          // Return a pending promise to prevent rendering half-loaded states while reloading
+          return new Promise(() => {});
+        } else {
+          console.error(
+            `[lazyWithRetry] Page has already reloaded once for this chunk and still failed. ` +
+            `Aborting reload to prevent infinite loop. User action is required.`
+          );
+        }
       }
       throw error;
     }
