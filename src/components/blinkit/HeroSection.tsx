@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination } from 'swiper/modules';
 import type { HeroData, HeroCardData } from '../../services/heroService';
@@ -14,7 +14,6 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
-  const navigate = useNavigate();
   if (isLoading || !heroData) {
     return (
       <div className="w-full rounded-3xl bg-gradient-to-br from-amber-100/50 via-amber-100/30 to-amber-50 border border-amber-200/30 p-6 md:p-8 animate-pulse flex flex-col gap-6">
@@ -58,20 +57,8 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
   // Helper to render Featured Card
   const renderFeaturedCard = (layout: 'vertical' | 'horizontal') => {
     const isVertical = layout === 'vertical';
-    return (
-      <div
-        onClick={() => {
-          if (heroData?.productSlug) {
-            navigate(`/product/${heroData.productSlug}`);
-          }
-        }}
-        className={`w-full h-full rounded-2xl border border-amber-100/60 shadow-sm p-4 md:p-6 flex transition-colors duration-300 hover:bg-[#FFF6DB] select-none ${
-          heroData?.productSlug ? 'cursor-pointer' : ''
-        } ${
-          isVertical ? 'flex-col justify-between items-center text-center' : 'flex-row justify-between items-center'
-        }`}
-        style={{ backgroundColor: featuredCardBackgroundColor || '#FFF9E6' }}
-      >
+    const cardContent = (
+      <>
         <div className={isVertical ? 'w-full' : 'flex-1 pr-4'}>
           <span className="text-[9px] md:text-xs font-black tracking-widest text-amber-800 uppercase block mb-1">
             SUMMER DEALS
@@ -106,22 +93,35 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
             <img src={featuredProductImage} alt={featuredProductName} className="w-full h-full object-cover" loading="lazy" />
           </div>
         )}
+      </>
+    );
+
+    const className = `w-full h-full rounded-2xl border border-amber-100/60 shadow-sm p-4 md:p-6 flex transition-colors duration-300 hover:bg-[#FFF6DB] select-none ${
+      heroData?.productSlug ? 'cursor-pointer' : ''
+    } ${
+      isVertical ? 'flex-col justify-between items-center text-center' : 'flex-row justify-between items-center'
+    }`;
+    const style = { backgroundColor: featuredCardBackgroundColor || '#FFF9E6' };
+
+    if (heroData?.productSlug) {
+      return (
+        <Link to={`/product/${heroData.productSlug}`} className={className} style={style}>
+          {cardContent}
+        </Link>
+      );
+    }
+
+    return (
+      <div className={className} style={style}>
+        {cardContent}
       </div>
     );
   };
 
   // Helper to render Promo Card
   const renderPromoCard = (card: HeroCardData) => {
-    return (
-      <div
-        onClick={() => {
-          if (card.productSlug) {
-            navigate(`/product/${card.productSlug}`);
-          }
-        }}
-        className="group relative flex flex-col justify-between overflow-hidden rounded-xl md:rounded-2xl border border-orange-100/50 p-2.5 md:p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-md cursor-pointer select-none h-full"
-        style={{ backgroundColor: card.backgroundColor || '#FFF6F0' }}
-      >
+    const cardContent = (
+      <>
         <div className="self-start">
           <span className="inline-block bg-[#0C831F] text-white text-[8px] md:text-[10px] font-black uppercase px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-md md:rounded-lg tracking-wider shadow-sm">
             Up to {card.discountPercentage}% OFF
@@ -137,6 +137,23 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
             <img src={card.image} alt={card.title} className="w-full h-full object-cover" loading="lazy" />
           </div>
         )}
+      </>
+    );
+
+    const className = "group relative flex flex-col justify-between overflow-hidden rounded-xl md:rounded-2xl border border-orange-100/50 p-2.5 md:p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-md cursor-pointer select-none h-full";
+    const style = { backgroundColor: card.backgroundColor || '#FFF6F0' };
+
+    if (card.productSlug) {
+      return (
+        <Link to={`/product/${card.productSlug}`} className={className} style={style}>
+          {cardContent}
+        </Link>
+      );
+    }
+
+    return (
+      <div className={className} style={style}>
+        {cardContent}
       </div>
     );
   };
