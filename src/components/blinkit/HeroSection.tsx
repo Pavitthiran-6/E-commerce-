@@ -52,7 +52,7 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
     promoCards,
   } = heroData;
 
-  const sortedCards = [...promoCards].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+  const sortedCards = [...(promoCards || [])].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
   // Helper to render Featured Card
   const renderFeaturedCard = (layout: 'vertical' | 'horizontal') => {
@@ -159,9 +159,10 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
   };
 
   // Parse background color styles (hex or gradient)
-  const heroStyle = backgroundColor.includes('gradient')
-    ? { backgroundImage: backgroundColor }
-    : { backgroundColor: backgroundColor };
+  const safeBgColor = backgroundColor || 'linear-gradient(to bottom right, #FFE082, #FFD54F, #FFCA28)';
+  const heroStyle = safeBgColor.includes('gradient')
+    ? { backgroundImage: safeBgColor }
+    : { backgroundColor: safeBgColor };
 
   return (
     <div

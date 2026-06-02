@@ -89,13 +89,17 @@ export default function HeroManagement() {
   }, []);
 
   const filteredFeaturedProducts = products.filter(p =>
-    p.name.toLowerCase().includes(featuredProductSearch.toLowerCase()) ||
-    (p.slug && p.slug.toLowerCase().includes(featuredProductSearch.toLowerCase()))
+    p && p.name && (
+      p.name.toLowerCase().includes((featuredProductSearch || '').toLowerCase()) ||
+      (p.slug && p.slug.toLowerCase().includes((featuredProductSearch || '').toLowerCase()))
+    )
   );
 
   const filteredPromoProducts = products.filter(p =>
-    p.name.toLowerCase().includes(promoProductSearch.toLowerCase()) ||
-    (p.slug && p.slug.toLowerCase().includes(promoProductSearch.toLowerCase()))
+    p && p.name && (
+      p.name.toLowerCase().includes((promoProductSearch || '').toLowerCase()) ||
+      (p.slug && p.slug.toLowerCase().includes((promoProductSearch || '').toLowerCase()))
+    )
   );
 
   const showMsg = (type: 'success' | 'error', text: string) => {
@@ -138,7 +142,7 @@ export default function HeroManagement() {
       image: '',
       discountPercentage: 40,
       backgroundColor: '#FFF6F0',
-      displayOrder: hero.promoCards.length,
+      displayOrder: (hero.promoCards || []).length,
       productSlug: '',
     });
     setPromoProductSearch('');
@@ -159,7 +163,7 @@ export default function HeroManagement() {
       return;
     }
 
-    const updatedCards = [...hero.promoCards];
+    const updatedCards = [...(hero.promoCards || [])];
     if (cardFormIndex !== null) {
       // Edit mode
       updatedCards[cardFormIndex] = cardForm;
@@ -176,8 +180,8 @@ export default function HeroManagement() {
   };
 
   const handleCardDelete = async (index: number) => {
-    const card = hero.promoCards[index];
-    if (window.confirm(`Are you sure you want to delete the promotion card "${card.title}"?`)) {
+    const card = (hero.promoCards || [])[index];
+    if (card && window.confirm(`Are you sure you want to delete the promotion card "${card.title}"?`)) {
       if (card.id) {
         // Call DELETE API immediately if it is already persisted
         try {
@@ -190,7 +194,7 @@ export default function HeroManagement() {
         }
       }
 
-      const updatedCards = hero.promoCards.filter((_, idx) => idx !== index);
+      const updatedCards = (hero.promoCards || []).filter((_, idx) => idx !== index);
       setHero((prev) => ({ ...prev, promoCards: updatedCards }));
     }
   };
@@ -538,13 +542,13 @@ export default function HeroManagement() {
             </div>
 
             <div className="space-y-3">
-              {hero.promoCards.length === 0 ? (
+              {(hero.promoCards || []).length === 0 ? (
                 <div className="text-center p-8 border border-dashed border-gray-100 rounded-xl bg-gray-50 text-gray-400 text-sm">
                   No promotional cards added. Add cards to see them on the grid.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {hero.promoCards.map((card, idx) => (
+                  {(hero.promoCards || []).map((card, idx) => (
                     <div
                       key={idx}
                       className="border border-gray-100 rounded-xl p-3.5 flex items-center justify-between gap-3 bg-gray-50/50 hover:bg-gray-50 transition-all hover:shadow-sm"
@@ -707,7 +711,7 @@ export default function HeroManagement() {
 
                       {/* Right: 4 Cards Promo Grid */}
                       <div className="col-span-2 grid grid-cols-2 gap-2.5">
-                        {hero.promoCards.slice(0, 4).map((card, idx) => (
+                        {(hero.promoCards || []).slice(0, 4).map((card, idx) => (
                           <div
                             key={idx}
                             className="rounded-xl p-2.5 border border-amber-100/40 flex flex-col justify-between"
@@ -759,7 +763,7 @@ export default function HeroManagement() {
 
                       {/* Promo Cards below */}
                       <div className="grid grid-cols-2 gap-2.5">
-                        {hero.promoCards.slice(0, 4).map((card, idx) => (
+                        {(hero.promoCards || []).slice(0, 4).map((card, idx) => (
                           <div
                             key={idx}
                             className="rounded-xl p-2 border border-amber-100/40 flex flex-col justify-between h-20"
@@ -815,7 +819,7 @@ export default function HeroManagement() {
                       {/* Small dot indicators */}
                       <div className="flex justify-center gap-1 mt-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-gray-800" />
-                        {hero.promoCards.map((_, idx) => (
+                        {(hero.promoCards || []).map((_, idx) => (
                           <span key={idx} className="w-1.5 h-1.5 rounded-full bg-gray-300" />
                         ))}
                       </div>
