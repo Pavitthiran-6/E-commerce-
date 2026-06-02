@@ -41,7 +41,7 @@ export default function Collection() {
   const hasFetchedOnce = useRef(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
-  const [productType, setProductType] = useState<'all' | 'footwear' | 'apparel' | 'electronics'>('all');
+  const [selectedMainCategory, setSelectedMainCategory] = useState<string>('all');
 
   // Categories API State
   const [categories, setCategories] = useState<Category[]>([]);
@@ -138,13 +138,50 @@ export default function Collection() {
     fetchProducts();
   }, [searchQuery]);
 
+  // Synchronize category selection from URL query params
   useEffect(() => {
+    if (categories.length === 0) return;
+
     if (categoryQuery) {
-      setSelectedCategories([categoryQuery]);
-    } else if (!subcategoriesQuery) {
+      const parent = categories.find(c => c.name.toLowerCase() === categoryQuery.toLowerCase());
+      if (parent) {
+        setSelectedMainCategory(parent.name);
+        if (!subcategoriesQuery) {
+          setSelectedCategories([]);
+        }
+      } else {
+        let foundParent: Category | null = null;
+        for (const p of categories) {
+          if (p.children?.some(c => c.name.toLowerCase() === categoryQuery.toLowerCase())) {
+            foundParent = p;
+            break;
+          }
+        }
+        if (foundParent) {
+          setSelectedMainCategory(foundParent.name);
+        }
+        setSelectedCategories([categoryQuery]);
+      }
+    } else if (subcategoriesQuery) {
+      const subCats = subcategoriesQuery.split(',');
+      setSelectedCategories(subCats);
+      let foundParent: Category | null = null;
+      for (const p of categories) {
+        if (p.children?.some(c => c.name.toLowerCase() === subCats[0].toLowerCase())) {
+          foundParent = p;
+          break;
+        }
+      }
+      if (foundParent) {
+        setSelectedMainCategory(foundParent.name);
+      } else {
+        setSelectedMainCategory('all');
+      }
+    } else {
+      setSelectedMainCategory('all');
       setSelectedCategories([]);
     }
-  }, [categoryQuery, subcategoriesQuery]);
+  }, [categoryQuery, subcategoriesQuery, categories]);
 
   useEffect(() => {
     if (departmentQuery) {
@@ -177,6 +214,7 @@ export default function Collection() {
   };
 
   const clearAllFilters = () => {
+    setSelectedMainCategory('all');
     setSelectedCategories([]);
     setSelectedPriceRanges([]);
     setSliderPrice([0, 50000]);
@@ -225,7 +263,9 @@ export default function Collection() {
   const filteredProducts = products.filter((p) => {
     const { mainCategory, subCategory } = resolveProductCategory(p);
 
-    if (productType !== 'all' && p.productType !== productType) return false;
+    if (selectedMainCategory !== 'all') {
+      if (!mainCategory || mainCategory.toLowerCase() !== selectedMainCategory.toLowerCase()) return false;
+    }
     if (promoQuery === 'clearance' && (!p.discount || p.discount < 25)) return false;
     if (promoQuery === 'flash-deals' && (!p.discount || p.discount === 0)) return false;
     if (promoQuery === 'last-chance' && (!p.discount || p.discount < 15)) return false;
@@ -290,7 +330,9 @@ export default function Collection() {
 
   // Render unified Filter Controls panel
   const renderFilterControls = () => {
-    const allSubCategories = categories.flatMap(cat => cat.children || []);
+    const allSubCategories = selectedMainCategory === 'all'
+      ? categories.flatMap(cat => cat.children || [])
+      : (categories.find(c => c.name.toLowerCase() === selectedMainCategory.toLowerCase())?.children || []);
     
     return (
       <div className="space-y-6">
@@ -459,17 +501,32 @@ export default function Collection() {
         <div className="flex items-center gap-2 mb-4 sticky top-[calc(4rem+2rem)] z-30 bg-[#F8F8F8] py-2 -mx-3 px-3 md:-mx-0 md:px-0 md:static md:bg-transparent md:py-0">
           {/* Category type pills */}
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1">
-            {(['all', 'footwear', 'apparel', 'electronics'] as const).map((type) => (
+            <button
+              onClick={() => { setSelectedMainCategory('all'); setSelectedCategories([]); setCurrentPage(1); updateURL([], sliderPrice[0], sliderPrice[1]); }}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-150 ${
+                selectedMainCategory === 'all'
+                  ? 'bg-[#0C831F] text-white border-[#0C831F]'
+                  : 'bg-white text-gray-700 border-[#E8E8E8] hover:border-[#0C831F] hover:text-[#0C831F]'
+              }`}
+            >
+              All
+            </button>
+            {categories.map((cat) => (
               <button
-                key={type}
-                onClick={() => { setProductType(type); clearAllFilters(); }}
+                key={cat.id}
+                onClick={() => {
+                  setSelectedMainCategory(cat.name);
+                  setSelectedCategories([]);
+                  setCurrentPage(1);
+                  updateURL([], sliderPrice[0], sliderPrice[1]);
+                }}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-150 ${
-                  productType === type
+                  selectedMainCategory.toLowerCase() === cat.name.toLowerCase()
                     ? 'bg-[#0C831F] text-white border-[#0C831F]'
                     : 'bg-white text-gray-700 border-[#E8E8E8] hover:border-[#0C831F] hover:text-[#0C831F]'
                 }`}
               >
-                {type === 'all' ? 'All' : type === 'electronics' ? 'Tech & Kitchen' : type.charAt(0).toUpperCase() + type.slice(1)}
+                {cat.name}
               </button>
             ))}
           </div>
