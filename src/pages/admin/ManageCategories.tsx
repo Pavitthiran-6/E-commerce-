@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import axiosInstance from '../../api/axiosInstance';
-import { uploadToCloudinary } from '../../utils/cloudinaryUpload';
+import { compressImageToBase64 } from '../../utils/imageCompress';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Category {
@@ -121,18 +121,22 @@ export default function ManageCategories() {
     setModalOpen(true);
   };
 
-  // ── Auto Upload to Cloudinary ──────────────────────────────────────────────
+  // ── Auto Compress to base64 (mirrors Product image workflow) ─────────────────
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please select a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
 
     setIsUploading(true);
     setUploadError('');
     try {
-      const url = await uploadToCloudinary(file, 'belledonne/categories');
-      setFormData(prev => ({ ...prev, imageUrl: url }));
+      const base64 = await compressImageToBase64(file);
+      setFormData(prev => ({ ...prev, imageUrl: base64 }));
     } catch (err: any) {
-      setUploadError(err.message || 'Failed to upload image. Please try again.');
+      setUploadError(err.message || 'Failed to process image. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -495,7 +499,7 @@ export default function ManageCategories() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
-                        <p className="text-xs text-gray-500 font-semibold animate-pulse">Uploading to Cloudinary...</p>
+                        <p className="text-xs text-gray-500 font-semibold animate-pulse">Processing image…</p>
                       </div>
                     ) : (
                       <>
