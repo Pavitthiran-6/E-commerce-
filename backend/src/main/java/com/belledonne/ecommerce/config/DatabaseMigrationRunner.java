@@ -44,5 +44,13 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("Database migration reviews.images alter skipped or failed: {}", e.getMessage());
         }
+
+        try {
+            // Upgrade categories.image_url from VARCHAR(500) to TEXT to support base64 images
+            jdbcTemplate.execute("ALTER TABLE categories ALTER COLUMN image_url TYPE TEXT USING image_url::TEXT");
+            log.info("Database migration successfully upgraded categories.image_url to TEXT!");
+        } catch (Exception e) {
+            log.warn("Database migration categories.image_url alter skipped or not needed: {}", e.getMessage());
+        }
     }
 }
