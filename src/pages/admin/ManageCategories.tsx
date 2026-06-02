@@ -151,7 +151,8 @@ export default function ManageCategories() {
       const payload: Record<string, unknown> = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
-        imageUrl: formData.imageUrl.trim() || null,
+        // Only sub-categories carry an image; clear it for main categories
+        imageUrl: formData.parentId ? (formData.imageUrl.trim() || null) : null,
       };
       if (formData.parentId) payload.parentId = Number(formData.parentId);
 
@@ -459,10 +460,11 @@ export default function ManageCategories() {
                 />
               </div>
 
-              {/* Image Upload Area with Auto-Upload & Preview */}
+              {/* Image upload — sub-categories only */}
+              {formData.parentId && (
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
-                  Category Image <span className="text-gray-400 normal-case font-normal">(optional)</span>
+                  Sub-category Image <span className="text-gray-400 normal-case font-normal">(optional)</span>
                 </label>
                 
                 {uploadError && (
@@ -522,6 +524,7 @@ export default function ManageCategories() {
                   </div>
                 )}
               </div>
+              )}
             </div>
 
             {/* Footer */}
