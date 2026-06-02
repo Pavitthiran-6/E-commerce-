@@ -58,39 +58,39 @@ export default function HeroSlider({ products, isLoading }: HeroSliderProps) {
             <SwiperSlide key={product.id}>
               <Link
                 to={`/product/${product.id}`}
-                className="block w-full h-full bg-[#FFF9E6] hover:bg-[#FFF6DB] transition-colors duration-300 p-2 md:p-6 flex flex-col items-center justify-between relative group select-none cursor-pointer"
+                className="block w-full h-full bg-[#FFF9E6] hover:bg-[#FFF6DB] transition-colors duration-300 p-1.5 md:p-6 flex flex-col items-center justify-between relative group select-none cursor-pointer"
               >
                 {/* Sale Badge / Title */}
                 <div className="text-center">
-                  <span className="text-[8px] md:text-xs font-black tracking-widest text-amber-800 uppercase block mb-0.5">
+                  <span className="text-[7px] md:text-xs font-black tracking-widest text-amber-800 uppercase block mb-0.5">
                     SUMMER DEALS
                   </span>
                   {discountPct > 0 && (
-                    <span className="inline-block bg-amber-100 text-amber-800 text-[8px] md:text-[10px] font-bold px-1.5 py-0.5 rounded-full mb-0.5">
+                    <span className="inline-block bg-amber-100 text-amber-800 text-[7px] md:text-[10px] font-bold px-1.5 py-0.5 rounded-full mb-0.5">
                       {Math.round(discountPct)}% OFF
                     </span>
                   )}
                 </div>
 
                 {/* Price pill */}
-                <div className="flex flex-col items-center gap-0.5 my-1.5 md:my-3">
+                <div className="flex flex-col items-center gap-0.5 my-1 md:my-3">
                   {origPrice > currentPrice && (
-                    <span className="text-[8px] md:text-xs text-gray-400 line-through font-semibold leading-none">
+                    <span className="text-[7px] md:text-xs text-gray-400 line-through font-semibold leading-none">
                       ₹{origPrice.toLocaleString('en-IN')}
                     </span>
                   )}
-                  <span className="bg-[#0C831F] text-white text-[10px] md:text-lg font-black px-2 py-1 md:px-4 md:py-1.5 rounded-lg md:rounded-xl shadow-sm leading-none flex items-center">
+                  <span className="bg-[#0C831F] text-white text-[9px] md:text-lg font-black px-1.5 py-0.5 md:px-4 md:py-1.5 rounded-lg md:rounded-xl shadow-sm leading-none flex items-center">
                     ₹{currentPrice.toLocaleString('en-IN')}
                   </span>
                 </div>
 
                 {/* Product Name */}
-                <h3 className="text-[9px] md:text-base font-extrabold text-gray-900 text-center leading-tight line-clamp-2 md:line-clamp-1 min-h-[22px] md:min-h-0 max-w-[95%] mb-1.5 md:mb-4">
+                <h3 className="text-[8px] md:text-base font-extrabold text-gray-900 text-center leading-tight line-clamp-2 md:line-clamp-1 min-h-[20px] md:min-h-0 max-w-[95%] mb-1 md:mb-4">
                   {product.name}
                 </h3>
 
                 {/* Product Image */}
-                <div className="w-full max-w-[80px] sm:max-w-[120px] md:max-w-[260px] aspect-square flex items-center justify-center overflow-hidden bg-white/60 rounded-xl md:rounded-2xl border border-white/80 shadow-inner group-hover:scale-105 transition-transform duration-300">
+                <div className="w-full max-w-[70px] sm:max-w-[120px] md:max-w-[260px] aspect-square flex items-center justify-center overflow-hidden bg-white/60 rounded-lg md:rounded-2xl border border-white/80 shadow-inner group-hover:scale-105 transition-transform duration-300">
                   <img
                     src={imageSrc}
                     alt={product.name}

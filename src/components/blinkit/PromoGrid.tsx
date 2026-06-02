@@ -53,7 +53,7 @@ export default function PromoGrid({ categories, products, isLoading }: PromoGrid
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3.5 h-full w-full">
+    <div className="grid grid-cols-2 gap-2 md:gap-3.5 h-full w-full">
       {displayCats.map((cat, idx) => {
         const colors = PASTEL_COLORS[idx % PASTEL_COLORS.length];
         const maxDiscount = getCategoryDiscount(cat.name);
@@ -64,23 +64,23 @@ export default function PromoGrid({ categories, products, isLoading }: PromoGrid
           <Link
             key={cat.id}
             to={linkPath}
-            className={`group relative flex flex-col justify-between overflow-hidden rounded-xl md:rounded-3xl border ${colors.border} p-2 md:p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-md cursor-pointer select-none`}
+            className={`group relative flex flex-col justify-between overflow-hidden rounded-xl md:rounded-3xl border ${colors.border} p-1.5 md:p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-md cursor-pointer select-none`}
             style={{ backgroundColor: colors.bg }}
           >
             {/* Top discount pill */}
             <div className="self-start">
-              <span className={`inline-block ${colors.badgeBg} ${colors.badgeText} text-[7px] md:text-[10px] font-black uppercase px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-md md:rounded-lg tracking-wider shadow-sm`}>
+              <span className={`inline-block ${colors.badgeBg} ${colors.badgeText} text-[6px] md:text-[10px] font-black uppercase px-1 py-0.5 md:px-2.5 md:py-1 rounded-md md:rounded-lg tracking-wider shadow-sm`}>
                 Up to {maxDiscount}% OFF
               </span>
             </div>
 
             {/* Category Title */}
-            <h3 className="text-[10px] md:text-base font-extrabold text-gray-900 tracking-tight leading-snug mt-1.5 line-clamp-2 min-h-[28px] md:min-h-[48px]">
+            <h3 className="text-[9px] md:text-base font-extrabold text-gray-900 tracking-tight leading-snug mt-1 md:mt-1.5 line-clamp-2 min-h-[24px] md:min-h-[48px]">
               {cat.name}
             </h3>
 
             {/* Category Image */}
-            <div className="w-full h-14 sm:h-24 md:h-40 flex items-center justify-center mt-1.5 overflow-hidden rounded-lg md:rounded-2xl bg-white/40 shadow-inner group-hover:scale-105 transition-transform duration-300">
+            <div className="w-full h-11 sm:h-24 md:h-40 flex items-center justify-center mt-1 md:mt-1.5 overflow-hidden rounded-lg md:rounded-2xl bg-white/40 shadow-inner group-hover:scale-105 transition-transform duration-300">
               <img
                 src={imageSrc}
                 alt={cat.name}
