@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import type { Coupon } from '../../services/couponService';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -11,6 +11,25 @@ interface BlinkitCouponRowProps {
 
 export default function BlinkitCouponRow({ coupons, onCopy, copiedCode, className = '' }: BlinkitCouponRowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [showButtons, setShowButtons] = useState(false);
+
+  const checkOverflow = () => {
+    const el = scrollRef.current;
+    if (el) {
+      setShowButtons(el.scrollWidth > el.clientWidth);
+    }
+  };
+
+  useEffect(() => {
+    checkOverflow();
+    window.addEventListener('resize', checkOverflow);
+    // Double-check after rendering
+    const timer = setTimeout(checkOverflow, 100);
+    return () => {
+      window.removeEventListener('resize', checkOverflow);
+      clearTimeout(timer);
+    };
+  }, [coupons]);
 
   const scroll = (dir: 'left' | 'right') => {
     const el = scrollRef.current;
@@ -22,25 +41,30 @@ export default function BlinkitCouponRow({ coupons, onCopy, copiedCode, classNam
 
   return (
     <div className={`relative ${className}`}>
-      {/* Scroll buttons (desktop) */}
-      <button
-        onClick={() => scroll('left')}
-        className="hidden md:flex absolute -left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white rounded-full shadow-md items-center justify-center hover:bg-gray-50 transition-colors"
-        aria-label="Scroll left"
-      >
-        <ChevronLeft className="w-4 h-4 text-gray-600" />
-      </button>
-      <button
-        onClick={() => scroll('right')}
-        className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white rounded-full shadow-md items-center justify-center hover:bg-gray-50 transition-colors"
-        aria-label="Scroll right"
-      >
-        <ChevronRight className="w-4 h-4 text-gray-600" />
-      </button>
+      {/* Scroll buttons (desktop, only if overflowing) */}
+      {showButtons && (
+        <>
+          <button
+            onClick={() => scroll('left')}
+            className="hidden md:flex absolute -left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white rounded-full shadow-md items-center justify-center hover:bg-gray-50 transition-colors"
+            aria-label="Scroll left"
+          >
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
+          </button>
+          <button
+            onClick={() => scroll('right')}
+            className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-white rounded-full shadow-md items-center justify-center hover:bg-gray-50 transition-colors"
+            aria-label="Scroll right"
+          >
+            <ChevronRight className="w-4 h-4 text-gray-600" />
+          </button>
+        </>
+      )}
 
       <div
         ref={scrollRef}
         className="flex gap-3 overflow-x-auto no-scrollbar pb-1"
+        style={{ justifyContent: 'safe center' }}
       >
         {coupons.map((coupon) => {
           const isCopied = copiedCode === coupon.code;
