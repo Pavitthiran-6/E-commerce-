@@ -112,15 +112,19 @@ export default function Home() {
     try { const data = await getFeaturedCoupons(); setFeaturedCoupons(data || []); } catch {}
   }, []);
 
-  const fetchCategories = useCallback(async () => {
-    setIsCategoriesLoading(true);
+  const fetchCategories = useCallback(async (silent = false) => {
+    if (!silent) {
+      setIsCategoriesLoading(true);
+    }
     try {
       const res = await axiosInstance.get('/api/categories/tree');
       setCategories(res.data?.data || []);
     } catch (err) {
       console.error('Failed to load categories', err);
     } finally {
-      setIsCategoriesLoading(false);
+      if (!silent) {
+        setIsCategoriesLoading(false);
+      }
     }
   }, []);
 
@@ -142,7 +146,7 @@ export default function Home() {
     fetchBestsellers();
     fetchHighlightsAndTech();
     fetchFeaturedCoupons();
-    fetchCategories();
+    fetchCategories(true);
   }, [fetchProducts, fetchFeatured, fetchBestsellers, fetchHighlightsAndTech, fetchFeaturedCoupons, fetchCategories]));
 
 
