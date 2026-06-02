@@ -258,7 +258,7 @@ export default function Home() {
             if (!parentCat.children || parentCat.children.length === 0) return null;
             return (
               <section key={parentCat.id} className="space-y-4">
-                <SectionHeader title={parentCat.name} subtitle={parentCat.description} seeAllLink={`/collection?category=${encodeURIComponent(parentCat.name)}`} />
+                <SectionHeader title={parentCat.name} subtitle={parentCat.description} />
                 <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2.5 md:gap-4">
                   {parentCat.children.map((subCat) => (
                     <CategoryCard key={subCat.id} subCat={subCat} />
