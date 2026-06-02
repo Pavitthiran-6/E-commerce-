@@ -18,9 +18,9 @@ export default function SectionHeader({
   return (
     <div className={`flex items-start justify-between mb-3 ${className}`}>
       <div>
-        <h2 className="text-base font-bold text-gray-900 leading-tight">{title}</h2>
+        <h2 className="text-xl md:text-2xl font-extrabold text-gray-900 tracking-tight leading-tight">{title}</h2>
         {subtitle && (
-          <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
+          <p className="text-xs md:text-sm text-gray-500 mt-1">{subtitle}</p>
         )}
       </div>
       {seeAllLink && (

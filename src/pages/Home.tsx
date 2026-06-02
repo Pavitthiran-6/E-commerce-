@@ -201,7 +201,7 @@ export default function Home() {
 
         {/* ── Bestsellers section ──────────────────────── */}
         <section>
-          <SectionHeader title="🏆 Bestsellers" subtitle="Most loved by our customers" seeAllLink="/collection" />
+          <SectionHeader title="Bestsellers" subtitle="Most loved by our customers" seeAllLink="/collection" />
           {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
               {Array.from({ length: 10 }).map((_, i) => <ProductCardSkeleton key={i} />)}
@@ -235,7 +235,7 @@ export default function Home() {
         {/* ── Coupon row ───────────────────────────────── */}
         {featuredCoupons.length > 0 && (
           <section>
-            <SectionHeader title="🎟️ Exclusive Offers" subtitle="Copy & apply at checkout" />
+            <SectionHeader title="Exclusive Offers" subtitle="Copy & apply at checkout" />
             <BlinkitCouponRow coupons={featuredCoupons} onCopy={handleCopyCode} copiedCode={copiedCode} />
           </section>
         )}
@@ -243,7 +243,7 @@ export default function Home() {
         {/* ── Dynamic Blinkit-style Category Sections ── */}
         {isCategoriesLoading ? (
           <section className="space-y-4">
-            <SectionHeader title="🛍️ Shop by Category" />
+            <SectionHeader title="Shop by Category" />
             <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2.5 md:gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="aspect-square bg-white rounded-2xl border border-gray-100 p-2 flex flex-col items-center justify-between shadow-sm animate-pulse">
@@ -258,7 +258,7 @@ export default function Home() {
             if (!parentCat.children || parentCat.children.length === 0) return null;
             return (
               <section key={parentCat.id} className="space-y-4">
-                <SectionHeader title={`🛍️ ${parentCat.name}`} subtitle={parentCat.description} seeAllLink={`/collection?category=${encodeURIComponent(parentCat.name)}`} />
+                <SectionHeader title={parentCat.name} subtitle={parentCat.description} seeAllLink={`/collection?category=${encodeURIComponent(parentCat.name)}`} />
                 <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2.5 md:gap-4">
                   {parentCat.children.map((subCat) => (
                     <CategoryCard key={subCat.id} subCat={subCat} />
@@ -272,7 +272,7 @@ export default function Home() {
         {/* ── Apparel Highlights ───────────────────────── */}
         {(isLoading || apparelHighlights.length > 0) && (
           <section>
-            <SectionHeader title="👗 Apparel Highlights" subtitle="Premium fabrics & timeless styles" seeAllLink="/collection?productType=apparel" />
+            <SectionHeader title="Apparel Highlights" subtitle="Premium fabrics & timeless styles" seeAllLink="/collection?productType=apparel" />
             {isLoading ? (
               <div className="flex gap-2.5 overflow-x-auto no-scrollbar">
                 {Array.from({ length: 6 }).map((_, i) => <div key={i} className="min-w-[150px]"><ProductCardSkeleton /></div>)}
@@ -300,7 +300,7 @@ export default function Home() {
 
         {/* ── Tech & Home promo banners ────────────────── */}
         <section>
-          <SectionHeader title="⚡ Deals of the Day" seeAllLink="/sale" seeAllLabel="View all deals" />
+          <SectionHeader title="Deals of the Day" seeAllLink="/sale" seeAllLabel="View all deals" />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {[
               { label: '3-Day Delivery', image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600', link: '/cart', color: '#E8F5E9' },
@@ -321,7 +321,7 @@ export default function Home() {
         {/* ── Tech & Home Products ─────────────────────── */}
         {(isLoading || techHome.length > 0) && (
           <section className="pb-4">
-            <SectionHeader title="📱 Tech & Home" seeAllLink="/collection?productType=electronics" />
+            <SectionHeader title="Tech & Home" seeAllLink="/collection?productType=electronics" />
             {isLoading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
                 {Array.from({ length: 5 }).map((_, i) => <ProductCardSkeleton key={i} />)}
