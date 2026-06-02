@@ -27,10 +27,16 @@ public class HeroService {
     private final HeroCardRepository heroCardRepository;
 
     public HeroResponse getHeroSection() {
-        HeroSection heroSection = heroSectionRepository.findAll().stream().findFirst()
-            .orElseGet(this::createDefaultHeroSection);
-
-        return toResponse(heroSection);
+        try {
+            List<HeroSection> list = heroSectionRepository.findAll();
+            if (list == null || list.isEmpty()) {
+                return getDefaultHeroResponse();
+            }
+            return toResponse(list.get(0));
+        } catch (Exception e) {
+            System.err.println("Warning: Failed to fetch hero section from database. Returning default fallback. Error: " + e.getMessage());
+            return getDefaultHeroResponse();
+        }
     }
 
     public HeroResponse updateHeroSection(HeroRequest request) {
@@ -85,8 +91,14 @@ public class HeroService {
         }
     }
 
-    private HeroSection createDefaultHeroSection() {
-        HeroSection hero = HeroSection.builder()
+    private HeroResponse getDefaultHeroResponse() {
+        List<HeroCardResponse> cardResponses = new ArrayList<>();
+        cardResponses.add(HeroCardResponse.builder().id(1L).title("Footwear").image("https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=400").discountPercentage(25).backgroundColor("#FFF6F0").displayOrder(0).build());
+        cardResponses.add(HeroCardResponse.builder().id(2L).title("Men Wears").image("https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400").discountPercentage(30).backgroundColor("#FFFBF0").displayOrder(1).build());
+        cardResponses.add(HeroCardResponse.builder().id(3L).title("Women Wears").image("https://images.unsplash.com/photo-1572804013309-8c98e16ea86d?q=80&w=400").discountPercentage(20).backgroundColor("#F5F7FF").displayOrder(2).build());
+        cardResponses.add(HeroCardResponse.builder().id(4L).title("Tech & Kitchen").image("https://images.unsplash.com/photo-1585237748805-728b75fba184?q=80&w=400").discountPercentage(23).backgroundColor("#EEFBF2").displayOrder(3).build());
+
+        return HeroResponse.builder()
             .title("HOUSEFULL SALE")
             .badge("SALE")
             .dateRange("30TH MAY - 5TH JUNE")
@@ -97,29 +109,28 @@ public class HeroService {
             .featuredSalePrice(new BigDecimal("999.00"))
             .featuredDiscountPercentage(50)
             .featuredCardBackgroundColor("#FFF9E6")
+            .promoCards(cardResponses)
             .build();
-
-        List<HeroCard> cards = new ArrayList<>();
-        cards.add(HeroCard.builder().title("Footwear").image("https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=400").discountPercentage(25).backgroundColor("#FFF6F0").displayOrder(0).heroSection(hero).build());
-        cards.add(HeroCard.builder().title("Men Wears").image("https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400").discountPercentage(30).backgroundColor("#FFFBF0").displayOrder(1).heroSection(hero).build());
-        cards.add(HeroCard.builder().title("Women Wears").image("https://images.unsplash.com/photo-1572804013309-8c98e16ea86d?q=80&w=400").discountPercentage(20).backgroundColor("#F5F7FF").displayOrder(2).heroSection(hero).build());
-        cards.add(HeroCard.builder().title("Tech & Kitchen").image("https://images.unsplash.com/photo-1585237748805-728b75fba184?q=80&w=400").discountPercentage(23).backgroundColor("#EEFBF2").displayOrder(3).heroSection(hero).build());
-
-        hero.setPromoCards(cards);
-        return heroSectionRepository.save(hero);
     }
 
     private HeroResponse toResponse(HeroSection hero) {
-        List<HeroCardResponse> cardResponses = hero.getPromoCards().stream()
-            .map(c -> HeroCardResponse.builder()
-                .id(c.getId())
-                .title(c.getTitle())
-                .image(c.getImage())
-                .discountPercentage(c.getDiscountPercentage())
-                .backgroundColor(c.getBackgroundColor())
-                .displayOrder(c.getDisplayOrder())
-                .build())
-            .collect(Collectors.toList());
+        if (hero == null) {
+            return getDefaultHeroResponse();
+        }
+
+        List<HeroCardResponse> cardResponses = new ArrayList<>();
+        if (hero.getPromoCards() != null) {
+            cardResponses = hero.getPromoCards().stream()
+                .map(c -> HeroCardResponse.builder()
+                    .id(c.getId())
+                    .title(c.getTitle())
+                    .image(c.getImage())
+                    .discountPercentage(c.getDiscountPercentage())
+                    .backgroundColor(c.getBackgroundColor())
+                    .displayOrder(c.getDisplayOrder() != null ? c.getDisplayOrder() : 0)
+                    .build())
+                .collect(Collectors.toList());
+        }
 
         return HeroResponse.builder()
             .id(hero.getId())
