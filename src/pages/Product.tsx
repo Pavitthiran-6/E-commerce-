@@ -33,7 +33,6 @@ export default function Product() {
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>('description');
-  const [pincode, setPincode] = useState('');
 
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
@@ -426,24 +425,6 @@ export default function Product() {
               <div className="flex items-center gap-2 bg-[#F8F8F8] rounded-xl p-2.5">
                 <ShieldCheck className="w-4 h-4 text-[#0C831F] flex-shrink-0" />
                 <span className="text-[11px] text-gray-600 font-medium">Secure Checkout</span>
-              </div>
-            </div>
-
-            {/* Pincode checker */}
-            <div className="mb-4">
-              <p className="text-xs font-semibold text-gray-600 mb-2">Check Delivery</p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={pincode}
-                  onChange={(e) => setPincode(e.target.value)}
-                  placeholder="Enter 6-digit pincode"
-                  maxLength={6}
-                  className="flex-1 border border-[#E8E8E8] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0C831F] focus:border-transparent"
-                />
-                <LoadingButton className="bg-[#0C831F] text-white text-sm font-bold px-4 rounded-xl hover:bg-[#0A6B19] transition-colors">
-                  Check
-                </LoadingButton>
               </div>
             </div>
 
