@@ -60,7 +60,7 @@ export default function HeroSection({
       {/* ── Main Layout Grid ────────────────────────────── */}
       <div className="grid grid-cols-3 gap-2 md:gap-4 lg:gap-5 items-stretch relative z-10">
         {/* Left Side: Large Swiper Slider Card */}
-        <div className="col-span-1">
+        <div className="col-span-1 self-center md:self-stretch h-[180px] md:h-auto">
           <HeroSlider products={products} isLoading={isLoading} />
         </div>
 
