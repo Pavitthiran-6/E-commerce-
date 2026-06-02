@@ -48,8 +48,8 @@ export default function HeroSlider({ products, isLoading }: HeroSliderProps) {
         }}
         pagination={{
           clickable: true,
-          bulletClass: 'swiper-pagination-bullet !bg-amber-500 !opacity-40',
-          bulletActiveClass: 'swiper-pagination-bullet-active !bg-amber-600 !opacity-100 !w-4',
+          bulletClass: 'swiper-pagination-bullet !bg-amber-500 !opacity-40 hidden md:inline-block',
+          bulletActiveClass: 'swiper-pagination-bullet-active !bg-amber-600 !opacity-100 !w-4 hidden md:inline-block',
         }}
         loop={displayProducts.length > 1}
         className="w-full h-full"
@@ -91,7 +91,7 @@ export default function HeroSlider({ products, isLoading }: HeroSliderProps) {
                 </div>
 
                 {/* Product Name */}
-                <h3 className="text-[9px] md:text-base font-extrabold text-gray-900 text-center leading-tight line-clamp-1 max-w-[95%] mb-1.5 md:mb-4">
+                <h3 className="text-[9px] md:text-base font-extrabold text-gray-900 text-center leading-tight line-clamp-2 md:line-clamp-1 min-h-[22px] md:min-h-0 max-w-[95%] mb-1.5 md:mb-4">
                   {product.name}
                 </h3>
 
