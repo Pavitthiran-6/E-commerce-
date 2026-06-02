@@ -59,23 +59,104 @@ axiosInstance.interceptors.request.use(
 // --------------------------------------------------------------------------
 // Response interceptor — auth handling & retries
 // --------------------------------------------------------------------------
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Response interceptor — auth handling & retries
+// --------------------------------------------------------------------------
 axiosInstance.interceptors.response.use(
   // ✅ Success — pass through unchanged
   (response: any) => response,
 
   async (error: any) => {
-    // ── 401 Unauthorized → clear session and redirect to login ───────────
+    const config = error.config;
+
+    // ── 401 Unauthorized → Attempt silent token refresh ─────────────────
     if (error.response?.status === 401) {
-      localStorage.removeItem('auth_user');
-      if (window.location.pathname !== '/auth/login') {
-        window.location.href = '/auth/login';
+      const isAuthRequest = 
+        config?.url?.includes('/api/auth/login') ||
+        config?.url?.includes('/api/auth/register') ||
+        config?.url?.includes('/api/auth/refresh');
+
+      if (isAuthRequest) {
+        localStorage.removeItem('auth_user');
+        if (window.location.pathname !== '/auth/login') {
+          window.location.href = '/auth/login';
+        }
+        return Promise.reject(error);
       }
-      return Promise.reject(error);
+
+      if (config && !config._retry) {
+        config._retry = true;
+
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          })
+            .then((token) => {
+              config.headers.Authorization = `Bearer ${token}`;
+              return axiosInstance(config);
+            })
+            .catch((err) => Promise.reject(err));
+        }
+
+        isRefreshing = true;
+
+        try {
+          const raw = localStorage.getItem('auth_user');
+          if (!raw) throw new Error('No local user session found');
+
+          const user = JSON.parse(raw);
+          if (!user?.refreshToken) throw new Error('No refresh token in local session');
+
+          const refreshResponse = await axiosInstance.post('/api/auth/refresh', {
+            refreshToken: user.refreshToken,
+          });
+
+          const newAccessToken = refreshResponse.data.data.accessToken;
+          user.token = newAccessToken;
+          localStorage.setItem('auth_user', JSON.stringify(user));
+
+          config.headers.Authorization = `Bearer ${newAccessToken}`;
+
+          processQueue(null, newAccessToken);
+          isRefreshing = false;
+
+          return axiosInstance(config);
+        } catch (refreshError) {
+          processQueue(refreshError, null);
+          isRefreshing = false;
+
+          localStorage.removeItem('auth_user');
+          if (window.location.pathname !== '/auth/login') {
+            window.location.href = '/auth/login';
+          }
+          return Promise.reject(error);
+        }
+      } else {
+        // If _retry is already set, refresh failed or retry also got 401 -> Logout
+        localStorage.removeItem('auth_user');
+        if (window.location.pathname !== '/auth/login') {
+          window.location.href = '/auth/login';
+        }
+        return Promise.reject(error);
+      }
     }
 
     // ── 403 Forbidden → redirect appropriately ────────────────────────────
     if (error.response?.status === 403) {
-      const isAdminApiCall = error.config?.url?.includes('/api/admin');
+      const isAdminApiCall = config?.url?.includes('/api/admin');
       if (isAdminApiCall) {
         localStorage.removeItem('auth_user');
         if (window.location.pathname !== '/auth/login') {
@@ -88,8 +169,6 @@ axiosInstance.interceptors.response.use(
     }
 
     // ── Transient errors — ONE fast retry then propagate ─────────────────
-    const config = error.config;
-
     if (config && isRetryable(error)) {
       const retryCount = config._retryCount ?? 0;
 

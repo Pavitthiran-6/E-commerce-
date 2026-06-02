@@ -96,9 +96,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = useCallback(async (email: string, password: string) => {
     try {
       const response = await loginUser({ email, password });
-      const { accessToken, user: userData } = response.data;
+      const { accessToken, refreshToken, user: userData } = response.data;
 
-      const loggedInUser: AuthUser = { ...userData, token: accessToken };
+      const loggedInUser: AuthUser = { ...userData, token: accessToken, refreshToken };
 
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(loggedInUser));
       setUser(loggedInUser);

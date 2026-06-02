@@ -51,13 +51,27 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Login successful", authResponse));
     }
 
-    @PostMapping("/refresh-token")
-    @Operation(summary = "Refresh access token", description = "Generate a new short-lived access token using refresh token cookie")
+    @PostMapping({"/refresh", "/refresh-token"})
+    @Operation(summary = "Refresh access token", description = "Generate a new short-lived access token using refresh token")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Token refreshed successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Refresh token invalid, blacklisted, or expired")
-    public ResponseEntity<ApiResponse<?>> refreshToken(
-        @CookieValue(name = "refreshToken", required = false) String refreshToken) {
-        String newAccessToken = authService.refreshToken(refreshToken);
+    public ResponseEntity<ApiResponse<?>> refresh(
+        @CookieValue(name = "refreshToken", required = false) String cookieRefreshToken,
+        @Valid @RequestBody(required = false) TokenRefreshRequest request) {
+        
+        String token = null;
+        if (request != null && request.getRefreshToken() != null && !request.getRefreshToken().isBlank()) {
+            token = request.getRefreshToken();
+        } else if (cookieRefreshToken != null && !cookieRefreshToken.isBlank()) {
+            token = cookieRefreshToken;
+        }
+        
+        if (token == null || token.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Refresh token is missing"));
+        }
+        
+        String newAccessToken = authService.refreshToken(token);
         return ResponseEntity.ok(ApiResponse.success("Access token refreshed", Map.of("accessToken", newAccessToken)));
     }
 

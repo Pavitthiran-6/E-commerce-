@@ -39,20 +39,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 } else {
-                    // Token is present but invalid/expired — reject immediately with 401
+                    // Token is present but invalid/expired — do not set context, but do not block chain
                     log.warn("JWT token is present but invalid or expired for request: {}", request.getRequestURI());
-                    response.setContentType("application/json");
-                    response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
-                    response.getWriter().write("{\"success\":false,\"message\":\"Token expired. Please log in again.\"}");
-                    return;
                 }
             }
         } catch (Exception ex) {
             log.error("Could not set user authentication in security context", ex);
-            response.setContentType("application/json");
-            response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("{\"success\":false,\"message\":\"Authentication error. Please log in again.\"}");
-            return;
         }
         filterChain.doFilter(request, response);
     }
