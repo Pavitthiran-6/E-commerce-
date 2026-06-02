@@ -96,11 +96,11 @@ export default function HeroSlider({ products, isLoading }: HeroSliderProps) {
                 </h3>
 
                 {/* Product Image */}
-                <div className="w-32 md:w-40 aspect-square flex items-center justify-center p-2 bg-white/60 rounded-2xl border border-white/80 shadow-inner group-hover:scale-105 transition-transform duration-300">
+                <div className="w-full max-w-[200px] md:max-w-[260px] aspect-square flex items-center justify-center overflow-hidden bg-white/60 rounded-2xl border border-white/80 shadow-inner group-hover:scale-105 transition-transform duration-300">
                   <img
                     src={imageSrc}
                     alt={product.name}
-                    className="w-full h-full object-contain max-h-full"
+                    className="w-full h-full object-cover"
                     loading="lazy"
                   />
                 </div>

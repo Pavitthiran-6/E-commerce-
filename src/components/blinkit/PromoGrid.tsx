@@ -80,11 +80,11 @@ export default function PromoGrid({ categories, products, isLoading }: PromoGrid
             </h3>
 
             {/* Category Image */}
-            <div className="w-full h-24 md:h-28 flex items-center justify-center mt-2 overflow-hidden rounded-2xl bg-white/40 p-2 shadow-inner group-hover:scale-105 transition-transform duration-300">
+            <div className="w-full h-32 md:h-40 flex items-center justify-center mt-2 overflow-hidden rounded-2xl bg-white/40 shadow-inner group-hover:scale-105 transition-transform duration-300">
               <img
                 src={imageSrc}
                 alt={cat.name}
-                className="max-h-full max-w-full object-contain mix-blend-multiply"
+                className="w-full h-full object-cover"
                 loading="lazy"
               />
             </div>
