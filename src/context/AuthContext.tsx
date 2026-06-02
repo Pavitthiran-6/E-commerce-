@@ -61,6 +61,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
+  // ── Sync user state across the same tab from Axios interceptors ──────────────
+  useEffect(() => {
+    const handleLogout = () => {
+      setUser(null);
+    };
+    const handleUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setUser(customEvent.detail || null);
+    };
+    window.addEventListener('auth:logout', handleLogout);
+    window.addEventListener('auth:update', handleUpdate);
+    return () => {
+      window.removeEventListener('auth:logout', handleLogout);
+      window.removeEventListener('auth:update', handleUpdate);
+    };
+  }, []);
+
   // ── Validate stored token on startup ─────────────────────────────────────────
   // We only clear the session if the server explicitly returns 401 (invalid/expired
   // token).  A network outage or 5xx should NOT log the user out.

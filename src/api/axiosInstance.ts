@@ -23,9 +23,113 @@ function sleep(ms: number) {
 }
 
 // --------------------------------------------------------------------------
-// Axios instance
+// Helper: JWT Expiration Check
 // --------------------------------------------------------------------------
+export function isTokenExpired(token: string | null | undefined): boolean {
+  if (!token) return true;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const payloadDecoded = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(payloadDecoded);
+    const exp = payload.exp;
+    if (!exp) return false; // If no exp claim, assume valid
+    // Current time in seconds. Add a 10-second safety buffer for network latency.
+    return (Date.now() / 1000) > (exp - 10);
+  } catch {
+    return true; // If decoding fails, treat as expired/invalid
+  }
+}
 
+// --------------------------------------------------------------------------
+// Helper: Route checking for login redirection
+// --------------------------------------------------------------------------
+export function isProtectedRoute(pathname: string): boolean {
+  const protectedPatterns = [
+    /^\/profile(\/.*)?$/,
+    /^\/orders(\/.*)?$/,
+    /^\/wishlist(\/.*)?$/,
+    /^\/checkout(\/.*)?$/,
+    /^\/admin(\/.*)?$/,
+    /^\/track-order(\/.*)?$/
+  ];
+  return protectedPatterns.some((pattern) => pattern.test(pathname));
+}
+
+// --------------------------------------------------------------------------
+// Dedicated refresh Axios instance to bypass request/response interceptors
+// --------------------------------------------------------------------------
+const refreshInstance = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL,
+  timeout: REQUEST_TIMEOUT_MS,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+// --------------------------------------------------------------------------
+// Shared Refresh Lock
+// --------------------------------------------------------------------------
+let refreshPromise: Promise<string | null> | null = null;
+
+async function getOrRefreshAccessToken(): Promise<string | null> {
+  const raw = localStorage.getItem('auth_user');
+  if (!raw) return null;
+
+  try {
+    const user = JSON.parse(raw);
+    const token = user?.token;
+    const refreshToken = user?.refreshToken;
+
+    if (!token) return null;
+
+    // If access token is still valid, return it immediately
+    if (!isTokenExpired(token)) {
+      return token;
+    }
+
+    // Access token is expired. We need to refresh it using the refresh token.
+    if (!refreshToken) {
+      // No refresh token, clear session
+      localStorage.removeItem('auth_user');
+      window.dispatchEvent(new CustomEvent('auth:logout'));
+      return null;
+    }
+
+    // Reuse existing refresh promise if already in progress
+    if (refreshPromise) {
+      return await refreshPromise;
+    }
+
+    refreshPromise = (async () => {
+      try {
+        const response = await refreshInstance.post('/api/auth/refresh', {
+          refreshToken,
+        });
+        const newAccessToken = response.data.data.accessToken;
+        user.token = newAccessToken;
+        localStorage.setItem('auth_user', JSON.stringify(user));
+        window.dispatchEvent(new CustomEvent('auth:update', { detail: user }));
+        return newAccessToken;
+      } catch (err) {
+        // Refresh token is invalid/expired -> log out
+        localStorage.removeItem('auth_user');
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+        throw err;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+
+    return await refreshPromise;
+  } catch (e) {
+    localStorage.removeItem('auth_user');
+    window.dispatchEvent(new CustomEvent('auth:logout'));
+    return null;
+  }
+}
+
+// --------------------------------------------------------------------------
+// Primary Axios instance
+// --------------------------------------------------------------------------
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: REQUEST_TIMEOUT_MS,
@@ -33,47 +137,33 @@ const axiosInstance = axios.create({
 });
 
 // --------------------------------------------------------------------------
-// Request interceptor — attach JWT
+// Request Interceptor — proactive refresh & attach JWT
 // --------------------------------------------------------------------------
 axiosInstance.interceptors.request.use(
-  (config: any) => {
+  async (config: any) => {
+    // Skip attaching/refreshing for authentication requests
+    const isAuthRequest = config.url?.includes('/api/auth/');
+    if (isAuthRequest) {
+      return config;
+    }
+
     try {
-      const raw = localStorage.getItem('auth_user');
-      if (raw) {
-        const user = JSON.parse(raw);
-        if (user?.token) {
-          config.headers.Authorization = `Bearer ${user.token}`;
-        }
+      const token = await getOrRefreshAccessToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
-    } catch {
-      // Corrupted storage — ignore silently
+    } catch (error) {
+      // If refresh failed, do not attach token, let the request proceed (e.g. if public)
     }
 
     if (config._retryCount === undefined) config._retryCount = 0;
-
     return config;
   },
   (error: any) => Promise.reject(error)
 );
 
 // --------------------------------------------------------------------------
-// Response interceptor — auth handling & retries
-// --------------------------------------------------------------------------
-let isRefreshing = false;
-let failedQueue: any[] = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
-
-// Response interceptor — auth handling & retries
+// Response Interceptor — reactive handling & retries
 // --------------------------------------------------------------------------
 axiosInstance.interceptors.response.use(
   // ✅ Success — pass through unchanged
@@ -82,16 +172,14 @@ axiosInstance.interceptors.response.use(
   async (error: any) => {
     const config = error.config;
 
-    // ── 401 Unauthorized → Attempt silent token refresh ─────────────────
+    // ── 401 Unauthorized → Session expired or invalidated on server ─────
     if (error.response?.status === 401) {
-      const isAuthRequest = 
-        config?.url?.includes('/api/auth/login') ||
-        config?.url?.includes('/api/auth/register') ||
-        config?.url?.includes('/api/auth/refresh');
+      const isAuthRequest = config?.url?.includes('/api/auth/');
 
       if (isAuthRequest) {
         localStorage.removeItem('auth_user');
-        if (window.location.pathname !== '/auth/login') {
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+        if (isProtectedRoute(window.location.pathname)) {
           window.location.href = '/auth/login';
         }
         return Promise.reject(error);
@@ -100,65 +188,39 @@ axiosInstance.interceptors.response.use(
       if (config && !config._retry) {
         config._retry = true;
 
-        if (isRefreshing) {
-          return new Promise((resolve, reject) => {
-            failedQueue.push({ resolve, reject });
-          })
-            .then((token) => {
-              config.headers.Authorization = `Bearer ${token}`;
-              return axiosInstance(config);
-            })
-            .catch((err) => Promise.reject(err));
-        }
-
-        isRefreshing = true;
-
         try {
-          const raw = localStorage.getItem('auth_user');
-          if (!raw) throw new Error('No local user session found');
-
-          const user = JSON.parse(raw);
-          if (!user?.refreshToken) throw new Error('No refresh token in local session');
-
-          const refreshResponse = await axiosInstance.post('/api/auth/refresh', {
-            refreshToken: user.refreshToken,
-          });
-
-          const newAccessToken = refreshResponse.data.data.accessToken;
-          user.token = newAccessToken;
-          localStorage.setItem('auth_user', JSON.stringify(user));
-
-          config.headers.Authorization = `Bearer ${newAccessToken}`;
-
-          processQueue(null, newAccessToken);
-          isRefreshing = false;
-
-          return axiosInstance(config);
+          // Attempt to get a fresh token or refresh it
+          const token = await getOrRefreshAccessToken();
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+            return axiosInstance(config);
+          }
         } catch (refreshError) {
-          processQueue(refreshError, null);
-          isRefreshing = false;
-
+          // Refresh failed during reactive handling
           localStorage.removeItem('auth_user');
-          if (window.location.pathname !== '/auth/login') {
+          window.dispatchEvent(new CustomEvent('auth:logout'));
+          if (isProtectedRoute(window.location.pathname)) {
             window.location.href = '/auth/login';
           }
           return Promise.reject(error);
         }
-      } else {
-        // If _retry is already set, refresh failed or retry also got 401 -> Logout
-        localStorage.removeItem('auth_user');
-        if (window.location.pathname !== '/auth/login') {
-          window.location.href = '/auth/login';
-        }
-        return Promise.reject(error);
       }
+
+      // If already retried, clear session and redirect only if on protected route
+      localStorage.removeItem('auth_user');
+      window.dispatchEvent(new CustomEvent('auth:logout'));
+      if (isProtectedRoute(window.location.pathname)) {
+        window.location.href = '/auth/login';
+      }
+      return Promise.reject(error);
     }
 
-    // ── 403 Forbidden → redirect appropriately ────────────────────────────
+    // ── 403 Forbidden → Redirect appropriately ────────────────────────────
     if (error.response?.status === 403) {
       const isAdminApiCall = config?.url?.includes('/api/admin');
       if (isAdminApiCall) {
         localStorage.removeItem('auth_user');
+        window.dispatchEvent(new CustomEvent('auth:logout'));
         if (window.location.pathname !== '/auth/login') {
           window.location.href = '/auth/login';
         }
@@ -171,20 +233,17 @@ axiosInstance.interceptors.response.use(
     // ── Transient errors — ONE fast retry then propagate ─────────────────
     if (config && isRetryable(error)) {
       const retryCount = config._retryCount ?? 0;
-
       if (retryCount < MAX_RETRIES) {
         config._retryCount = retryCount + 1;
         await sleep(RETRY_DELAY_MS);
         try {
           return await axiosInstance(config);
         } catch (retryError) {
-          // Retry also failed — propagate the error to the caller
           return Promise.reject(retryError);
         }
       }
     }
 
-    // ── All other errors — reject and let the UI handle it ───────────────
     return Promise.reject(error);
   }
 );
