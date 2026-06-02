@@ -2,19 +2,19 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 import { useWishlist } from '../context/WishlistContext';
-import { getAllProducts, getFeaturedProducts, getBestsellers, getApparelHighlights, getTechHome } from '../services/productService';
+import { getAllProducts, getFeaturedProducts, getBestsellers, getApparelHighlights, getTechHome, getSaleSettings, type SaleSettingsData } from '../services/productService';
 import { getFeaturedCoupons, type Coupon } from '../services/couponService';
 import type { Product } from '../types/product';
 import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
 import ErrorState from '../components/common/ErrorState';
 import { useNetworkRecovery } from '../hooks/useNetworkRecovery';
 import BlinkitSearchBar from '../components/blinkit/BlinkitSearchBar';
-import BlinkitBanner from '../components/blinkit/BlinkitBanner';
+import HeroSection from '../components/blinkit/HeroSection';
 import BlinkitProductCard from '../components/blinkit/BlinkitProductCard';
 import BlinkitCouponRow from '../components/blinkit/BlinkitCouponRow';
 import SectionHeader from '../components/blinkit/SectionHeader';
 
-interface Category {
+export interface Category {
   id: number;
   name: string;
   slug: string;
@@ -63,6 +63,7 @@ export default function Home() {
   const [techHome, setTechHome] = useState<Product[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [featuredCoupons, setFeaturedCoupons] = useState<Coupon[]>([]);
+  const [saleSettings, setSaleSettings] = useState<SaleSettingsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isRecovering, setIsRecovering] = useState(false);
@@ -144,29 +145,7 @@ export default function Home() {
     fetchCategories();
   }, [fetchProducts, fetchFeatured, fetchBestsellers, fetchHighlightsAndTech, fetchFeaturedCoupons, fetchCategories]));
 
-  // Build banner slides from featured products + a default
-  const defaultSlide = {
-    title: 'Up to 80% Off',
-    subtitle: 'BELLEDONNE',
-    badge: 'PAYDAY SALE',
-    tagline: 'Your passport to premium style',
-    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1200',
-    link: '/sale',
-    buttonText: 'Shop Sale',
-  };
 
-  const slides = [
-    defaultSlide,
-    ...featuredProducts.slice(0, 3).map((p) => ({
-      title: p.name,
-      subtitle: p.brand || 'BELLEDONNE',
-      badge: p.discountPercentage && p.discountPercentage > 0 ? `${Math.round(p.discountPercentage)}% OFF` : 'HOT DEAL',
-      tagline: p.shortDescription || p.description || 'Exclusive Collection',
-      image: p.image || (p.images?.[0]) || 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=1200',
-      link: `/product/${p.id}`,
-      buttonText: 'Shop Now',
-    })),
-  ];
 
 
 
@@ -196,8 +175,13 @@ export default function Home() {
 
 
 
-        {/* ── Banner carousel ──────────────────────────── */}
-        <BlinkitBanner slides={slides} />
+        {/* ── Housefull Sale Hero Section ───────────────── */}
+        <HeroSection
+          categories={categories}
+          products={products}
+          saleSettings={saleSettings}
+          isLoading={isLoading || isCategoriesLoading}
+        />
 
         {/* ── Bestsellers section ──────────────────────── */}
         <section>

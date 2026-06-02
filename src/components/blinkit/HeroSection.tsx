@@ -1,0 +1,74 @@
+import { Zap } from 'lucide-react';
+import type { Category } from '../../pages/Home';
+import type { Product } from '../../types/product';
+import type { SaleSettingsData } from '../../services/productService';
+import HeroSlider from './HeroSlider';
+import PromoGrid from './PromoGrid';
+
+interface HeroSectionProps {
+  categories: Category[];
+  products: Product[];
+  saleSettings: SaleSettingsData | null;
+  isLoading: boolean;
+}
+
+export default function HeroSection({
+  categories,
+  products,
+  saleSettings,
+  isLoading,
+}: HeroSectionProps) {
+  // If sale settings are inactive, we still display the premium section because it's a permanent redesign
+  const saleTitle = saleSettings?.saleTitle || 'HOUSEFULL SALE';
+  const saleSubtitle = saleSettings?.saleSubtitle || '30th May - 5th June';
+
+  return (
+    <div className="w-full space-y-6 md:space-y-8 select-none">
+      {/* ── Housefull Sale Header ────────────────────────── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#FFE082] via-[#FFD54F] to-[#FFCA28] border border-[#FFB300]/20 shadow-md p-6 md:p-8 flex flex-col items-center justify-center text-center">
+        {/* Animated lightning bolt glows */}
+        <div className="absolute top-1/2 left-4 md:left-12 -translate-y-1/2 opacity-20 md:opacity-40 animate-pulse">
+          <Zap className="w-16 h-16 text-white fill-white rotate-12 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]" />
+        </div>
+        <div className="absolute top-1/2 right-4 md:right-12 -translate-y-1/2 opacity-20 md:opacity-40 animate-pulse delay-500">
+          <Zap className="w-16 h-16 text-white fill-white -rotate-12 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]" />
+        </div>
+
+        {/* Decorative elements */}
+        <div className="absolute -top-4 -left-4 w-12 h-12 rounded-full bg-white/20 blur-xl" />
+        <div className="absolute -bottom-4 -right-4 w-16 h-16 rounded-full bg-white/25 blur-xl" />
+
+        {/* Title & Graphic Layout */}
+        <div className="relative z-10 space-y-2 max-w-lg">
+          <div className="flex flex-col items-center gap-1.5">
+            {/* HOUSEFULL Title with stroke/shadow effect */}
+            <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.25)] select-none uppercase">
+              {saleTitle.replace(/🔥/g, '')}
+            </h1>
+            {/* SALE Pill Badge */}
+            <span className="bg-[#1A1A1A] text-[#FFCA28] text-sm md:text-base font-extrabold uppercase px-6 py-1 rounded-full shadow-md tracking-widest mt-1">
+              SALE
+            </span>
+          </div>
+          {/* Subtitle / Dates */}
+          <p className="text-xs md:text-sm font-black text-gray-900 tracking-wider uppercase pt-2">
+            {saleSubtitle}
+          </p>
+        </div>
+      </div>
+
+      {/* ── Main Layout Grid ────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 items-stretch">
+        {/* Left Side: Large Swiper Slider Card */}
+        <div className="lg:col-span-1 min-h-[380px] lg:min-h-0">
+          <HeroSlider products={products} isLoading={isLoading} />
+        </div>
+
+        {/* Right Side: 2x2 Categories Promo Grid */}
+        <div className="lg:col-span-2">
+          <PromoGrid categories={categories} products={products} isLoading={isLoading} />
+        </div>
+      </div>
+    </div>
+  );
+}
