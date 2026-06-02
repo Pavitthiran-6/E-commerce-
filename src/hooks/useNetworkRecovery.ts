@@ -44,28 +44,18 @@ export function useNetworkRecovery(onRecover: () => void) {
 
         // Only refetch if the tab was hidden for more than 30 seconds
         // (catches sleep / lock-screen scenarios without firing on every alt-tab)
-        if (hiddenDuration > 30_000 || navigator.onLine) {
+        if (hiddenDuration > 30_000) {
           debounced();
         }
       }
     };
 
-    const handleFocus = () => {
-      // Window focus fires when the user switches back to the browser window.
-      // Only trigger a recovery when we're also online.
-      if (navigator.onLine) {
-        debounced();
-      }
-    };
-
     window.addEventListener('online', handleOnline);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
