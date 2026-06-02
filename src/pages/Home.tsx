@@ -9,7 +9,6 @@ import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
 import ErrorState from '../components/common/ErrorState';
 import { useNetworkRecovery } from '../hooks/useNetworkRecovery';
 import BlinkitSearchBar from '../components/blinkit/BlinkitSearchBar';
-import CategoryChips from '../components/blinkit/CategoryChips';
 import BlinkitBanner from '../components/blinkit/BlinkitBanner';
 import BlinkitProductCard from '../components/blinkit/BlinkitProductCard';
 import BlinkitCouponRow from '../components/blinkit/BlinkitCouponRow';
@@ -195,8 +194,7 @@ export default function Home() {
           <BlinkitSearchBar placeholder="Search for products, brands..." />
         </div>
 
-        {/* ── Category chips ───────────────────────────── */}
-        <CategoryChips />
+
 
         {/* ── Banner carousel ──────────────────────────── */}
         <BlinkitBanner slides={slides} />
