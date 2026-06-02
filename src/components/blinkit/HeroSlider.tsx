@@ -43,7 +43,7 @@ export default function HeroSlider({ products, isLoading }: HeroSliderProps) {
       <Swiper
         modules={[Autoplay, Pagination]}
         autoplay={{
-          delay: 3500,
+          delay: 3000,
           disableOnInteraction: false,
         }}
         pagination={{
