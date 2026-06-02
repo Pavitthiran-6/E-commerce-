@@ -53,4 +53,10 @@ export const ENDPOINTS = {
   ADMIN_SALE_DEAL_OF_THE_DAY: '/api/admin/sales/deal-of-the-day',
   ADMIN_PRODUCT_DISCOUNT: (id: string) => `/api/admin/products/${id}/discount`,
   ADMIN_PRODUCTS_ALL: '/api/products',
+
+  // Hero (public)
+  HERO: '/api/hero',
+  // Admin Hero
+  ADMIN_HERO: '/api/admin/hero',
+  ADMIN_HERO_DELETE_CARD: (id: number | string) => `/api/admin/hero/cards/${id}`,
 };

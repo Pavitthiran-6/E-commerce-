@@ -8,7 +8,11 @@ import com.belledonne.ecommerce.repository.CategoryRepository;
 import com.belledonne.ecommerce.repository.CouponRepository;
 import com.belledonne.ecommerce.repository.ProductRepository;
 import com.belledonne.ecommerce.repository.SaleSettingsRepository;
+import com.belledonne.ecommerce.repository.HeroSectionRepository;
+import com.belledonne.ecommerce.entity.HeroSection;
+import com.belledonne.ecommerce.entity.HeroCard;
 import lombok.RequiredArgsConstructor;
+import java.util.ArrayList;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -25,6 +29,7 @@ public class DataSeeder implements CommandLineRunner {
     private final ProductRepository productRepository;
     private final CouponRepository couponRepository;
     private final SaleSettingsRepository saleSettingsRepository;
+    private final HeroSectionRepository heroSectionRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -562,6 +567,31 @@ public class DataSeeder implements CommandLineRunner {
                     new Product.SpecificationEntry("Health Sensors", "Heart Rate, ECG, SpO2", 5)
                 ))
                 .build());
+        }
+
+        // Seed default HeroSection
+        if (heroSectionRepository.count() == 0) {
+            HeroSection hero = HeroSection.builder()
+                .title("HOUSEFULL SALE")
+                .badge("SALE")
+                .dateRange("30TH MAY - 5TH JUNE")
+                .backgroundColor("linear-gradient(to bottom right, #FFE082, #FFD54F, #FFCA28)")
+                .featuredProductName("Summer Deals")
+                .featuredProductImage("https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=400")
+                .featuredOriginalPrice(new BigDecimal("1999.00"))
+                .featuredSalePrice(new BigDecimal("999.00"))
+                .featuredDiscountPercentage(50)
+                .featuredCardBackgroundColor("#FFF9E6")
+                .build();
+
+            List<HeroCard> cards = new ArrayList<>();
+            cards.add(HeroCard.builder().title("Footwear").image("https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=400").discountPercentage(25).backgroundColor("#FFF6F0").displayOrder(0).heroSection(hero).build());
+            cards.add(HeroCard.builder().title("Men Wears").image("https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400").discountPercentage(30).backgroundColor("#FFFBF0").displayOrder(1).heroSection(hero).build());
+            cards.add(HeroCard.builder().title("Women Wears").image("https://images.unsplash.com/photo-1572804013309-8c98e16ea86d?q=80&w=400").discountPercentage(20).backgroundColor("#F5F7FF").displayOrder(2).heroSection(hero).build());
+            cards.add(HeroCard.builder().title("Tech & Kitchen").image("https://images.unsplash.com/photo-1585237748805-728b75fba184?q=80&w=400").discountPercentage(23).backgroundColor("#EEFBF2").displayOrder(3).heroSection(hero).build());
+
+            hero.setPromoCards(cards);
+            heroSectionRepository.save(hero);
         }
     }
 }

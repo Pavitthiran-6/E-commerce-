@@ -13,6 +13,7 @@ import HeroSection from '../components/blinkit/HeroSection';
 import BlinkitProductCard from '../components/blinkit/BlinkitProductCard';
 import BlinkitCouponRow from '../components/blinkit/BlinkitCouponRow';
 import SectionHeader from '../components/blinkit/SectionHeader';
+import { getHeroSection, type HeroData } from '../services/heroService';
 
 export interface Category {
   id: number;
@@ -66,6 +67,8 @@ export default function Home() {
   const [saleSettings, setSaleSettings] = useState<SaleSettingsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [heroData, setHeroData] = useState<HeroData | null>(null);
+  const [isHeroLoading, setIsHeroLoading] = useState(true);
   const [isRecovering, setIsRecovering] = useState(false);
   const hasFetchedOnce = useRef(false);
 
@@ -128,6 +131,22 @@ export default function Home() {
     }
   }, []);
 
+  const fetchHero = useCallback(async (silent = false) => {
+    if (!silent) {
+      setIsHeroLoading(true);
+    }
+    try {
+      const data = await getHeroSection();
+      setHeroData(data);
+    } catch (err) {
+      console.error('Failed to load hero data', err);
+    } finally {
+      if (!silent) {
+        setIsHeroLoading(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     hasFetchedOnce.current = true;
     fetchProducts();
@@ -136,6 +155,7 @@ export default function Home() {
     fetchHighlightsAndTech();
     fetchFeaturedCoupons();
     fetchCategories();
+    fetchHero();
   }, []);
 
   useNetworkRecovery(useCallback(() => {
@@ -147,7 +167,8 @@ export default function Home() {
     fetchHighlightsAndTech();
     fetchFeaturedCoupons();
     fetchCategories(true);
-  }, [fetchProducts, fetchFeatured, fetchBestsellers, fetchHighlightsAndTech, fetchFeaturedCoupons, fetchCategories]));
+    fetchHero(true);
+  }, [fetchProducts, fetchFeatured, fetchBestsellers, fetchHighlightsAndTech, fetchFeaturedCoupons, fetchCategories, fetchHero]));
 
 
 
@@ -181,10 +202,8 @@ export default function Home() {
 
         {/* ── Housefull Sale Hero Section ───────────────── */}
         <HeroSection
-          categories={categories}
-          products={products}
-          saleSettings={saleSettings}
-          isLoading={isLoading || isCategoriesLoading}
+          heroData={heroData}
+          isLoading={isLoading || isHeroLoading}
         />
 
         {/* ── Bestsellers section ──────────────────────── */}

@@ -84,6 +84,16 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    to: '/admin/hero',
+    label: 'Hero Management',
+    end: false,
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 7.125C2.25 6.504 2.754 6 3.375 6h17.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125H3.375A1.125 1.125 0 0 1 2.25 18.375V7.125ZM3.75 9.75h16.5M6 14.25h.008v.008H6v-.008Zm0 2.25h.008v.008H6v-.008Zm2.25-2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25v-.008Z" />
+      </svg>
+    ),
+  },
 ];
 
 export default function AdminLayout() {
