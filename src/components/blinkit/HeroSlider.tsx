@@ -1,11 +1,10 @@
 import { Link } from 'react-router-dom';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay, Pagination } from 'swiper/modules';
+import { Autoplay } from 'swiper/modules';
 import type { Product } from '../../types/product';
 
 // Import Swiper styles
 import 'swiper/css';
-import 'swiper/css/pagination';
 
 interface HeroSliderProps {
   products: Product[];
@@ -41,15 +40,10 @@ export default function HeroSlider({ products, isLoading }: HeroSliderProps) {
   return (
     <div className="w-full h-full rounded-3xl overflow-hidden border border-amber-100 shadow-sm hero-swiper-container">
       <Swiper
-        modules={[Autoplay, Pagination]}
+        modules={[Autoplay]}
         autoplay={{
           delay: 3000,
           disableOnInteraction: false,
-        }}
-        pagination={{
-          clickable: true,
-          bulletClass: 'swiper-pagination-bullet !bg-amber-500 !opacity-40 hidden md:inline-block',
-          bulletActiveClass: 'swiper-pagination-bullet-active !bg-amber-600 !opacity-100 !w-4 hidden md:inline-block',
         }}
         loop={displayProducts.length > 1}
         className="w-full h-full"
