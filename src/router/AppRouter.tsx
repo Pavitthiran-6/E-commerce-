@@ -10,63 +10,82 @@ import ProtectedRoute from './ProtectedRoute';
 import GuestRoute from './GuestRoute';
 import { useAuth } from '../context/AuthContext';
 
+// Helper utility to reload the page when a chunk load error occurs (like after a new deployment)
+const lazyWithRetry = (importFn: () => Promise<any>) => {
+  return React.lazy(async () => {
+    try {
+      return await importFn();
+    } catch (error) {
+      // Handle the Vite dynamic import failure gracefully
+      if (
+        error instanceof TypeError ||
+        String(error).includes('Failed to fetch') ||
+        String(error).includes('dynamically imported module')
+      ) {
+        window.location.reload();
+      }
+      throw error;
+    }
+  });
+};
+
 // ----------------------------------------------------------------------
-// Lazy Loaded Pages
+// Lazy Loaded Pages — Wrapped with Auto-Retry
 // ----------------------------------------------------------------------
 
 // Public Pages
-const Home = React.lazy(() => import('../pages/Home'));
-const Collection = React.lazy(() => import('../pages/Collection'));
-const Product = React.lazy(() => import('../pages/Product'));
-const Cart = React.lazy(() => import('../pages/Cart'));
-const Wishlist = React.lazy(() => import('../pages/Wishlist'));
-const Sale = React.lazy(() => import('../pages/Sale'));
-const NewArrivals = React.lazy(() => import('../pages/NewArrivals'));
-const About = React.lazy(() => import('../pages/About'));
-const Contact = React.lazy(() => import('../pages/Contact'));
-const ComingSoon = React.lazy(() => import('../pages/ComingSoon'));
-const NotFound = React.lazy(() => import('../pages/NotFound'));
+const Home = lazyWithRetry(() => import('../pages/Home'));
+const Collection = lazyWithRetry(() => import('../pages/Collection'));
+const Product = lazyWithRetry(() => import('../pages/Product'));
+const Cart = lazyWithRetry(() => import('../pages/Cart'));
+const Wishlist = lazyWithRetry(() => import('../pages/Wishlist'));
+const Sale = lazyWithRetry(() => import('../pages/Sale'));
+const NewArrivals = lazyWithRetry(() => import('../pages/NewArrivals'));
+const About = lazyWithRetry(() => import('../pages/About'));
+const Contact = lazyWithRetry(() => import('../pages/Contact'));
+const ComingSoon = lazyWithRetry(() => import('../pages/ComingSoon'));
+const NotFound = lazyWithRetry(() => import('../pages/NotFound'));
 
 // Auth Pages
-const Login = React.lazy(() => import('../pages/auth/Login'));
-const Signup = React.lazy(() => import('../pages/auth/Signup'));
-const ForgotPassword = React.lazy(() => import('../pages/auth/ForgotPassword'));
-const ResetPassword = React.lazy(() => import('../pages/auth/ResetPassword'));
-const VerifyOTP = React.lazy(() => import('../pages/auth/VerifyOTP'));
+const Login = lazyWithRetry(() => import('../pages/auth/Login'));
+const Signup = lazyWithRetry(() => import('../pages/auth/Signup'));
+const ForgotPassword = lazyWithRetry(() => import('../pages/auth/ForgotPassword'));
+const ResetPassword = lazyWithRetry(() => import('../pages/auth/ResetPassword'));
+const VerifyOTP = lazyWithRetry(() => import('../pages/auth/VerifyOTP'));
 
 // Checkout Pages
-const Address = React.lazy(() => import('../pages/checkout/Address'));
-const Payment = React.lazy(() => import('../pages/checkout/Payment'));
-const Confirmation = React.lazy(() => import('../pages/checkout/Confirmation'));
+const Address = lazyWithRetry(() => import('../pages/checkout/Address'));
+const Payment = lazyWithRetry(() => import('../pages/checkout/Payment'));
+const Confirmation = lazyWithRetry(() => import('../pages/checkout/Confirmation'));
 
 // Profile Pages
-const Profile = React.lazy(() => import('../pages/profile/Profile'));
-const ProfileDetails = React.lazy(() => import('../pages/profile/ProfileDetails'));
-const ProfileOrders = React.lazy(() => import('../pages/profile/ProfileOrders'));
-const ProfileAddresses = React.lazy(() => import('../pages/profile/ProfileAddresses'));
-const ProfileWishlist = React.lazy(() => import('../pages/profile/ProfileWishlist'));
-const ProfilePassword = React.lazy(() => import('../pages/profile/ProfilePassword'));
-const TrackOrder = React.lazy(() => import('../pages/TrackOrder'));
+const Profile = lazyWithRetry(() => import('../pages/profile/Profile'));
+const ProfileDetails = lazyWithRetry(() => import('../pages/profile/ProfileDetails'));
+const ProfileOrders = lazyWithRetry(() => import('../pages/profile/ProfileOrders'));
+const ProfileAddresses = lazyWithRetry(() => import('../pages/profile/ProfileAddresses'));
+const ProfileWishlist = lazyWithRetry(() => import('../pages/profile/ProfileWishlist'));
+const ProfilePassword = lazyWithRetry(() => import('../pages/profile/ProfilePassword'));
+const TrackOrder = lazyWithRetry(() => import('../pages/TrackOrder'));
 
 // Policy Pages
-const FAQ = React.lazy(() => import('../pages/policies/FAQ'));
-const PrivacyPolicy = React.lazy(() => import('../pages/policies/PrivacyPolicy'));
-const ReturnRefundPolicy = React.lazy(() => import('../pages/policies/ReturnRefundPolicy'));
-const ShippingPolicy = React.lazy(() => import('../pages/policies/ShippingPolicy'));
-const Terms = React.lazy(() => import('../pages/policies/Terms'));
+const FAQ = lazyWithRetry(() => import('../pages/policies/FAQ'));
+const PrivacyPolicy = lazyWithRetry(() => import('../pages/policies/PrivacyPolicy'));
+const ReturnRefundPolicy = lazyWithRetry(() => import('../pages/policies/ReturnRefundPolicy'));
+const ShippingPolicy = lazyWithRetry(() => import('../pages/policies/ShippingPolicy'));
+const Terms = lazyWithRetry(() => import('../pages/policies/Terms'));
 
 // Admin Pages
-const AdminLayout = React.lazy(() => import('../pages/admin/AdminLayout'));
-const AdminDashboard = React.lazy(() => import('../pages/admin/AdminDashboard'));
-const ManageProducts = React.lazy(() => import('../pages/admin/ManageProducts'));
-const AddProduct = React.lazy(() => import('../pages/admin/AddProduct'));
-const EditProduct = React.lazy(() => import('../pages/admin/EditProduct'));
-const ManageCategories = React.lazy(() => import('../pages/admin/ManageCategories'));
-const ManageOrders = React.lazy(() => import('../pages/admin/ManageOrders'));
-const ManageUsers = React.lazy(() => import('../pages/admin/ManageUsers'));
-const ManageCoupons = React.lazy(() => import('../pages/admin/ManageCoupons'));
-const ManageNewArrivals = React.lazy(() => import('../pages/admin/ManageNewArrivals'));
-const ManageSales = React.lazy(() => import('../pages/admin/ManageSales'));
+const AdminLayout = lazyWithRetry(() => import('../pages/admin/AdminLayout'));
+const AdminDashboard = lazyWithRetry(() => import('../pages/admin/AdminDashboard'));
+const ManageProducts = lazyWithRetry(() => import('../pages/admin/ManageProducts'));
+const AddProduct = lazyWithRetry(() => import('../pages/admin/AddProduct'));
+const EditProduct = lazyWithRetry(() => import('../pages/admin/EditProduct'));
+const ManageCategories = lazyWithRetry(() => import('../pages/admin/ManageCategories'));
+const ManageOrders = lazyWithRetry(() => import('../pages/admin/ManageOrders'));
+const ManageUsers = lazyWithRetry(() => import('../pages/admin/ManageUsers'));
+const ManageCoupons = lazyWithRetry(() => import('../pages/admin/ManageCoupons'));
+const ManageNewArrivals = lazyWithRetry(() => import('../pages/admin/ManageNewArrivals'));
+const ManageSales = lazyWithRetry(() => import('../pages/admin/ManageSales'));
 
 // ----------------------------------------------------------------------
 
