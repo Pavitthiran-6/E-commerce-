@@ -4,6 +4,8 @@ import { Heart } from 'lucide-react';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
 import { useToast } from '../../context/ToastContext';
+import BlinkitProductCard from '../../components/blinkit/BlinkitProductCard';
+import type { Product as ProductType } from '../../types/product';
 
 export default function ProfileWishlist() {
   const { wishlistItems, removeFromWishlist } = useWishlist();
@@ -52,36 +54,32 @@ export default function ProfileWishlist() {
         <span className="text-sm font-medium text-gray-500">{wishlistItems.length} items</span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
-        {wishlistItems.map((product) => (
-          <div key={product.id} className="group cursor-pointer flex flex-col h-full bg-white border border-gray-100 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300">
-            <div className="relative aspect-[3/4] bg-[#f6f5f0] overflow-hidden">
-              <img 
-                src={product.image} 
-                alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 mix-blend-multiply p-4"
-              />
-              <button 
-                onClick={() => removeFromWishlist(product.id)}
-                className="absolute top-4 right-4 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-red-500 hover:scale-110 transition-transform shadow-sm"
-                title="Remove from wishlist"
-              >
-                <Heart className="w-4 h-4 fill-red-500" />
-              </button>
-            </div>
-            <div className="p-4 flex flex-col flex-grow">
-              <h3 className="font-serif text-lg text-charcoal-stone group-hover:text-primary transition-colors">{product.name}</h3>
-              <p className="text-xl font-bold tracking-wide text-charcoal-stone mt-1 mb-4">{typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}</p>
-              
-              <button 
-                onClick={() => handleAddToCart(product)}
-                className="mt-auto w-full bg-white border border-primary text-primary px-4 py-2.5 rounded text-sm font-medium hover:bg-primary hover:text-white transition-colors"
-              >
-                Add to Cart
-              </button>
-            </div>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+        {wishlistItems.map((item) => {
+          const product: ProductType = {
+            id: item.id,
+            name: item.name,
+            price: typeof item.price === 'number' ? item.price : parseInt(String(item.price).replace(/[^0-9]/g, '')),
+            image: item.image,
+            images: [item.image],
+            brand: '',
+            category: '',
+            subCategory: '',
+            originalPrice: typeof item.price === 'number' ? item.price : parseInt(String(item.price).replace(/[^0-9]/g, '')),
+            discount: 0,
+            colors: [],
+            sizes: [],
+            description: '',
+            tags: [],
+            rating: 0,
+            reviewCount: 0,
+            inStock: true,
+            isNew: false,
+            isBestseller: false,
+            createdAt: '',
+          };
+          return <BlinkitProductCard key={product.id} product={product} />;
+        })}
       </div>
     </div>
   );

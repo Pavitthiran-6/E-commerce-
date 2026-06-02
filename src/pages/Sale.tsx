@@ -4,6 +4,7 @@ import { SparkleHeart } from '../components/icons/SparkleHeart';
 import { useWishlist } from '../context/WishlistContext';
 import { getSaleSettings, getDealOfTheDay, getSaleProducts, type SaleSettingsData } from '../services/productService';
 import type { Product } from '../types/product';
+import BlinkitProductCard from '../components/blinkit/BlinkitProductCard';
 
 export default function Sale() {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
@@ -258,62 +259,10 @@ export default function Sale() {
 
         {/* Product Grid */}
         {!isLoading && filteredProducts.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-            {filteredProducts.map((product) => {
-              const discount = product.discountPercentage || (product as any).discount || 0;
-              const originalPrice = product.originalPrice || (product as any).originalPrice;
-              const currentPrice = product.price;
-              const imgSrc = product.image || (product.images && product.images[0]) || '';
-
-              return (
-                <Link to={`/product/${product.id}`} key={product.id} className="group cursor-pointer flex flex-col">
-                  <div className="relative aspect-[4/5] overflow-hidden bg-[#f6f5f0] flex items-center justify-center mb-4 rounded-lg">
-
-                    {/* Discount Badge */}
-                    <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
-                      {discount > 0 && (
-                        <span className="bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded flex items-center justify-center shadow-md">
-                          -{discount}%
-                        </span>
-                      )}
-                    </div>
-
-                    <img
-                      alt={product.name}
-                      className="w-full h-full object-cover object-center transition-transform ease-out duration-500 group-hover:scale-105 group-hover:opacity-90 mix-blend-multiply"
-                      src={imgSrc}
-                    />
-
-                    <button
-                      onClick={(e) => handleWishlistToggle(e, product)}
-                      className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-charcoal-stone hover:scale-110 transition-transform z-10 bg-white/80 rounded-full backdrop-blur-sm"
-                    >
-                      <SparkleHeart
-                        filled={isInWishlist(product.id)}
-                        className={`w-4 h-4 ${isInWishlist(product.id) ? 'text-red-500' : 'text-black'}`}
-                      />
-                    </button>
-                  </div>
-                  <div className="flex flex-col">
-                    <h3 className="font-serif text-[16px] text-charcoal-stone line-clamp-1">{product.name}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-red-600 font-bold text-xl">
-                        ₹{typeof currentPrice === 'number'
-                          ? currentPrice.toLocaleString('en-IN')
-                          : currentPrice}
-                      </span>
-                      {originalPrice && discount > 0 && (
-                        <span className="text-gray-400 line-through text-xs">
-                          ₹{typeof originalPrice === 'number'
-                            ? originalPrice.toLocaleString('en-IN')
-                            : originalPrice}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+            {filteredProducts.map((product) => (
+              <BlinkitProductCard key={product.id} product={product} />
+            ))}
           </div>
         )}
       </div>

@@ -4,6 +4,7 @@ import { getNewArrivals } from '../services/productService';
 import type { Product } from '../types/product';
 import { SparkleHeart } from '../components/icons/SparkleHeart';
 import { useWishlist } from '../context/WishlistContext';
+import BlinkitProductCard from '../components/blinkit/BlinkitProductCard';
 
 export default function NewArrivals() {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
@@ -67,42 +68,11 @@ export default function NewArrivals() {
       </div>
       
       {/* Horizontal Scroll Area */}
-      <div className="flex overflow-x-auto gap-6 pb-8 snap-x no-scrollbar">
+      <div className="flex overflow-x-auto gap-4 pb-8 snap-x no-scrollbar">
         {items.map((product) => (
-          <Link to={`/product/${product.id}`} key={product.id} className="group cursor-pointer flex flex-col min-w-[260px] md:min-w-[300px] snap-start">
-            <div className="relative aspect-[4/5] overflow-hidden bg-[#f6f5f0] flex items-center justify-center mb-4 rounded">
-              
-              {product.isNew && (
-                <div className="absolute top-3 left-3 z-10">
-                  <span className="bg-green-600 text-white text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded shadow-md">
-                    NEW
-                  </span>
-                </div>
-              )}
-
-              <img
-                alt={product.name}
-                className="w-full h-full object-cover object-center transition-transform ease-out duration-500 group-hover:scale-105 group-hover:opacity-90 mix-blend-multiply"
-                src={product.image || product.images?.[0] || 'https://via.placeholder.com/300'}
-              />
-              
-              <button 
-                onClick={(e) => handleWishlistToggle(e, product)}
-                className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-charcoal-stone hover:scale-110 transition-transform z-10 bg-white/80 rounded-full backdrop-blur-sm"
-              >
-                <SparkleHeart 
-                  filled={isInWishlist(product.id)}
-                  className={`w-4 h-4 ${isInWishlist(product.id) ? 'text-red-500' : 'text-black'}`} 
-                />
-              </button>
-            </div>
-            <div className="flex flex-col">
-              <h3 className="font-serif text-[16px] text-charcoal-stone line-clamp-1">{product.name}</h3>
-              <span className="text-xl font-bold tracking-widest text-charcoal-stone mt-1">
-                {typeof product.price === 'number' ? `₹${product.price.toLocaleString('en-IN')}` : product.price}
-              </span>
-            </div>
-          </Link>
+          <div key={product.id} className="w-[180px] md:w-[220px] shrink-0 snap-start">
+            <BlinkitProductCard product={product} />
+          </div>
         ))}
       </div>
     </div>
