@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import axiosInstance from '../api/axiosInstance';
 import { useWishlist } from '../context/WishlistContext';
 import { getAllProducts, getFeaturedProducts, getBestsellers, getApparelHighlights, getTechHome } from '../services/productService';
 import { getFeaturedCoupons, type Coupon } from '../services/couponService';
@@ -14,8 +15,48 @@ import BlinkitProductCard from '../components/blinkit/BlinkitProductCard';
 import BlinkitCouponRow from '../components/blinkit/BlinkitCouponRow';
 import SectionHeader from '../components/blinkit/SectionHeader';
 
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  imageUrl?: string;
+  children: Category[];
+}
+
+function CategoryCard({ subCat }: { subCat: Category }) {
+  const [imgError, setImgError] = useState(false);
+  return (
+    <Link
+      to={`/collection?category=${encodeURIComponent(subCat.name)}`}
+      className="group flex flex-col justify-between p-2 bg-white border border-gray-100/80 rounded-2xl shadow-sm hover:shadow-md hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer hover:border-gray-200 h-full w-full"
+    >
+      {/* Image container */}
+      <div className="w-full aspect-square bg-[#F8F9FA] rounded-xl flex items-center justify-center p-2 overflow-hidden border border-gray-50/50">
+        {subCat.imageUrl && !imgError ? (
+          <img
+            src={subCat.imageUrl}
+            alt={subCat.name}
+            className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="text-xl sm:text-2xl text-gray-300 select-none">📦</div>
+        )}
+      </div>
+      {/* Label */}
+      <span className="text-[10px] sm:text-xs font-semibold text-gray-800 text-center leading-tight mt-1.5 px-0.5 line-clamp-2 min-h-[32px] w-full flex items-center justify-center">
+        {subCat.name}
+      </span>
+    </Link>
+  );
+}
+
 export default function Home() {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [bestsellers, setBestsellers] = useState<Product[]>([]);
@@ -71,6 +112,18 @@ export default function Home() {
     try { const data = await getFeaturedCoupons(); setFeaturedCoupons(data || []); } catch {}
   }, []);
 
+  const fetchCategories = useCallback(async () => {
+    setIsCategoriesLoading(true);
+    try {
+      const res = await axiosInstance.get('/api/categories/tree');
+      setCategories(res.data?.data || []);
+    } catch (err) {
+      console.error('Failed to load categories', err);
+    } finally {
+      setIsCategoriesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     hasFetchedOnce.current = true;
     fetchProducts();
@@ -78,6 +131,7 @@ export default function Home() {
     fetchBestsellers();
     fetchHighlightsAndTech();
     fetchFeaturedCoupons();
+    fetchCategories();
   }, []);
 
   useNetworkRecovery(useCallback(() => {
@@ -88,7 +142,8 @@ export default function Home() {
     fetchBestsellers();
     fetchHighlightsAndTech();
     fetchFeaturedCoupons();
-  }, [fetchProducts, fetchFeatured, fetchBestsellers, fetchHighlightsAndTech, fetchFeaturedCoupons]));
+    fetchCategories();
+  }, [fetchProducts, fetchFeatured, fetchBestsellers, fetchHighlightsAndTech, fetchFeaturedCoupons, fetchCategories]));
 
   // Build banner slides from featured products + a default
   const defaultSlide = {
@@ -114,13 +169,7 @@ export default function Home() {
     })),
   ];
 
-  // Category grid items
-  const categoryGrid = [
-    { title: "Men's Wear", subtitle: 'Refined Casuals', image: 'https://images.unsplash.com/photo-1617114919297-3c8ddb01f599?q=80&w=600', link: '/collection?department=Men' },
-    { title: "Women's Wear", subtitle: 'Elegant Styles', image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600', link: '/collection?department=Women' },
-    { title: 'Footwear', subtitle: 'Sneakers & More', image: 'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=600', link: '/collection?category=footwear' },
-    { title: 'Tech & Kitchen', subtitle: 'Smart Essentials', image: 'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?q=80&w=600', link: '/collection?category=electronics' },
-  ];
+
 
   if (error && products.length === 0) {
     return <ErrorState message={error} onRetry={() => fetchProducts()} className="mt-24 mx-4" />;
@@ -193,32 +242,34 @@ export default function Home() {
           </section>
         )}
 
-        {/* ── Category grid ────────────────────────────── */}
-        <section>
-          <SectionHeader title="🛍️ Shop by Category" seeAllLink="/collection" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-            {categoryGrid.map((cat) => (
-              <Link
-                key={cat.title}
-                to={cat.link}
-                className="relative aspect-[4/3] rounded-2xl overflow-hidden group shadow-sm hover:shadow-md transition-shadow duration-300"
-              >
-                <img
-                  src={cat.image}
-                  alt={cat.title}
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  loading="lazy"
-                  decoding="async"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-3">
-                  <p className="text-white text-sm font-bold leading-tight">{cat.title}</p>
-                  <p className="text-white/70 text-[11px] font-medium">{cat.subtitle}</p>
+        {/* ── Dynamic Blinkit-style Category Sections ── */}
+        {isCategoriesLoading ? (
+          <section className="space-y-4">
+            <SectionHeader title="🛍️ Shop by Category" />
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2.5 md:gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="aspect-square bg-white rounded-2xl border border-gray-100 p-2 flex flex-col items-center justify-between shadow-sm animate-pulse">
+                  <div className="w-full aspect-square bg-gray-50 rounded-xl" />
+                  <div className="h-3 w-12 bg-gray-100 rounded-md mt-2" />
                 </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        ) : (
+          categories.map((parentCat) => {
+            if (!parentCat.children || parentCat.children.length === 0) return null;
+            return (
+              <section key={parentCat.id} className="space-y-4">
+                <SectionHeader title={`🛍️ ${parentCat.name}`} subtitle={parentCat.description} seeAllLink={`/collection?category=${encodeURIComponent(parentCat.name)}`} />
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2.5 md:gap-4">
+                  {parentCat.children.map((subCat) => (
+                    <CategoryCard key={subCat.id} subCat={subCat} />
+                  ))}
+                </div>
+              </section>
+            );
+          })
+        )}
 
         {/* ── Apparel Highlights ───────────────────────── */}
         {(isLoading || apparelHighlights.length > 0) && (

@@ -512,6 +512,14 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("Category status toggled", categoryService.toggleCategory(id)));
     }
 
+    @PostMapping(value = "/categories/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload image for a category/sub-category")
+    public ResponseEntity<ApiResponse<?>> uploadCategoryImage(
+        @RequestParam("file") MultipartFile file) {
+        Map<String, String> result = fileUploadService.uploadImage(file, "categories");
+        return ResponseEntity.ok(ApiResponse.success("Category image uploaded successfully", result));
+    }
+
     // ---- 5H: SALE MANAGEMENT (Admin) ----
     @GetMapping("/sales/settings")
     @Operation(summary = "Get sale banner settings")

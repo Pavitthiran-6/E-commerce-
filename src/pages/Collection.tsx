@@ -30,7 +30,9 @@ export default function Collection() {
   const [productType, setProductType] = useState<'all' | 'footwear' | 'apparel' | 'electronics'>('all');
 
   // Filter States
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    categoryQuery ? [categoryQuery] : []
+  );
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
   const [selectedSizes, setSelectedSizes] = useState<(string | number)[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
@@ -63,6 +65,14 @@ export default function Collection() {
   useEffect(() => {
     if (departmentQuery) setSelectedDepartments([departmentQuery]);
   }, [departmentQuery]);
+
+  useEffect(() => {
+    if (categoryQuery) {
+      setSelectedCategories([categoryQuery]);
+    } else {
+      setSelectedCategories([]);
+    }
+  }, [categoryQuery]);
 
   useNetworkRecovery(useCallback(() => {
     if (!hasFetchedOnce.current) return;

@@ -15,9 +15,10 @@ interface CategoryFormData {
   name: string;
   description: string;
   parentId: string; // '' means it's a root (main) category
+  imageUrl: string; // Stored Cloudinary URL
 }
 
-const EMPTY_FORM: CategoryFormData = { name: '', description: '', parentId: '' };
+const EMPTY_FORM: CategoryFormData = { name: '', description: '', parentId: '', imageUrl: '' };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const ChevronIcon = ({ open }: { open: boolean }) => (
@@ -56,6 +57,7 @@ export default function ManageCategories() {
   const [formData, setFormData] = useState<CategoryFormData>(EMPTY_FORM);
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
   // Delete confirmation
@@ -87,7 +89,11 @@ export default function ManageCategories() {
   const toggleExpand = (id: number) =>
     setExpanded(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
 
@@ -105,6 +111,7 @@ export default function ManageCategories() {
       name: cat.name,
       description: cat.description || '',
       parentId: parentId ? String(parentId) : '',
+      imageUrl: cat.imageUrl || '',
     });
     setFormError('');
     setModalOpen(true);
@@ -118,7 +125,8 @@ export default function ManageCategories() {
     try {
       const payload: Record<string, unknown> = {
         name: formData.name.trim(),
-        description: formData.description.trim() || undefined,
+        description: formData.description.trim() || null,
+        imageUrl: formData.imageUrl.trim() || null,
       };
       if (formData.parentId) payload.parentId = Number(formData.parentId);
 
@@ -133,6 +141,31 @@ export default function ManageCategories() {
       setFormError(err.response?.data?.message || 'Failed to save category.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setFormError('');
+    try {
+      const data = new FormData();
+      data.append('file', file);
+      const res = await axiosInstance.post('/api/admin/categories/upload', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const url = res.data?.data?.url;
+      if (url) {
+        setFormData(prev => ({ ...prev, imageUrl: url }));
+      } else {
+        setFormError('Upload succeeded but no image URL was returned.');
+      }
+    } catch (err: any) {
+      setFormError(err.response?.data?.message || 'Failed to upload image.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -233,6 +266,13 @@ export default function ManageCategories() {
                             ) : (
                               <span className="w-5 flex-shrink-0" />
                             )}
+                            {cat.imageUrl ? (
+                              <img src={cat.imageUrl} alt="" className="w-7 h-7 object-cover rounded-lg bg-gray-50 flex-shrink-0 border border-gray-100" />
+                            ) : (
+                              <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-gray-100 text-gray-300 text-xs">
+                                📁
+                              </div>
+                            )}
                             <span className="font-semibold text-gray-900 text-[13px]">{cat.name}</span>
                           </div>
                         </td>
@@ -285,6 +325,13 @@ export default function ManageCategories() {
                             <div className="flex items-center gap-2 pl-7">
                               {/* Connecting line indicator */}
                               <div className="w-4 h-4 border-l-2 border-b-2 border-gray-200 rounded-bl-md flex-shrink-0 mb-1" />
+                              {sub.imageUrl ? (
+                                <img src={sub.imageUrl} alt="" className="w-7 h-7 object-cover rounded-lg bg-gray-50 flex-shrink-0 border border-gray-100" />
+                              ) : (
+                                <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 border border-gray-100 text-gray-300 text-xs">
+                                  📄
+                                </div>
+                              )}
                               <span className="text-gray-700 text-[13px] font-medium">{sub.name}</span>
                               <span className="text-[9px] font-bold text-indigo-500 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-md uppercase tracking-wider">SUB</span>
                             </div>
@@ -408,6 +455,56 @@ export default function ManageCategories() {
                   placeholder="Short description…"
                   className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 resize-none transition-all"
                 />
+              </div>
+
+              {/* Image Upload */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+                  Category Image <span className="text-gray-400 normal-case font-normal">(optional)</span>
+                </label>
+                {formData.imageUrl ? (
+                  <div className="relative rounded-xl overflow-hidden border border-gray-200 aspect-video bg-gray-50 group flex items-center justify-center p-2">
+                    <img src={formData.imageUrl} alt="Category preview" className="max-h-full max-w-full object-contain rounded-lg shadow-sm" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, imageUrl: '' }))}
+                        className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors shadow"
+                      >
+                        Remove Image
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative border-2 border-dashed border-gray-200 hover:border-gray-300 rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all hover:bg-gray-50/55 group">
+                    {isUploading ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <svg className="animate-spin w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <p className="text-xs text-gray-500 font-semibold animate-pulse">Uploading to Cloudinary...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-300 group-hover:text-gray-400 transition-colors">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                        </svg>
+                        <p className="text-xs text-gray-500 text-center">
+                          <span className="font-semibold text-gray-700">Click to upload image</span>
+                        </p>
+                        <p className="text-[10px] text-gray-400">PNG, JPG, WEBP up to 5MB</p>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={isUploading}
+                      className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
