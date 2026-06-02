@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import axiosInstance from '../../api/axiosInstance';
+import { uploadToCloudinary } from '../../utils/cloudinaryUpload';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Category {
@@ -57,6 +58,8 @@ export default function ManageCategories() {
   const [formData, setFormData] = useState<CategoryFormData>(EMPTY_FORM);
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const nameRef = useRef<HTMLInputElement>(null);
 
   // Delete confirmation
@@ -101,6 +104,7 @@ export default function ManageCategories() {
     setEditId(null);
     setFormData({ ...EMPTY_FORM, parentId: parentId ? String(parentId) : '' });
     setFormError('');
+    setUploadError('');
     setModalOpen(true);
   };
 
@@ -113,7 +117,25 @@ export default function ManageCategories() {
       imageUrl: cat.imageUrl || '',
     });
     setFormError('');
+    setUploadError('');
     setModalOpen(true);
+  };
+
+  // ── Auto Upload to Cloudinary ──────────────────────────────────────────────
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadError('');
+    try {
+      const url = await uploadToCloudinary(file, 'belledonne/categories');
+      setFormData(prev => ({ ...prev, imageUrl: url }));
+    } catch (err: any) {
+      setUploadError(err.message || 'Failed to upload image. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // ── Save ───────────────────────────────────────────────────────────────────
@@ -433,27 +455,27 @@ export default function ManageCategories() {
                 />
               </div>
 
-              {/* Image URL Input with Preview */}
+              {/* Image Upload Area with Auto-Upload & Preview */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
-                  Category Image URL <span className="text-gray-400 normal-case font-normal">(optional)</span>
+                  Category Image <span className="text-gray-400 normal-case font-normal">(optional)</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.imageUrl}
-                  onChange={e => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
-                  placeholder="https://example.com/image.jpg"
-                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition-all bg-white"
-                />
-                {formData.imageUrl && (
-                  <div className="mt-2.5 relative rounded-xl overflow-hidden border border-gray-100 aspect-video bg-gray-50 flex items-center justify-center p-2 group">
+                
+                {uploadError && (
+                  <div className="mb-2 flex items-center gap-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 text-red-500">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                    </svg>
+                    {uploadError}
+                  </div>
+                )}
+
+                {formData.imageUrl ? (
+                  <div className="relative rounded-xl overflow-hidden border border-gray-200 aspect-video bg-gray-50 group flex items-center justify-center p-2">
                     <img
                       src={formData.imageUrl}
                       alt="Category preview"
                       className="max-h-full max-w-full object-contain rounded-lg shadow-sm"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = '';
-                      }}
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <button
@@ -461,9 +483,38 @@ export default function ManageCategories() {
                         onClick={() => setFormData(prev => ({ ...prev, imageUrl: '' }))}
                         className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors shadow"
                       >
-                        Clear URL
+                        Clear Image
                       </button>
                     </div>
+                  </div>
+                ) : (
+                  <div className="relative border-2 border-dashed border-gray-200 hover:border-gray-300 rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all hover:bg-gray-50/55 group">
+                    {isUploading ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <svg className="animate-spin w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <p className="text-xs text-gray-500 font-semibold animate-pulse">Uploading to Cloudinary...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-300 group-hover:text-gray-400 transition-colors">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                        </svg>
+                        <p className="text-xs text-gray-500 text-center">
+                          <span className="font-semibold text-gray-700">Click to upload image</span>
+                        </p>
+                        <p className="text-[10px] text-gray-400">PNG, JPG, WEBP up to 5MB</p>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={isUploading}
+                      className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                    />
                   </div>
                 )}
               </div>
