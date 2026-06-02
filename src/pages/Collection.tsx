@@ -117,6 +117,38 @@ export default function Collection() {
     fetchCategories();
   }, [fetchCategories]);
 
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sidebar = sidebarRef.current;
+    if (!sidebar) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      const { scrollTop, scrollHeight, clientHeight } = sidebar;
+      const delta = e.deltaY;
+
+      // If sidebar content fits within view, block wheel event to prevent page scrolling when hover scrolling
+      if (scrollHeight <= clientHeight) {
+        e.preventDefault();
+        return;
+      }
+
+      // If at top scroll limit and scrolling up, prevent bubbling to page
+      if (delta < 0 && scrollTop <= 0) {
+        e.preventDefault();
+      }
+      // If at bottom scroll limit and scrolling down, prevent bubbling to page
+      else if (delta > 0 && scrollTop + clientHeight >= scrollHeight) {
+        e.preventDefault();
+      }
+    };
+
+    sidebar.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      sidebar.removeEventListener('wheel', handleWheel);
+    };
+  }, [categories, selectedMainCategory, products]);
+
   // Load products list
   const fetchProducts = useCallback(async (silent = false) => {
     if (!silent) { setIsLoading(true); setError(''); }
@@ -610,7 +642,11 @@ export default function Collection() {
         {/* ── Layout Grid ───────────────────────────── */}
         <div className="flex gap-6 items-start">
           {/* Left Sidebar filter layout - visible on desktop and tablet, hidden on mobile */}
-          <div className="hidden md:block w-64 flex-shrink-0 bg-white rounded-2xl border border-gray-100 p-5 sticky top-[calc(4rem+2.5rem)] max-h-[80vh] overflow-y-auto custom-scrollbar shadow-sm">
+          <div
+            ref={sidebarRef}
+            className="hidden md:block w-64 flex-shrink-0 bg-white rounded-2xl border border-gray-100 p-5 sticky overflow-y-auto overscroll-contain custom-scrollbar shadow-sm"
+            style={{ height: 'calc(100vh - 6rem)', top: '5rem' }}
+          >
             <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
               <span className="text-sm font-bold text-gray-900">Filters</span>
               {activeFilterCount > 0 && (

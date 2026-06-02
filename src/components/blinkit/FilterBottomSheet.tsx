@@ -68,7 +68,7 @@ export default function FilterBottomSheet({
         </div>
 
         {/* Filter content */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 custom-scrollbar">
           {children}
         </div>
 
