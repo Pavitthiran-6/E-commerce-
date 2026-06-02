@@ -16,4 +16,5 @@ public class HeroCardResponse {
     private Integer discountPercentage;
     private String backgroundColor;
     private Integer displayOrder;
+    private String productSlug;
 }

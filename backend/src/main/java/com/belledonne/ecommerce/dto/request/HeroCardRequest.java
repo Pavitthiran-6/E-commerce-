@@ -17,4 +17,6 @@ public class HeroCardRequest {
     private String backgroundColor;
 
     private Integer displayOrder;
+
+    private String productSlug;
 }

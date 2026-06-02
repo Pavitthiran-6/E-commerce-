@@ -57,6 +57,7 @@ public class HeroService {
         heroSection.setFeaturedSalePrice(request.getFeaturedSalePrice());
         heroSection.setFeaturedDiscountPercentage(request.getFeaturedDiscountPercentage());
         heroSection.setFeaturedCardBackgroundColor(request.getFeaturedCardBackgroundColor());
+        heroSection.setProductSlug(request.getProductSlug());
 
         // Update Promo Cards
         heroSection.getPromoCards().clear();
@@ -68,6 +69,7 @@ public class HeroService {
                     .discountPercentage(cardReq.getDiscountPercentage())
                     .backgroundColor(cardReq.getBackgroundColor())
                     .displayOrder(cardReq.getDisplayOrder() != null ? cardReq.getDisplayOrder() : 0)
+                    .productSlug(cardReq.getProductSlug())
                     .heroSection(heroSection)
                     .build();
                 heroSection.getPromoCards().add(card);
@@ -93,10 +95,10 @@ public class HeroService {
 
     private HeroResponse getDefaultHeroResponse() {
         List<HeroCardResponse> cardResponses = new ArrayList<>();
-        cardResponses.add(HeroCardResponse.builder().id(1L).title("Footwear").image("https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=400").discountPercentage(25).backgroundColor("#FFF6F0").displayOrder(0).build());
-        cardResponses.add(HeroCardResponse.builder().id(2L).title("Men Wears").image("https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400").discountPercentage(30).backgroundColor("#FFFBF0").displayOrder(1).build());
-        cardResponses.add(HeroCardResponse.builder().id(3L).title("Women Wears").image("https://images.unsplash.com/photo-1572804013309-8c98e16ea86d?q=80&w=400").discountPercentage(20).backgroundColor("#F5F7FF").displayOrder(2).build());
-        cardResponses.add(HeroCardResponse.builder().id(4L).title("Tech & Kitchen").image("https://images.unsplash.com/photo-1585237748805-728b75fba184?q=80&w=400").discountPercentage(23).backgroundColor("#EEFBF2").displayOrder(3).build());
+        cardResponses.add(HeroCardResponse.builder().id(1L).title("Footwear").image("https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=400").discountPercentage(25).backgroundColor("#FFF6F0").displayOrder(0).productSlug("bo-velcro").build());
+        cardResponses.add(HeroCardResponse.builder().id(2L).title("Men Wears").image("https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=400").discountPercentage(30).backgroundColor("#FFFBF0").displayOrder(1).productSlug("linen-shirt").build());
+        cardResponses.add(HeroCardResponse.builder().id(3L).title("Women Wears").image("https://images.unsplash.com/photo-1572804013309-8c98e16ea86d?q=80&w=400").discountPercentage(20).backgroundColor("#F5F7FF").displayOrder(2).productSlug("summer-dress").build());
+        cardResponses.add(HeroCardResponse.builder().id(4L).title("Tech & Kitchen").image("https://images.unsplash.com/photo-1585237748805-728b75fba184?q=80&w=400").discountPercentage(23).backgroundColor("#EEFBF2").displayOrder(3).productSlug("smart-blender").build());
 
         return HeroResponse.builder()
             .title("HOUSEFULL SALE")
@@ -109,6 +111,7 @@ public class HeroService {
             .featuredSalePrice(new BigDecimal("999.00"))
             .featuredDiscountPercentage(50)
             .featuredCardBackgroundColor("#FFF9E6")
+            .productSlug("bo-velcro")
             .promoCards(cardResponses)
             .build();
     }
@@ -128,6 +131,7 @@ public class HeroService {
                     .discountPercentage(c.getDiscountPercentage())
                     .backgroundColor(c.getBackgroundColor())
                     .displayOrder(c.getDisplayOrder() != null ? c.getDisplayOrder() : 0)
+                    .productSlug(c.getProductSlug())
                     .build())
                 .collect(Collectors.toList());
         }
@@ -146,6 +150,7 @@ public class HeroService {
             .featuredSalePrice(hero.getFeaturedSalePrice())
             .featuredDiscountPercentage(hero.getFeaturedDiscountPercentage())
             .featuredCardBackgroundColor(hero.getFeaturedCardBackgroundColor())
+            .productSlug(hero.getProductSlug())
             .promoCards(cardResponses)
             .build();
     }

@@ -29,5 +29,7 @@ public class HeroRequest {
     private Integer featuredDiscountPercentage;
     private String featuredCardBackgroundColor;
 
+    private String productSlug;
+
     private List<HeroCardRequest> promoCards;
 }

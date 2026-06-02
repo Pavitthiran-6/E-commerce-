@@ -30,7 +30,9 @@ export const getAllProductsPaged = async (page = 0, size = 200): Promise<{ conte
 };
 
 export const getProductById = async (id: string): Promise<Product> => {
-  const response = await axiosInstance.get(ENDPOINTS.PRODUCT_BY_ID(id));
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const url = isUuid ? ENDPOINTS.PRODUCT_BY_ID(id) : `/api/products/slug/${id}`;
+  const response = await axiosInstance.get(url);
   return response.data.data;
 };
 

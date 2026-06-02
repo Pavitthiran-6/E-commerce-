@@ -31,6 +31,9 @@ public class HeroCard {
     @Column(name = "display_order")
     private Integer displayOrder;
 
+    @Column(name = "product_slug", length = 255)
+    private String productSlug;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "hero_section_id")
     @ToString.Exclude

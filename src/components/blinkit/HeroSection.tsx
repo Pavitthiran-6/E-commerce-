@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination } from 'swiper/modules';
 import type { HeroData, HeroCardData } from '../../services/heroService';
@@ -13,6 +14,7 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
+  const navigate = useNavigate();
   if (isLoading || !heroData) {
     return (
       <div className="w-full rounded-3xl bg-gradient-to-br from-amber-100/50 via-amber-100/30 to-amber-50 border border-amber-200/30 p-6 md:p-8 animate-pulse flex flex-col gap-6">
@@ -58,7 +60,14 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
     const isVertical = layout === 'vertical';
     return (
       <div
+        onClick={() => {
+          if (heroData?.productSlug) {
+            navigate(`/product/${heroData.productSlug}`);
+          }
+        }}
         className={`w-full h-full rounded-2xl border border-amber-100/60 shadow-sm p-4 md:p-6 flex transition-colors duration-300 hover:bg-[#FFF6DB] select-none ${
+          heroData?.productSlug ? 'cursor-pointer' : ''
+        } ${
           isVertical ? 'flex-col justify-between items-center text-center' : 'flex-row justify-between items-center'
         }`}
         style={{ backgroundColor: featuredCardBackgroundColor || '#FFF9E6' }}
@@ -105,6 +114,11 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
   const renderPromoCard = (card: HeroCardData) => {
     return (
       <div
+        onClick={() => {
+          if (card.productSlug) {
+            navigate(`/product/${card.productSlug}`);
+          }
+        }}
         className="group relative flex flex-col justify-between overflow-hidden rounded-xl md:rounded-2xl border border-orange-100/50 p-2.5 md:p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-md cursor-pointer select-none h-full"
         style={{ backgroundColor: card.backgroundColor || '#FFF6F0' }}
       >

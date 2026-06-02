@@ -131,7 +131,7 @@ export default function Product() {
       setProduct(data);
       setStockStatus((data.stockQuantity ?? 0) > 0 ? 'in_stock' : 'out_of_stock');
       setError('');
-      const reviewsData = await getProductReviews(id);
+      const reviewsData = await getProductReviews(data.id);
       setReviews(reviewsData.content);
       setTotalReviews(reviewsData.totalElements);
     } catch {

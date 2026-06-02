@@ -8,6 +8,7 @@ export interface HeroCardData {
   discountPercentage?: number;
   backgroundColor?: string;
   displayOrder?: number;
+  productSlug?: string;
 }
 
 export interface HeroData {
@@ -26,6 +27,7 @@ export interface HeroData {
   featuredSalePrice: number;
   featuredDiscountPercentage: number;
   featuredCardBackgroundColor: string;
+  productSlug?: string;
 
   promoCards: HeroCardData[];
 }

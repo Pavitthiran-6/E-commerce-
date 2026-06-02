@@ -28,5 +28,7 @@ public class HeroResponse {
     private Integer featuredDiscountPercentage;
     private String featuredCardBackgroundColor;
 
+    private String productSlug;
+
     private List<HeroCardResponse> promoCards;
 }

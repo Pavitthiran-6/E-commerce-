@@ -55,6 +55,9 @@ public class HeroSection {
     @Column(name = "featured_card_background_color", length = 100)
     private String featuredCardBackgroundColor;
 
+    @Column(name = "product_slug", length = 255)
+    private String productSlug;
+
     @OneToMany(mappedBy = "heroSection", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
     @OrderBy("displayOrder ASC")

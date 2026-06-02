@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Trash2, Edit3, Plus, Save, Eye, Monitor, Tablet, Smartphone, Upload, RefreshCw } from 'lucide-react';
 import { getHeroSection, adminUpdateHero, adminDeleteHeroCard, type HeroData, type HeroCardData } from '../../services/heroService';
+import { getAllProductsPaged } from '../../services/productService';
+import type { Product } from '../../types/product';
 
 export default function HeroManagement() {
   const [hero, setHero] = useState<HeroData>({
@@ -38,14 +40,44 @@ export default function HeroManagement() {
   // Live preview responsive mode
   const [previewMode, setPreviewMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
 
+  const [products, setProducts] = useState<Product[]>([]);
+  const [featuredProductSearch, setFeaturedProductSearch] = useState('');
+  const [featuredDropdownOpen, setFeaturedDropdownOpen] = useState(false);
+
+  const [promoProductSearch, setPromoProductSearch] = useState('');
+  const [promoDropdownOpen, setPromoDropdownOpen] = useState(false);
+
+  const featuredRef = useRef<HTMLDivElement>(null);
+  const promoRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (featuredRef.current && !featuredRef.current.contains(e.target as Node)) {
+        setFeaturedDropdownOpen(false);
+      }
+      if (promoRef.current && !promoRef.current.contains(e.target as Node)) {
+        setPromoDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   useEffect(() => {
     const fetchHeroData = async () => {
       setIsLoading(true);
       try {
-        const data = await getHeroSection();
+        const [data, productsResponse] = await Promise.all([
+          getHeroSection(),
+          getAllProductsPaged(0, 1000).catch(() => ({ content: [], totalElements: 0 }))
+        ]);
         if (data) {
           setHero(data);
+          if (data.productSlug) {
+            setFeaturedProductSearch(data.productSlug);
+          }
         }
+        setProducts(productsResponse.content || []);
       } catch (err) {
         console.error('Failed to fetch hero data', err);
         showMsg('error', 'Failed to load Hero settings.');
@@ -55,6 +87,16 @@ export default function HeroManagement() {
     };
     fetchHeroData();
   }, []);
+
+  const filteredFeaturedProducts = products.filter(p =>
+    p.name.toLowerCase().includes(featuredProductSearch.toLowerCase()) ||
+    (p.slug && p.slug.toLowerCase().includes(featuredProductSearch.toLowerCase()))
+  );
+
+  const filteredPromoProducts = products.filter(p =>
+    p.name.toLowerCase().includes(promoProductSearch.toLowerCase()) ||
+    (p.slug && p.slug.toLowerCase().includes(promoProductSearch.toLowerCase()))
+  );
 
   const showMsg = (type: 'success' | 'error', text: string) => {
     setMsg({ type, text });
@@ -97,7 +139,9 @@ export default function HeroManagement() {
       discountPercentage: 40,
       backgroundColor: '#FFF6F0',
       displayOrder: hero.promoCards.length,
+      productSlug: '',
     });
+    setPromoProductSearch('');
     setShowCardModal(true);
   };
 
@@ -105,6 +149,7 @@ export default function HeroManagement() {
     setEditingCard(card);
     setCardFormIndex(index);
     setCardForm({ ...card });
+    setPromoProductSearch(card.productSlug || '');
     setShowCardModal(true);
   };
 
@@ -387,6 +432,68 @@ export default function HeroManagement() {
                   className={inputCls}
                   placeholder="e.g. #FFF9E6"
                 />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className={labelCls}>Linked Product (Redirects on click)</label>
+                <div ref={featuredRef} className="relative">
+                  <input
+                    type="text"
+                    value={featuredProductSearch}
+                    onChange={(e) => {
+                      setFeaturedProductSearch(e.target.value);
+                      setHero({ ...hero, productSlug: e.target.value });
+                      setFeaturedDropdownOpen(true);
+                    }}
+                    onFocus={() => setFeaturedDropdownOpen(true)}
+                    placeholder="Search product slug or select from list..."
+                    className={inputCls}
+                  />
+                  {hero.productSlug && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHero({ ...hero, productSlug: '' });
+                        setFeaturedProductSearch('');
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-semibold"
+                    >
+                      Clear
+                    </button>
+                  )}
+                  {featuredDropdownOpen && filteredFeaturedProducts.length > 0 && (
+                    <div className="absolute z-30 mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                      {filteredFeaturedProducts.slice(0, 20).map((p) => {
+                        const img = p.image || (p.images && p.images[0]) || '';
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              const slugValue = p.slug || '';
+                              setHero({ ...hero, productSlug: slugValue });
+                              setFeaturedProductSearch(slugValue);
+                              setFeaturedDropdownOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${
+                              hero.productSlug === p.slug ? 'bg-gray-50' : ''
+                            }`}
+                          >
+                            {img && (
+                              <div className="w-8 h-8 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0 bg-gray-50">
+                                <img src={img} alt={p.name} className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-gray-900 truncate">{p.name}</p>
+                              <p className="text-[10px] text-gray-400 font-mono">slug: {p.slug || 'N/A'}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="md:col-span-2">
@@ -787,6 +894,69 @@ export default function HeroManagement() {
                   placeholder="e.g. 0"
                   className={inputCls}
                 />
+              </div>
+
+              {/* Linked Product for Promo Card */}
+              <div>
+                <label className={labelCls}>Linked Product (Redirects on click)</label>
+                <div ref={promoRef} className="relative">
+                  <input
+                    type="text"
+                    value={promoProductSearch}
+                    onChange={(e) => {
+                      setPromoProductSearch(e.target.value);
+                      setCardForm({ ...cardForm, productSlug: e.target.value });
+                      setPromoDropdownOpen(true);
+                    }}
+                    onFocus={() => setPromoDropdownOpen(true)}
+                    placeholder="Search product slug or select from list..."
+                    className={inputCls}
+                  />
+                  {cardForm.productSlug && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCardForm({ ...cardForm, productSlug: '' });
+                        setPromoProductSearch('');
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-semibold"
+                    >
+                      Clear
+                    </button>
+                  )}
+                  {promoDropdownOpen && filteredPromoProducts.length > 0 && (
+                    <div className="absolute z-30 mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-40 overflow-y-auto">
+                      {filteredPromoProducts.slice(0, 20).map((p) => {
+                        const img = p.image || (p.images && p.images[0]) || '';
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              const slugValue = p.slug || '';
+                              setCardForm({ ...cardForm, productSlug: slugValue });
+                              setPromoProductSearch(slugValue);
+                              setPromoDropdownOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${
+                              cardForm.productSlug === p.slug ? 'bg-gray-50' : ''
+                            }`}
+                          >
+                            {img && (
+                              <div className="w-8 h-8 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0 bg-gray-50">
+                                <img src={img} alt={p.name} className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-gray-900 truncate">{p.name}</p>
+                              <p className="text-[10px] text-gray-400 font-mono">slug: {p.slug || 'N/A'}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Image upload */}
