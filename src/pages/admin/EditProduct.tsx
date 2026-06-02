@@ -682,7 +682,7 @@ export default function EditProduct() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="e.g. Bo Velcro Sneaker"
-                  className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 bg-white"
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all"
                 />
               </div>
 
@@ -694,7 +694,7 @@ export default function EditProduct() {
                   value={brand}
                   onChange={e => setBrand(e.target.value)}
                   placeholder="e.g. BELLEDONNE"
-                  className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 bg-white"
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all"
                 />
               </div>
 
@@ -706,7 +706,7 @@ export default function EditProduct() {
                   value={stockQuantity}
                   onChange={e => setStockQuantity(e.target.value)}
                   placeholder="100"
-                  className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 bg-white"
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all"
                 />
               </div>
 
@@ -743,7 +743,7 @@ export default function EditProduct() {
                   value={price}
                   onChange={e => setPrice(e.target.value)}
                   placeholder="16500"
-                  className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 bg-white"
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all"
                 />
                </div>
 
@@ -755,7 +755,7 @@ export default function EditProduct() {
                   onChange={e => setDescription(e.target.value)}
                   rows={4}
                   placeholder="Enter rich details about the product..."
-                  className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 bg-white resize-none"
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white resize-none transition-all"
                 />
               </div>
             </div>
@@ -769,7 +769,7 @@ export default function EditProduct() {
                 <div className="grid grid-cols-4 gap-2">
                   {existingImages.filter(url => url !== resolvedCoverPreview).map(url => (
                     <div key={url}
-                      className="relative group rounded-lg overflow-hidden border border-gray-200 transition-all hover:border-gray-400"
+                      className="relative group rounded-xl overflow-hidden border-2 border-gray-200 transition-all hover:border-gray-400"
                     >
                       <img src={url} alt="" className="w-full aspect-square object-cover" />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-1">
@@ -792,32 +792,42 @@ export default function EditProduct() {
 
             <hr className="border-gray-100" />
 
-            <div className="flex items-center gap-6">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" checked={inStock} onChange={e => setInStock(e.target.checked)} className="w-4 h-4 rounded border-gray-300 accent-gray-900 focus:ring-0 cursor-pointer" />
-                <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">In Stock</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" checked={isBestseller} onChange={e => setIsBestseller(e.target.checked)} className="w-4 h-4 rounded border-gray-300 accent-gray-900 focus:ring-0 cursor-pointer" />
-                <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">Bestseller</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" checked={isApparelHighlights} onChange={e => setIsApparelHighlights(e.target.checked)} className="w-4 h-4 rounded border-gray-300 accent-gray-900 focus:ring-0 cursor-pointer" />
-                <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">Apparel Highlights</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" checked={isTechHome} onChange={e => setIsTechHome(e.target.checked)} className="w-4 h-4 rounded border-gray-300 accent-gray-900 focus:ring-0 cursor-pointer" />
-                <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">Tech & Home</span>
-              </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { checked: inStock, onChange: setInStock, label: 'In Stock', dot: 'bg-emerald-500' },
+                { checked: isBestseller, onChange: setIsBestseller, label: 'Bestseller', dot: 'bg-amber-500' },
+                { checked: isApparelHighlights, onChange: setIsApparelHighlights, label: 'Apparel', dot: 'bg-violet-500' },
+                { checked: isTechHome, onChange: setIsTechHome, label: 'Tech & Home', dot: 'bg-blue-500' },
+              ].map(({ checked, onChange, label, dot }) => (
+                <label key={label} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                  checked ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300 bg-white'
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={e => onChange(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 accent-gray-900 focus:ring-0 cursor-pointer"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
+                    <span className={`text-sm font-semibold transition-colors ${checked ? 'text-gray-900' : 'text-gray-600'}`}>{label}</span>
+                  </div>
+                </label>
+              ))}
             </div>
 
           </div>
 
           {/* New Section: Product Details & Content */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
-            <div className="border-b border-gray-100 pb-3">
-              <h2 className="text-lg font-bold text-gray-900 tracking-tight">Product Details & Content</h2>
-              <p className="text-xs text-gray-500">Provide variants, customized accordion info, and custom delivery configurations</p>
+            <div className="border-b border-gray-100 pb-3 flex items-start gap-3">
+              <div className="w-8 h-8 bg-gray-900 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-white text-xs font-black">2</span>
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900 tracking-tight">Product Details & Content</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Variants, accordion info, and delivery configurations</p>
+              </div>
             </div>
 
             {/* Section 1 — Specifications */}
@@ -1019,79 +1029,74 @@ export default function EditProduct() {
             {/* Section 3 — Delivery & COD Options */}
             <div className="space-y-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Section 3 — Delivery & COD Options</h3>
-              <div className="flex flex-col gap-3.5 bg-gray-50 p-5 rounded-xl border border-gray-200/60 divide-y divide-gray-200/40">
-                
-                <label className="flex items-center justify-between cursor-pointer group">
-                  <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 transition-colors">✅ Free Shipping across India</span>
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={freeShipping}
-                      onChange={e => setFreeShipping(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
-                  </div>
-                </label>
-
-                <label className="flex items-center justify-between cursor-pointer group pt-3.5">
-                  <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 transition-colors">✅ Cash on Delivery Available</span>
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={codAvailable}
-                      onChange={e => setCodAvailable(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
-                  </div>
-                </label>
-
-                <label className="flex items-center justify-between cursor-pointer group pt-3.5">
-                  <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 transition-colors">✅ Easy 7-Day Returns</span>
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={easyReturns}
-                      onChange={e => setEasyReturns(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
-                  </div>
-                </label>
+              <div className="space-y-2.5">
+                {[
+                  {
+                    checked: freeShipping, onChange: setFreeShipping,
+                    label: 'Free Shipping across India',
+                    icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-emerald-500"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /></svg>
+                  },
+                  {
+                    checked: codAvailable, onChange: setCodAvailable,
+                    label: 'Cash on Delivery Available',
+                    icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-amber-500"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" /></svg>
+                  },
+                  {
+                    checked: easyReturns, onChange: setEasyReturns,
+                    label: 'Easy 7-Day Returns',
+                    icon: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-blue-500"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+                  },
+                ].map(({ checked, onChange, label, icon }) => (
+                  <label key={label} className={`flex items-center justify-between cursor-pointer p-4 rounded-xl border transition-all ${
+                    checked ? 'border-gray-200 bg-gray-50' : 'border-gray-200 bg-white hover:bg-gray-50'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-white rounded-lg border border-gray-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                        {icon}
+                      </div>
+                      <span className={`text-sm font-semibold transition-colors ${checked ? 'text-gray-900' : 'text-gray-600'}`}>{label}</span>
+                    </div>
+                    <div className="relative">
+                      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="sr-only peer" />
+                      <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
+                    </div>
+                  </label>
+                ))}
               </div>
             </div>
 
           </div>
 
-          {/* Action Buttons */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-center justify-end gap-3">
-            <Link to="/admin/products" className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={isSaving || isUploading}
-              className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
-            >
-              {isUploading ? (
-                <>
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Uploading images…
-                </>
-              ) : isSaving ? (
-                <>
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Saving…
-                </>
-              ) : 'Save Changes'}
-            </button>
+          {/* Action buttons */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-4 flex items-center justify-between">
+            <p className="text-xs text-gray-400">
+              {isUploading ? '⏳ Compressing images…' : 'Review your changes before saving.'}
+            </p>
+            <div className="flex items-center gap-2.5">
+              <Link
+                to="/admin/products"
+                className="px-4 py-2.5 text-sm font-semibold text-gray-600 hover:text-gray-900 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                disabled={isSaving || isUploading}
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-gray-900 text-white rounded-xl hover:bg-gray-800 active:bg-gray-950 transition-colors disabled:opacity-50 shadow-sm"
+              >
+                {isSaving || isUploading ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    {isUploading ? 'Compressing…' : 'Saving…'}
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
           </div>
 
         </div>
