@@ -278,7 +278,8 @@ public class ProductService {
             ? SlugUtil.toSlug(request.getSlug())
             : SlugUtil.toSlug(request.getName());
 
-        if (!product.getSlug().equals(slug) && productRepository.findBySlug(slug).isPresent()) {
+        java.util.Optional<Product> existingProduct = productRepository.findBySlug(slug);
+        if (existingProduct.isPresent() && !existingProduct.get().getId().equals(id)) {
             throw new BadRequestException("Product with slug '" + slug + "' already exists");
         }
 
