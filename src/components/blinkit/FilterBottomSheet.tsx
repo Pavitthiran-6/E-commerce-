@@ -1,34 +1,24 @@
 import { useEffect, useRef } from 'react';
 import { X, SlidersHorizontal } from 'lucide-react';
 
-interface FilterOption {
-  label: string;
-  value: string;
-  count?: number;
-}
-
-interface FilterSection {
-  id: string;
-  title: string;
-  options: FilterOption[];
-  selectedValues: string[];
-  onToggle: (value: string) => void;
-}
-
 interface FilterBottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  sections: FilterSection[];
   onClearAll: () => void;
+  onApply: () => void;
+  hasActiveFilters: boolean;
   totalResults?: number;
+  children: React.ReactNode;
 }
 
 export default function FilterBottomSheet({
   isOpen,
   onClose,
-  sections,
   onClearAll,
+  onApply,
+  hasActiveFilters,
   totalResults,
+  children,
 }: FilterBottomSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -43,13 +33,11 @@ export default function FilterBottomSheet({
 
   if (!isOpen) return null;
 
-  const hasActiveFilters = sections.some((s) => s.selectedValues.length > 0);
-
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
 
@@ -79,57 +67,28 @@ export default function FilterBottomSheet({
           </button>
         </div>
 
-        {/* Filter sections */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
-          {sections.map((section) => (
-            <div key={section.id}>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2.5">
-                {section.title}
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {section.options.map((option) => {
-                  const isSelected = section.selectedValues.includes(option.value);
-                  return (
-                    <button
-                      key={option.value}
-                      onClick={() => section.onToggle(option.value)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-150 ${
-                        isSelected
-                          ? 'bg-[#0C831F] text-white border-[#0C831F]'
-                          : 'bg-white text-gray-700 border-gray-200 hover:border-[#0C831F] hover:text-[#0C831F]'
-                      }`}
-                    >
-                      {option.label}
-                      {option.count != null && (
-                        <span className={`ml-1 ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
-                          ({option.count})
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+        {/* Filter content */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
+          {children}
         </div>
 
-        {/* Footer */}
-        <div className="flex gap-3 p-4 border-t border-gray-100 pb-safe">
+        {/* Sticky Footer */}
+        <div className="flex gap-3 p-4 border-t border-gray-100 bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.03)] pb-safe">
           <button
             onClick={() => { onClearAll(); onClose(); }}
-            disabled={!hasActiveFilters}
-            className="flex-1 py-3 border-2 border-gray-300 text-gray-700 text-sm font-bold rounded-xl disabled:opacity-40 hover:border-gray-400 transition-colors"
+            className="flex-1 py-3 border border-gray-300 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors"
           >
             Clear All
           </button>
           <button
-            onClick={onClose}
-            className="flex-1 py-3 bg-[#0C831F] text-white text-sm font-bold rounded-xl hover:bg-[#0A6B19] transition-colors"
+            onClick={() => { onApply(); onClose(); }}
+            className="flex-1 py-3 bg-[#0C831F] text-white text-sm font-bold rounded-xl hover:bg-[#0A6B19] active:bg-[#085514] transition-colors"
           >
-            {totalResults != null ? `Show ${totalResults} results` : 'Apply'}
+            {totalResults != null ? `Show ${totalResults} results` : 'Apply Filters'}
           </button>
         </div>
       </div>
     </div>
   );
 }
+

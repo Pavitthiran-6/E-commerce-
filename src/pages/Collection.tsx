@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { Product } from '../types/product';
 import { getAllProducts, searchProducts } from '../services/productService';
 import { ProductCardSkeleton } from '../components/common/SkeletonLoader';
@@ -9,14 +9,28 @@ import { useNetworkRecovery } from '../hooks/useNetworkRecovery';
 import BlinkitProductCard from '../components/blinkit/BlinkitProductCard';
 import FilterBottomSheet from '../components/blinkit/FilterBottomSheet';
 import { SlidersHorizontal, ChevronDown, X } from 'lucide-react';
+import axiosInstance from '../api/axiosInstance';
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  imageUrl?: string;
+  children: Category[];
+}
 
 export default function Collection() {
+  const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const searchQuery = queryParams.get('q');
   const departmentQuery = queryParams.get('department');
   const categoryQuery = queryParams.get('category');
   const promoQuery = queryParams.get('promo');
+  const subcategoriesQuery = queryParams.get('subcategories');
+  const minPriceQuery = queryParams.get('minPrice');
+  const maxPriceQuery = queryParams.get('maxPrice');
 
   const [sortBy, setSortBy] = useState('Recommended');
   const [currentPage, setCurrentPage] = useState(1);
@@ -29,11 +43,24 @@ export default function Collection() {
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [productType, setProductType] = useState<'all' | 'footwear' | 'apparel' | 'electronics'>('all');
 
+  // Categories API State
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
+
   // Filter States
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    categoryQuery ? [categoryQuery] : []
-  );
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
+    if (subcategoriesQuery) return subcategoriesQuery.split(',');
+    if (categoryQuery) return [categoryQuery];
+    return [];
+  });
+
+  const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
+  const [sliderPrice, setSliderPrice] = useState<[number, number]>(() => {
+    const min = minPriceQuery ? parseInt(minPriceQuery) : 0;
+    const max = maxPriceQuery ? parseInt(maxPriceQuery) : 50000;
+    return [min, max];
+  });
+
   const [selectedSizes, setSelectedSizes] = useState<(string | number)[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>(
@@ -42,6 +69,55 @@ export default function Collection() {
 
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
+  // URL State Sync
+  const updateURL = useCallback((selectedCats: string[], minP: number, maxP: number) => {
+    const params = new URLSearchParams(window.location.search);
+    
+    if (selectedCats.length > 0) {
+      params.set('subcategories', selectedCats.join(','));
+    } else {
+      params.delete('subcategories');
+    }
+    
+    if (selectedCats.length === 1) {
+      params.set('category', selectedCats[0]);
+    } else {
+      params.delete('category');
+    }
+
+    if (minP > 0) {
+      params.set('minPrice', minP.toString());
+    } else {
+      params.delete('minPrice');
+    }
+
+    if (maxP < 50000) {
+      params.set('maxPrice', maxP.toString());
+    } else {
+      params.delete('maxPrice');
+    }
+
+    navigate({ search: params.toString() }, { replace: true });
+  }, [navigate]);
+
+  // Load categories tree from API
+  const fetchCategories = useCallback(async () => {
+    setIsCategoriesLoading(true);
+    try {
+      const res = await axiosInstance.get('/api/categories/tree');
+      setCategories(res.data?.data || []);
+    } catch (err) {
+      console.error('Failed to load categories tree', err);
+    } finally {
+      setIsCategoriesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  // Load products list
   const fetchProducts = useCallback(async (silent = false) => {
     if (!silent) { setIsLoading(true); setError(''); }
     try {
@@ -63,16 +139,20 @@ export default function Collection() {
   }, [searchQuery]);
 
   useEffect(() => {
-    if (departmentQuery) setSelectedDepartments([departmentQuery]);
-  }, [departmentQuery]);
-
-  useEffect(() => {
     if (categoryQuery) {
       setSelectedCategories([categoryQuery]);
-    } else {
+    } else if (!subcategoriesQuery) {
       setSelectedCategories([]);
     }
-  }, [categoryQuery]);
+  }, [categoryQuery, subcategoriesQuery]);
+
+  useEffect(() => {
+    if (departmentQuery) {
+      setSelectedDepartments([departmentQuery]);
+    } else {
+      setSelectedDepartments([]);
+    }
+  }, [departmentQuery]);
 
   useNetworkRecovery(useCallback(() => {
     if (!hasFetchedOnce.current) return;
@@ -83,39 +163,104 @@ export default function Collection() {
   const sortOptions = ['Recommended', 'Price: Low to High', 'Price: High to Low', 'New Arrivals', 'Best Sellers'];
 
   const toggleCategory = (cat: string) => {
-    setSelectedCategories((prev) => prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]);
+    const next = selectedCategories.includes(cat)
+      ? selectedCategories.filter((c) => c !== cat)
+      : [...selectedCategories, cat];
+    setSelectedCategories(next);
     setCurrentPage(1);
+    updateURL(next, sliderPrice[0], sliderPrice[1]);
   };
-  const toggleSize = (size: string | number) => {
-    setSelectedSizes((prev) => prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]);
-    setCurrentPage(1);
-  };
+
   const toggleDepartment = (dept: string) => {
     setSelectedDepartments((prev) => prev.includes(dept) ? prev.filter((d) => d !== dept) : [...prev, dept]);
     setCurrentPage(1);
   };
+
   const clearAllFilters = () => {
     setSelectedCategories([]);
-    setPriceRange([0, 10000]);
+    setSelectedPriceRanges([]);
+    setSliderPrice([0, 50000]);
     setSelectedSizes([]);
     setSelectedColors([]);
     setSelectedDepartments([]);
     setCurrentPage(1);
+    updateURL([], 0, 50000);
   };
 
-  // Category chips for top row (from product data)
-  const allCategories = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+  // Helper to map and resolve parent & subcategory names for a product
+  const resolveProductCategory = useCallback((product: Product | any) => {
+    const name = product.categoryName || product.category || '';
+    
+    if (categories.length === 0) {
+      return {
+        mainCategory: name,
+        subCategory: name,
+      };
+    }
+
+    for (const parent of categories) {
+      if (parent.name.toLowerCase() === name.toLowerCase()) {
+        return {
+          mainCategory: parent.name,
+          subCategory: '',
+        };
+      }
+      for (const child of parent.children || []) {
+        if (child.name.toLowerCase() === name.toLowerCase()) {
+          return {
+            mainCategory: parent.name,
+            subCategory: child.name,
+          };
+        }
+      }
+    }
+    
+    return {
+      mainCategory: name,
+      subCategory: '',
+    };
+  }, [categories]);
 
   // Filter products
   const filteredProducts = products.filter((p) => {
+    const { mainCategory, subCategory } = resolveProductCategory(p);
+
     if (productType !== 'all' && p.productType !== productType) return false;
     if (promoQuery === 'clearance' && (!p.discount || p.discount < 25)) return false;
     if (promoQuery === 'flash-deals' && (!p.discount || p.discount === 0)) return false;
     if (promoQuery === 'last-chance' && (!p.discount || p.discount < 15)) return false;
-    if (selectedDepartments.length > 0 && (!p.gender || !selectedDepartments.includes(p.gender))) return false;
-    if (selectedCategories.length > 0 && !selectedCategories.includes(p.category)) return false;
-    const maxPriceLimit = priceRange[1] === 10000 ? Infinity : priceRange[1];
-    if (p.price < priceRange[0] || p.price > maxPriceLimit) return false;
+    
+    // Filter by departments (Men, Women, Unisex)
+    if (selectedDepartments.length > 0) {
+      const matchesGender = p.gender && selectedDepartments.includes(p.gender);
+      const matchesMainCat = mainCategory && selectedDepartments.some(dept => mainCategory.toLowerCase() === dept.toLowerCase());
+      if (!matchesGender && !matchesMainCat) return false;
+    }
+
+    // Filter by sub-categories
+    if (selectedCategories.length > 0) {
+      if (!subCategory || !selectedCategories.includes(subCategory)) return false;
+    }
+
+    // Filter by Price Option (checkboxes)
+    let checkboxLimit = Infinity;
+    if (selectedPriceRanges.length > 0) {
+      const limits = selectedPriceRanges.map(range => {
+        if (range.includes('299')) return 299;
+        if (range.includes('499')) return 499;
+        if (range.includes('999') && !range.includes('9,999')) return 999;
+        if (range.includes('1,999')) return 1999;
+        if (range.includes('4,999')) return 4999;
+        if (range.includes('9,999')) return 9999;
+        return Infinity;
+      });
+      checkboxLimit = Math.max(...limits);
+    }
+    if (p.price > checkboxLimit) return false;
+
+    // Filter by Price Slider
+    if (p.price < sliderPrice[0] || p.price > sliderPrice[1]) return false;
+
     if (selectedSizes.length > 0 && !p.sizes?.some((s) => selectedSizes.includes(s))) return false;
     if (selectedColors.length > 0 && !p.colors?.some((c) => selectedColors.includes(c))) return false;
     return true;
@@ -140,30 +285,156 @@ export default function Collection() {
     : 'All Products';
 
   // Active filter count
-  const activeFilterCount = selectedCategories.length + selectedDepartments.length + selectedSizes.length +
-    (priceRange[0] > 0 || priceRange[1] < 10000 ? 1 : 0);
+  const activeFilterCount = selectedCategories.length + selectedDepartments.length +
+    selectedPriceRanges.length + (sliderPrice[0] > 0 || sliderPrice[1] < 50000 ? 1 : 0);
 
-  // Filter sheet sections
-  const filterSections = [
-    {
-      id: 'department',
-      title: 'Department',
-      options: ['Men', 'Women', 'Unisex'].map((d) => ({ label: d, value: d })),
-      selectedValues: selectedDepartments,
-      onToggle: toggleDepartment,
-    },
-    {
-      id: 'category',
-      title: 'Category',
-      options: allCategories.slice(0, 15).map((c) => ({
-        label: c,
-        value: c,
-        count: products.filter((p) => p.category === c).length,
-      })),
-      selectedValues: selectedCategories,
-      onToggle: toggleCategory,
-    },
-  ];
+  // Render unified Filter Controls panel
+  const renderFilterControls = () => {
+    const allSubCategories = categories.flatMap(cat => cat.children || []);
+    
+    return (
+      <div className="space-y-6">
+        {/* Sub-categories Section */}
+        <div>
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+            Categories
+          </h3>
+          {isCategoriesLoading ? (
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse" />
+              <div className="h-4 bg-gray-200 rounded w-5/6 animate-pulse" />
+              <div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse" />
+            </div>
+          ) : allSubCategories.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">No sub-categories found.</p>
+          ) : (
+            <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+              {allSubCategories.map((sub) => {
+                const isChecked = selectedCategories.includes(sub.name);
+                const count = products.filter(p => {
+                  const resolved = resolveProductCategory(p);
+                  return resolved.subCategory === sub.name;
+                }).length;
+
+                return (
+                  <label key={sub.id} className="flex items-center gap-2.5 text-xs text-gray-700 font-semibold cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleCategory(sub.name)}
+                      className="w-4 h-4 rounded border-gray-300 text-[#0C831F] focus:ring-[#0C831F] accent-[#0C831F] cursor-pointer"
+                    />
+                    <span className="group-hover:text-gray-900 transition-colors flex-1 truncate">
+                      {sub.name}
+                    </span>
+                    <span className="text-gray-400 font-normal">
+                      ({count})
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <hr className="border-gray-100" />
+
+        {/* Price Range Checkboxes Section */}
+        <div>
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+            Price Range
+          </h3>
+          <div className="space-y-2.5">
+            {[
+              'Under ₹299',
+              'Under ₹499',
+              'Under ₹999',
+              'Under ₹1,999',
+              'Under ₹4,999',
+              'Under ₹9,999'
+            ].map((range) => {
+              const isChecked = selectedPriceRanges.includes(range);
+              return (
+                <label key={range} className="flex items-center gap-2.5 text-xs text-gray-700 font-semibold cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => {
+                      const next = isChecked
+                        ? selectedPriceRanges.filter((r) => r !== range)
+                        : [...selectedPriceRanges, range];
+                      setSelectedPriceRanges(next);
+                      setCurrentPage(1);
+                    }}
+                    className="w-4 h-4 rounded border-gray-300 text-[#0C831F] focus:ring-[#0C831F] accent-[#0C831F] cursor-pointer"
+                  />
+                  <span className="group-hover:text-gray-900 transition-colors">
+                    {range}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        <hr className="border-gray-100" />
+
+        {/* Price Slider Section */}
+        <div>
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+            Price Slider
+          </h3>
+          <div className="flex justify-between items-center text-xs font-bold text-[#0C831F] mb-4 bg-[#E8F5E9] px-2.5 py-1.5 rounded-lg border border-[#C8E6C9]">
+            <span>Min: ₹{sliderPrice[0].toLocaleString('en-IN')}</span>
+            <span>Max: ₹{sliderPrice[1].toLocaleString('en-IN')}</span>
+          </div>
+
+          <div className="relative w-full h-2 bg-gray-200 rounded-lg mt-4 mb-6">
+            {/* Highlighted track */}
+            <div
+              className="absolute h-2 bg-[#0C831F] rounded"
+              style={{
+                left: `${(sliderPrice[0] / 50000) * 100}%`,
+                right: `${100 - (sliderPrice[1] / 50000) * 100}%`
+              }}
+            />
+            <input
+              type="range"
+              min="0"
+              max="50000"
+              step="100"
+              value={sliderPrice[0]}
+              onChange={(e) => {
+                const value = Math.min(Number(e.target.value), sliderPrice[1] - 500);
+                setSliderPrice([value, sliderPrice[1]]);
+                updateURL(selectedCategories, value, sliderPrice[1]);
+              }}
+              className="absolute pointer-events-none appearance-none w-full h-2 bg-transparent top-0 left-0 dual-slider-input outline-none"
+              style={{ zIndex: sliderPrice[0] > 40000 ? 5 : 3 }}
+            />
+            <input
+              type="range"
+              min="0"
+              max="50000"
+              step="100"
+              value={sliderPrice[1]}
+              onChange={(e) => {
+                const value = Math.max(Number(e.target.value), sliderPrice[0] + 500);
+                setSliderPrice([sliderPrice[0], value]);
+                updateURL(selectedCategories, sliderPrice[0], value);
+              }}
+              className="absolute pointer-events-none appearance-none w-full h-2 bg-transparent top-0 left-0 dual-slider-input outline-none"
+              style={{ zIndex: 4 }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] text-gray-400 font-bold">
+            <span>₹0</span>
+            <span>₹50,000</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="bg-[#F8F8F8] min-h-screen">
@@ -205,9 +476,10 @@ export default function Collection() {
 
           {/* Filter & Sort buttons */}
           <div className="flex gap-1.5 flex-shrink-0">
+            {/* Mobile-only Filter Button */}
             <button
               onClick={() => setIsFilterSheetOpen(true)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+              className={`md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
                 activeFilterCount > 0
                   ? 'bg-[#0C831F] text-white border-[#0C831F]'
                   : 'bg-white text-gray-700 border-[#E8E8E8] hover:border-[#0C831F]'
@@ -251,7 +523,7 @@ export default function Collection() {
 
         {/* ── Active filter chips ────────────────────── */}
         {activeFilterCount > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-3">
+          <div className="flex flex-wrap gap-1.5 mb-4">
             {selectedDepartments.map((d) => (
               <button key={d} onClick={() => toggleDepartment(d)} className="flex items-center gap-1 bg-[#E8F5E9] text-[#0C831F] text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-[#C8E6C9] transition-colors">
                 {d} <X className="w-3 h-3" />
@@ -262,96 +534,127 @@ export default function Collection() {
                 {c} <X className="w-3 h-3" />
               </button>
             ))}
+            {selectedPriceRanges.map((r) => (
+              <button key={r} onClick={() => setSelectedPriceRanges(prev => prev.filter(x => x !== r))} className="flex items-center gap-1 bg-[#E8F5E9] text-[#0C831F] text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-[#C8E6C9] transition-colors">
+                {r} <X className="w-3 h-3" />
+              </button>
+            ))}
+            {(sliderPrice[0] > 0 || sliderPrice[1] < 50000) && (
+              <button onClick={() => { setSliderPrice([0, 50000]); updateURL(selectedCategories, 0, 50000); }} className="flex items-center gap-1 bg-[#E8F5E9] text-[#0C831F] text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-[#C8E6C9] transition-colors">
+                ₹{sliderPrice[0]} - ₹{sliderPrice[1]} <X className="w-3 h-3" />
+              </button>
+            )}
             <button onClick={clearAllFilters} className="text-xs font-semibold text-[#E53935] px-2 py-1 hover:underline">
               Clear all
             </button>
           </div>
         )}
 
-        {/* ── Product grid ───────────────────────────── */}
-        {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
-            {Array.from({ length: 20 }).map((_, i) => <ProductCardSkeleton key={i} />)}
-          </div>
-        ) : error ? (
-          <div className="flex justify-center py-20">
-            <ErrorState message={error} onRetry={() => window.location.reload()} />
-          </div>
-        ) : paginatedProducts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="text-5xl mb-4">🔍</div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">No products found</h3>
-            <p className="text-sm text-gray-500 max-w-sm mb-6">
-              We couldn't find anything matching your filters. Try adjusting them.
-            </p>
-            <button
-              onClick={clearAllFilters}
-              className="bg-[#0C831F] text-white text-sm font-bold px-6 py-2.5 rounded-xl hover:bg-[#0A6B19] transition-colors"
-            >
-              Clear All Filters
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
-            {paginatedProducts.map((product) => (
-              <BlinkitProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        )}
-
-        {/* ── Pagination ─────────────────────────────── */}
-        {!isLoading && totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-8 pb-4">
-            <button
-              onClick={() => { setCurrentPage(Math.max(1, currentPage - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              disabled={currentPage === 1}
-              className="w-9 h-9 flex items-center justify-center rounded-xl border border-[#E8E8E8] bg-white text-gray-600 disabled:opacity-40 hover:border-[#0C831F] hover:text-[#0C831F] transition-colors"
-            >
-              ‹
-            </button>
-            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-              const page = totalPages <= 5 ? i + 1 : Math.max(1, currentPage - 2) + i;
-              if (page > totalPages) return null;
-              return (
-                <button
-                  key={page}
-                  onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-semibold border transition-colors ${
-                    currentPage === page
-                      ? 'bg-[#0C831F] text-white border-[#0C831F]'
-                      : 'bg-white text-gray-700 border-[#E8E8E8] hover:border-[#0C831F] hover:text-[#0C831F]'
-                  }`}
-                >
-                  {page}
+        {/* ── Layout Grid ───────────────────────────── */}
+        <div className="flex gap-6 items-start">
+          {/* Left Sidebar filter layout - visible on desktop and tablet, hidden on mobile */}
+          <div className="hidden md:block w-64 flex-shrink-0 bg-white rounded-2xl border border-gray-100 p-5 sticky top-[calc(4rem+2.5rem)] max-h-[80vh] overflow-y-auto custom-scrollbar shadow-sm">
+            <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+              <span className="text-sm font-bold text-gray-900">Filters</span>
+              {activeFilterCount > 0 && (
+                <button onClick={clearAllFilters} className="text-xs font-bold text-[#E53935] hover:underline">
+                  Clear All
                 </button>
-              );
-            })}
-            <button
-              onClick={() => { setCurrentPage(Math.min(totalPages, currentPage + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              disabled={currentPage === totalPages}
-              className="w-9 h-9 flex items-center justify-center rounded-xl border border-[#E8E8E8] bg-white text-gray-600 disabled:opacity-40 hover:border-[#0C831F] hover:text-[#0C831F] transition-colors"
-            >
-              ›
-            </button>
+              )}
+            </div>
+            {renderFilterControls()}
           </div>
-        )}
 
-        {/* ── Result summary ─────────────────────────── */}
-        {!isLoading && sortedProducts.length > 0 && (
-          <p className="text-center text-xs text-gray-400 mb-6">
-            Showing {Math.min(currentPage * PAGE_SIZE, sortedProducts.length)} of {sortedProducts.length} products
-          </p>
-        )}
+          {/* Product grid / list */}
+          <div className="flex-1">
+            {isLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                {Array.from({ length: 12 }).map((_, i) => <ProductCardSkeleton key={i} />)}
+              </div>
+            ) : error ? (
+              <div className="flex justify-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <ErrorState message={error} onRetry={() => window.location.reload()} />
+              </div>
+            ) : paginatedProducts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="text-5xl mb-4">🔍</div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">No products found</h3>
+                <p className="text-sm text-gray-500 max-w-sm mb-6 px-4">
+                  We couldn't find anything matching your filters. Try adjusting them.
+                </p>
+                <button
+                  onClick={clearAllFilters}
+                  className="bg-[#0C831F] text-white text-sm font-bold px-6 py-2.5 rounded-xl hover:bg-[#0A6B19] transition-colors"
+                >
+                  Clear All Filters
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                {paginatedProducts.map((product) => (
+                  <BlinkitProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            )}
+
+            {/* ── Pagination ─────────────────────────────── */}
+            {!isLoading && totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-8 pb-4">
+                <button
+                  onClick={() => { setCurrentPage(Math.max(1, currentPage - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  disabled={currentPage === 1}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-[#E8E8E8] bg-white text-gray-600 disabled:opacity-40 hover:border-[#0C831F] hover:text-[#0C831F] transition-colors"
+                >
+                  ‹
+                </button>
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  const page = totalPages <= 5 ? i + 1 : Math.max(1, currentPage - 2) + i;
+                  if (page > totalPages) return null;
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                      className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-semibold border transition-colors ${
+                        currentPage === page
+                          ? 'bg-[#0C831F] text-white border-[#0C831F]'
+                          : 'bg-white text-gray-700 border-[#E8E8E8] hover:border-[#0C831F] hover:text-[#0C831F]'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => { setCurrentPage(Math.min(totalPages, currentPage + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  disabled={currentPage === totalPages}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl border border-[#E8E8E8] bg-white text-gray-600 disabled:opacity-40 hover:border-[#0C831F] hover:text-[#0C831F] transition-colors"
+                >
+                  ›
+                </button>
+              </div>
+            )}
+
+            {/* ── Result summary ─────────────────────────── */}
+            {!isLoading && sortedProducts.length > 0 && (
+              <p className="text-center text-xs text-gray-400 mt-4 mb-6">
+                Showing {Math.min(currentPage * PAGE_SIZE, sortedProducts.length)} of {sortedProducts.length} products
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* ── Filter bottom sheet ────────────────────── */}
+      {/* ── Filter bottom sheet drawer for mobile ────────────────────── */}
       <FilterBottomSheet
         isOpen={isFilterSheetOpen}
         onClose={() => setIsFilterSheetOpen(false)}
-        sections={filterSections}
         onClearAll={clearAllFilters}
+        onApply={() => setIsFilterSheetOpen(false)}
+        hasActiveFilters={activeFilterCount > 0}
         totalResults={filteredProducts.length}
-      />
+      >
+        {renderFilterControls()}
+      </FilterBottomSheet>
     </div>
   );
 }
