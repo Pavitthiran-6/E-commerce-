@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getCategoriesTree } from '../services/categoryService';
 import { getAllProductsPaged } from '../services/productService';
+import { getSynonyms } from '../services/searchService';
+import type { SearchSynonym } from '../services/searchService';
 import type { Product } from '../types/product';
 
 export interface FlatCategory {
@@ -20,6 +22,7 @@ export interface SearchSuggestions {
 export function useCategorySearch() {
   const [flatCategories, setFlatCategories] = useState<FlatCategory[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [synonyms, setSynonyms] = useState<SearchSynonym[]>([]);
   const [suggestions, setSuggestions] = useState<SearchSuggestions>({ categories: [], products: [] });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -32,10 +35,15 @@ export function useCategorySearch() {
       getAllProductsPaged(0, 200).catch((err) => {
         console.error('Failed to load products list', err);
         return { content: [], totalElements: 0 };
+      }),
+      getSynonyms().catch((err) => {
+        console.error('Failed to load synonyms list', err);
+        return [];
       })
     ])
-      .then(([tree, productsRes]) => {
+      .then(([tree, productsRes, synonymsList]) => {
         if (!active) return;
+        setSynonyms(synonymsList);
         
         // Flatten categories
         const flat: FlatCategory[] = [];
@@ -80,9 +88,30 @@ export function useCategorySearch() {
         return;
       }
 
+      // Gather synonym expansions
+      const searchTerms = [trimmed];
+
+      // 1. Exact match checking
+      const exactSyns = synonyms.filter(s => s.keyword.toLowerCase() === trimmed);
+      exactSyns.forEach(s => searchTerms.push(s.mappedTerm.toLowerCase()));
+
+      // 2. Phrase tokens checking
+      const tokens = trimmed.split(/\s+/);
+      if (tokens.length > 1) {
+        for (const token of tokens) {
+          const tokenSyns = synonyms.filter(s => s.keyword.toLowerCase() === token);
+          tokenSyns.forEach(s => {
+            const expanded = trimmed.replace(token, s.mappedTerm.toLowerCase());
+            searchTerms.push(expanded);
+          });
+        }
+      }
+
       // 1. Filter categories:
-      // Include any category matching query. If parent matches, include all children. If child matches, include parent and all siblings.
-      const directMatches = flatCategories.filter(cat => cat.name.toLowerCase().includes(trimmed));
+      // Include any category matching query or synonyms. If parent matches, include all children. If child matches, include parent and all siblings.
+      const directMatches = flatCategories.filter(cat => 
+        searchTerms.some(term => cat.name.toLowerCase().includes(term))
+      );
       const matchedCategoryIds = new Set<number>();
       const matchedCategories: FlatCategory[] = [];
 
@@ -108,16 +137,18 @@ export function useCategorySearch() {
       }
 
       // 2. Filter products:
-      // Product name, brand, keywords, tags, description, category, subcategory match.
+      // Product name, brand, keywords, tags, description, category, subcategory matches.
       const matchedProducts = allProducts
         .map((prod) => {
           let score = 0;
-          const nameMatches = prod.name.toLowerCase().includes(trimmed);
-          const brandMatches = prod.brand && prod.brand.toLowerCase().includes(trimmed);
-          const keywordMatches = prod.keywords && prod.keywords.toLowerCase().includes(trimmed);
-          const tagMatches = prod.tags && prod.tags.some(tag => tag.toLowerCase().includes(trimmed));
-          const descMatches = (prod.description && prod.description.toLowerCase().includes(trimmed)) ||
-                              (prod.shortDescription && prod.shortDescription.toLowerCase().includes(trimmed));
+          const nameMatches = searchTerms.some(term => prod.name.toLowerCase().includes(term));
+          const brandMatches = prod.brand && searchTerms.some(term => prod.brand.toLowerCase().includes(term));
+          const keywordMatches = prod.keywords && searchTerms.some(term => prod.keywords!.toLowerCase().includes(term));
+          const tagMatches = prod.tags && prod.tags.some(tag => searchTerms.some(term => tag.toLowerCase().includes(term)));
+          const descMatches = searchTerms.some(term => 
+            (prod.description && prod.description.toLowerCase().includes(term)) ||
+            (prod.shortDescription && prod.shortDescription.toLowerCase().includes(term))
+          );
 
           // Resolve main and sub categories
           const pCatName = (prod.categoryName || prod.category || '').toLowerCase();
@@ -137,8 +168,8 @@ export function useCategorySearch() {
             mainCategoryName = pCatName;
           }
 
-          const categoryMatches = mainCategoryName && mainCategoryName.toLowerCase().includes(trimmed);
-          const subCategoryMatches = subCategoryName && subCategoryName.toLowerCase().includes(trimmed);
+          const categoryMatches = mainCategoryName && searchTerms.some(term => mainCategoryName.toLowerCase().includes(term));
+          const subCategoryMatches = subCategoryName && searchTerms.some(term => subCategoryName.toLowerCase().includes(term));
 
           if (nameMatches) score = Math.max(score, 100);
           if (brandMatches) score = Math.max(score, 80);
@@ -174,7 +205,7 @@ export function useCategorySearch() {
         products: finalProducts,
       });
     },
-    [flatCategories, allProducts]
+    [flatCategories, allProducts, synonyms]
   );
 
   return { suggestions, searchCategories, setSuggestions, isLoading };

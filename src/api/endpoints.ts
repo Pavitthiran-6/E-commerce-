@@ -59,4 +59,10 @@ export const ENDPOINTS = {
   // Admin Hero
   ADMIN_HERO: '/api/admin/hero',
   ADMIN_HERO_DELETE_CARD: (id: number | string) => `/api/admin/hero/cards/${id}`,
+
+  // Search Analytics & Synonyms
+  SEARCH_TRENDING: '/api/search/trending',
+  SYNONYMS: '/api/synonyms',
+  ADMIN_SYNONYMS: '/api/admin/synonyms',
+  ADMIN_SYNONYM_BY_ID: (id: number | string) => `/api/admin/synonyms/${id}`,
 };

@@ -31,6 +31,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final ProductVariantRepository productVariantRepository;
+    private final SearchService searchService;
 
     public Page<Product> getAll(Pageable pageable) {
         return productRepository.findByIsActiveTrue(pageable);
@@ -41,11 +42,15 @@ public class ProductService {
     }
 
     public Page<Product> search(String query, Pageable pageable) {
-        return productRepository.searchProducts(query, pageable);
+        searchService.recordSearch(query);
+        String expandedTerms = searchService.getExpandedTerms(query);
+        return productRepository.searchProducts(expandedTerms, pageable);
     }
 
     public Page<ProductResponse> searchResponses(String query, Pageable pageable) {
-        return productRepository.searchProducts(query, pageable).map(p -> toResponse(p, false));
+        searchService.recordSearch(query);
+        String expandedTerms = searchService.getExpandedTerms(query);
+        return productRepository.searchProducts(expandedTerms, pageable).map(p -> toResponse(p, false));
     }
 
     public Product getById(UUID id) {

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import { useCategorySearch } from '../../hooks/useCategorySearch';
+import { getTrendingSearches } from '../../services/searchService';
 
 interface BlinkitSearchBarProps {
   className?: string;
@@ -12,9 +13,17 @@ export default function BlinkitSearchBar({ className = '', placeholder = 'Search
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [trending, setTrending] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { suggestions, searchCategories } = useCategorySearch();
+
+  // Load trending searches on focus / mount
+  useEffect(() => {
+    getTrendingSearches(8)
+      .then(list => setTrending(list.map(item => item.searchTerm)))
+      .catch(err => console.error('Failed to load trending searches', err));
+  }, [isFocused]);
 
   // Debounced search logic
   useEffect(() => {
@@ -107,58 +116,83 @@ export default function BlinkitSearchBar({ className = '', placeholder = 'Search
         </div>
 
         {/* Suggestion Dropdown */}
-        {isFocused && hasSuggestions && (
-          <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl border border-gray-100 shadow-xl z-50 overflow-hidden py-1 max-h-[380px] overflow-y-auto custom-scrollbar">
-            {suggestions.categories.length > 0 && (
-              <div>
-                <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">Categories</div>
-                {suggestions.categories.map((cat) => (
-                  <button
-                    key={`cat-${cat.id}`}
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      if (cat.isMain) {
-                        navigate(`/collection?mainCategory=${cat.slug}`);
-                      } else {
-                        navigate(`/collection?category=${cat.slug}`);
-                      }
-                      setQuery('');
-                      setIsFocused(false);
-                      inputRef.current?.blur();
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
-                  >
-                    <span className="text-gray-400">📁</span>
-                    <span>{cat.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {suggestions.products.length > 0 && (
-              <div className="border-t border-gray-100">
-                <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">Products</div>
-                {suggestions.products.map((prod) => (
-                  <button
-                    key={`prod-${prod.id}`}
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      navigate(`/collection?search=${encodeURIComponent(prod.name)}`);
-                      setQuery('');
-                      setIsFocused(false);
-                      inputRef.current?.blur();
-                    }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
-                  >
-                    <span className="text-gray-400">🔍</span>
-                    <span>{prod.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {isFocused && (query.trim() === '' ? (
+          trending.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl border border-gray-100 shadow-xl z-50 overflow-hidden py-1 max-h-[380px] overflow-y-auto custom-scrollbar">
+              <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">🔥 Trending Searches</div>
+              {trending.map((term, index) => (
+                <button
+                  key={`trending-${index}`}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setQuery(term);
+                    navigate(`/collection?search=${encodeURIComponent(term)}`);
+                    setIsFocused(false);
+                    inputRef.current?.blur();
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
+                >
+                  <span className="text-gray-400">🔥</span>
+                  <span className="capitalize">{term}</span>
+                </button>
+              ))}
+            </div>
+          )
+        ) : (
+          hasSuggestions && (
+            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl border border-gray-100 shadow-xl z-50 overflow-hidden py-1 max-h-[380px] overflow-y-auto custom-scrollbar">
+              {suggestions.categories.length > 0 && (
+                <div>
+                  <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">Categories</div>
+                  {suggestions.categories.map((cat) => (
+                    <button
+                      key={`cat-${cat.id}`}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        if (cat.isMain) {
+                          navigate(`/collection?mainCategory=${cat.slug}`);
+                        } else {
+                          navigate(`/collection?category=${cat.slug}`);
+                        }
+                        setQuery('');
+                        setIsFocused(false);
+                        inputRef.current?.blur();
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
+                    >
+                      <span className="text-gray-400">📁</span>
+                      <span>{cat.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {suggestions.products.length > 0 && (
+                <div className="border-t border-gray-100">
+                  <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">Products</div>
+                  {suggestions.products.map((prod) => (
+                    <button
+                      key={`prod-${prod.id}`}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        navigate(`/collection?search=${encodeURIComponent(prod.name)}`);
+                        setQuery('');
+                        setIsFocused(false);
+                        inputRef.current?.blur();
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
+                    >
+                      <span className="text-gray-400">🔍</span>
+                      <span>{prod.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        ))}
 
         {/* Empty Search Results */}
         {isFocused && query.trim() && !hasSuggestions && (

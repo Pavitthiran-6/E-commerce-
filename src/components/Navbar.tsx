@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation, Link, useNavigate } from 'react-router-dom';
 import { useCategorySearch } from '../hooks/useCategorySearch';
+import { getTrendingSearches } from '../services/searchService';
 import { Heart, ShoppingBag, X, Search, Menu, MapPin } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -24,9 +25,17 @@ export default function Navbar() {
 
   const [desktopSearchFocused, setDesktopSearchFocused] = useState(false);
   const desktopInputRef = useRef<HTMLInputElement>(null);
+  const [trending, setTrending] = useState<string[]>([]);
 
   const { suggestions, searchCategories } = useCategorySearch();
   const hasSuggestions = suggestions.categories.length > 0 || suggestions.products.length > 0;
+
+  // Load trending searches on focus or overlay open
+  useEffect(() => {
+    getTrendingSearches(8)
+      .then(list => setTrending(list.map(item => item.searchTerm)))
+      .catch(err => console.error('Failed to load trending searches', err));
+  }, [desktopSearchFocused, searchOpen]);
 
   // Debounced search logic for category autocomplete
   useEffect(() => {
@@ -152,58 +161,83 @@ export default function Navbar() {
               </div>
 
               {/* Category Suggestions Dropdown */}
-              {desktopSearchFocused && hasSuggestions && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl border border-gray-100 shadow-xl z-50 overflow-hidden py-1 max-h-[380px] overflow-y-auto custom-scrollbar">
-                  {suggestions.categories.length > 0 && (
-                    <div>
-                      <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">Categories</div>
-                      {suggestions.categories.map((cat) => (
-                        <button
-                          key={`cat-${cat.id}`}
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            if (cat.isMain) {
-                              navigate(`/collection?mainCategory=${cat.slug}`);
-                            } else {
-                              navigate(`/collection?category=${cat.slug}`);
-                            }
-                            setSearchQuery('');
-                            setDesktopSearchFocused(false);
-                            desktopInputRef.current?.blur();
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
-                        >
-                          <span className="text-gray-400">📁</span>
-                          <span>{cat.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {suggestions.products.length > 0 && (
-                    <div className="border-t border-gray-100">
-                      <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">Products</div>
-                      {suggestions.products.map((prod) => (
-                        <button
-                          key={`prod-${prod.id}`}
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            navigate(`/collection?search=${encodeURIComponent(prod.name)}`);
-                            setSearchQuery('');
-                            setDesktopSearchFocused(false);
-                            desktopInputRef.current?.blur();
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
-                        >
-                          <span className="text-gray-400">🔍</span>
-                          <span>{prod.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              {desktopSearchFocused && (searchQuery.trim() === '' ? (
+                trending.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl border border-gray-100 shadow-xl z-50 overflow-hidden py-1 max-h-[380px] overflow-y-auto custom-scrollbar">
+                    <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">🔥 Trending Searches</div>
+                    {trending.map((term, index) => (
+                      <button
+                        key={`trending-desk-${index}`}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSearchQuery(term);
+                          navigate(`/collection?search=${encodeURIComponent(term)}`);
+                          setDesktopSearchFocused(false);
+                          desktopInputRef.current?.blur();
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
+                      >
+                        <span className="text-gray-400">🔥</span>
+                        <span className="capitalize">{term}</span>
+                      </button>
+                    ))}
+                  </div>
+                )
+              ) : (
+                hasSuggestions && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl border border-gray-100 shadow-xl z-50 overflow-hidden py-1 max-h-[380px] overflow-y-auto custom-scrollbar">
+                    {suggestions.categories.length > 0 && (
+                      <div>
+                        <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">Categories</div>
+                        {suggestions.categories.map((cat) => (
+                          <button
+                            key={`cat-${cat.id}`}
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              if (cat.isMain) {
+                                navigate(`/collection?mainCategory=${cat.slug}`);
+                              } else {
+                                navigate(`/collection?category=${cat.slug}`);
+                              }
+                              setSearchQuery('');
+                              setDesktopSearchFocused(false);
+                              desktopInputRef.current?.blur();
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
+                          >
+                            <span className="text-gray-400">📁</span>
+                            <span>{cat.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {suggestions.products.length > 0 && (
+                      <div className="border-t border-gray-100">
+                        <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">Products</div>
+                        {suggestions.products.map((prod) => (
+                          <button
+                            key={`prod-${prod.id}`}
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              navigate(`/collection?search=${encodeURIComponent(prod.name)}`);
+                              setSearchQuery('');
+                              setDesktopSearchFocused(false);
+                              desktopInputRef.current?.blur();
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
+                          >
+                            <span className="text-gray-400">🔍</span>
+                            <span>{prod.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              ))}
 
               {/* Empty Search Results */}
               {desktopSearchFocused && searchQuery.trim() && !hasSuggestions && (
@@ -398,22 +432,46 @@ export default function Navbar() {
                 No matching products or categories found.
               </div>
             ) : (
-              <div className="p-4 text-sm text-gray-500">
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Popular Categories</p>
-                <div className="flex flex-wrap gap-2">
-                  {['Men', 'Women', 'Footwear', 'Electronics', 'Sale'].map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => {
-                        navigate(`/collection?search=${encodeURIComponent(cat)}`);
-                        setSearchOpen(false);
-                        setSearchQuery('');
-                      }}
-                      className="px-3 py-1.5 bg-[#F2F2F2] rounded-xl text-sm font-medium text-gray-700 hover:bg-[#E8F5E9] hover:text-[#0C831F] transition-colors"
-                    >
-                      {cat}
-                    </button>
-                  ))}
+              <div className="p-4 space-y-5 text-sm text-gray-500">
+                {trending.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">🔥 Trending Searches</p>
+                    <div className="space-y-1">
+                      {trending.map((term, index) => (
+                        <button
+                          key={`trending-mob-${index}`}
+                          type="button"
+                          onClick={() => {
+                            setSearchQuery(term);
+                            navigate(`/collection?search=${encodeURIComponent(term)}`);
+                            setSearchOpen(false);
+                          }}
+                          className="w-full text-left py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium border-b border-gray-50"
+                        >
+                          <span className="text-gray-400">🔥</span>
+                          <span className="capitalize">{term}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Popular Categories</p>
+                  <div className="flex flex-wrap gap-2">
+                    {['Men', 'Women', 'Footwear', 'Electronics', 'Sale'].map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => {
+                          navigate(`/collection?search=${encodeURIComponent(cat)}`);
+                          setSearchOpen(false);
+                          setSearchQuery('');
+                        }}
+                        className="px-3 py-1.5 bg-[#F2F2F2] rounded-xl text-sm font-medium text-gray-700 hover:bg-[#E8F5E9] hover:text-[#0C831F] transition-colors"
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
