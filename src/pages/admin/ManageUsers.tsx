@@ -796,7 +796,7 @@ export default function ManageUsers() {
       {/* ── User Details Modal / Drawer ── */}
       {detailsUserId && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9997] flex items-end md:items-center justify-center p-0 md:p-6">
-          <div className="w-full max-h-[90vh] md:max-w-5xl bg-white rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-in-bottom md:animate-fade-in border border-gray-100">
+          <div className="w-full max-h-[90vh] min-h-0 md:max-w-5xl bg-white rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-in-bottom md:animate-fade-in border border-gray-100">
             
             {/* Header */}
             <div className="px-6 py-4 border-b border-gray-150 flex items-center justify-between bg-gray-50/50 flex-shrink-0">
@@ -822,7 +822,10 @@ export default function ManageUsers() {
             </div>
 
             {/* Scrollable Body */}
-            <div className="flex-1 overflow-y-auto max-h-[calc(90vh-160px)] p-6 space-y-6 bg-gray-50/20 custom-scrollbar">
+            <div 
+              className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6 bg-gray-50/20 custom-scrollbar"
+              style={{ maxHeight: 'calc(90vh - 160px)' }}
+            >
               {isDetailsLoading ? (
                 <div className="space-y-6">
                   {/* Skeletal layout matching columns */}
