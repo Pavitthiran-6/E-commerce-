@@ -331,14 +331,43 @@ public class AdminController {
     // ---- 5D: USER MANAGEMENT (Admin) ----
     @GetMapping("/users")
     @Operation(summary = "Get all registered users with metrics (paginated & searchable)")
-    public ResponseEntity<ApiResponse<Page<UserAdminResponse>>> getAllUsers(
+    public ResponseEntity<ApiResponse<com.belledonne.ecommerce.dto.response.UserManagementResponse>> getAllUsers(
         @RequestParam(defaultValue = "") String search,
+        @RequestParam(required = false) String role,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "15") int size) {
 
+        Role roleEnum = null;
+        if (role != null && !role.isBlank()) {
+            try {
+                roleEnum = Role.valueOf(role.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid role
+            }
+        }
+
         Pageable pageable = PageRequest.of(page, size);
-        Page<UserAdminResponse> users = userRepository.findUsersWithMetrics(search.trim(), pageable);
-        return ResponseEntity.ok(ApiResponse.success("Users fetched successfully", users));
+        Page<UserAdminResponse> usersPage = userRepository.findUsersWithMetrics(search.trim(), roleEnum, pageable);
+
+        long totalCustomers = userRepository.countByRole(Role.ROLE_USER);
+        long activeUsers = userRepository.countByIsBlockedFalseAndRole(Role.ROLE_USER);
+        long blockedUsers = userRepository.countByIsBlockedTrueAndRole(Role.ROLE_USER);
+        long totalAdministrators = userRepository.countByRole(Role.ROLE_ADMIN);
+
+        com.belledonne.ecommerce.dto.response.UserManagementResponse response =
+            com.belledonne.ecommerce.dto.response.UserManagementResponse.builder()
+                .content(usersPage.getContent())
+                .totalPages(usersPage.getTotalPages())
+                .totalElements(usersPage.getTotalElements())
+                .number(usersPage.getNumber())
+                .size(usersPage.getSize())
+                .totalCustomers(totalCustomers)
+                .activeUsers(activeUsers)
+                .blockedUsers(blockedUsers)
+                .totalAdministrators(totalAdministrators)
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success("Users fetched successfully", response));
     }
 
     @GetMapping("/users/{id}")
@@ -429,6 +458,10 @@ public class AdminController {
         User user = userRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
 
+        if (user.getRole() == Role.ROLE_ADMIN) {
+            throw new BadRequestException("Admin accounts cannot be blocked or protected");
+        }
+
         boolean currentlyBlocked = user.getIsBlocked() != null && user.getIsBlocked();
         if (currentlyBlocked) {
             user.setIsBlocked(false);
@@ -441,6 +474,20 @@ public class AdminController {
         userRepository.save(user);
         String action = user.getIsBlocked() ? "blocked" : "unblocked";
         return ResponseEntity.ok(ApiResponse.success("User successfully " + action));
+    }
+
+    @DeleteMapping("/users/{id}")
+    @Operation(summary = "Delete a user account")
+    public ResponseEntity<ApiResponse<?>> deleteUser(@PathVariable UUID id) {
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+
+        if (user.getRole() == Role.ROLE_ADMIN) {
+            throw new BadRequestException("Admin accounts cannot be deleted");
+        }
+
+        userRepository.delete(user);
+        return ResponseEntity.ok(ApiResponse.success("User account deleted successfully"));
     }
 
     @PutMapping("/users/{id}/role")

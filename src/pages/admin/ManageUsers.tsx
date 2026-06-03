@@ -15,7 +15,8 @@ import {
   Hash, 
   UserCheck, 
   DollarSign, 
-  List 
+  List,
+  Trash2
 } from 'lucide-react';
 
 interface User {
@@ -135,10 +136,23 @@ export default function ManageUsers() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
 
+  // User statistics states
+  const [totalCustomers, setTotalCustomers] = useState(0);
+  const [totalAdministrators, setTotalAdministrators] = useState(0);
+  const [activeUsersCount, setActiveUsersCount] = useState(0);
+  const [blockedUsersCount, setBlockedUsersCount] = useState(0);
+
+  // Active role tab state
+  const [activeTab, setActiveTab] = useState<'ROLE_USER' | 'ROLE_ADMIN' | ''>('ROLE_USER');
+
   // Blocking Modal States
   const [blockingUser, setBlockingUser] = useState<User | null>(null);
   const [blockReason, setBlockReason] = useState('');
   const [isSubmittingBlock, setIsSubmittingBlock] = useState(false);
+
+  // Deleting Modal States
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
 
   // Details Modal States
   const [detailsUserId, setDetailsUserId] = useState<string | null>(null);
@@ -156,15 +170,20 @@ export default function ManageUsers() {
   }, [search]);
 
   // Load users from backend
-  const loadUsers = async (p = 0, query = '') => {
+  const loadUsers = async (p = 0, query = '', roleFilter = 'ROLE_USER') => {
     setIsLoading(true);
     setError('');
     try {
-      const res = await axiosInstance.get(`/api/admin/users?page=${p}&size=15&search=${encodeURIComponent(query)}`);
+      const roleParam = roleFilter ? `&role=${roleFilter}` : '';
+      const res = await axiosInstance.get(`/api/admin/users?page=${p}&size=15&search=${encodeURIComponent(query)}${roleParam}`);
       const data = res.data.data;
       setUsers(data.content || []);
       setTotalPages(data.totalPages || 1);
       setTotalElements(data.totalElements || 0);
+      setTotalCustomers(data.totalCustomers || 0);
+      setTotalAdministrators(data.totalAdministrators || 0);
+      setActiveUsersCount(data.activeUsers || 0);
+      setBlockedUsersCount(data.blockedUsers || 0);
     } catch (err) {
       setError('Failed to load registered users. Please make sure the backend is running.');
       console.error(err);
@@ -174,8 +193,34 @@ export default function ManageUsers() {
   };
 
   useEffect(() => {
-    loadUsers(page, debouncedSearch);
-  }, [page, debouncedSearch]);
+    loadUsers(page, debouncedSearch, activeTab);
+  }, [page, debouncedSearch, activeTab]);
+
+  const handleTabChange = (tab: 'ROLE_USER' | 'ROLE_ADMIN' | '') => {
+    setActiveTab(tab);
+    setPage(0);
+  };
+
+  const executeDeleteUser = async (user: User) => {
+    setIsSubmittingDelete(true);
+    try {
+      await axiosInstance.delete(`/api/admin/users/${user.id}`);
+      showToast('User account successfully deleted!', 'success');
+      setDeletingUser(null);
+      
+      // If details modal is open, close it
+      if (detailsUserId === user.id) {
+        setDetailsUserId(null);
+      }
+      
+      loadUsers(page, debouncedSearch, activeTab);
+    } catch (err) {
+      showToast('Failed to delete user account.', 'error');
+      console.error(err);
+    } finally {
+      setIsSubmittingDelete(false);
+    }
+  };
 
   // Fetch full user details when requested
   useEffect(() => {
@@ -267,7 +312,7 @@ export default function ManageUsers() {
         setTimeout(() => setDetailsUserId(user.id), 50);
       }
       
-      loadUsers(page, debouncedSearch);
+      loadUsers(page, debouncedSearch, activeTab);
     } catch (err) {
       showToast('Failed to change user status.', 'error');
       console.error(err);
@@ -318,29 +363,115 @@ export default function ManageUsers() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Users Management</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {totalElements > 0 ? (
-              <>
-                <span className="inline-flex items-center bg-gray-100 text-gray-600 text-xs font-semibold px-2.5 py-0.5 rounded-full mr-1.5">{totalElements}</span>
-                registered accounts
-              </>
-            ) : 'View and manage registered user accounts'}
+          <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5 flex-wrap">
+            <span className="text-gray-400">Customers:</span>
+            <span className="font-semibold text-gray-700">{totalCustomers}</span>
+            <span className="text-gray-300">•</span>
+            <span className="text-gray-400">Administrators:</span>
+            <span className="font-semibold text-gray-700">{totalAdministrators}</span>
+            <span className="text-gray-300">•</span>
+            <span className="text-gray-400">Total Accounts:</span>
+            <span className="font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded-full text-xs">{totalCustomers + totalAdministrators}</span>
           </p>
         </div>
       </div>
 
-      {/* ── Search Input ── */}
-      <div className="relative max-w-sm">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-        </svg>
-        <input
-          type="text"
-          placeholder="Search by name, email, or phone…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all shadow-sm"
-        />
+      {/* ── Quick Stats Grid ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Customers */}
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 text-xl flex-shrink-0">
+            👥
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">Total Customers</p>
+            <p className="text-xl font-black text-gray-900 mt-1.5 leading-none">{totalCustomers}</p>
+          </div>
+        </div>
+
+        {/* Active Customers */}
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 text-xl flex-shrink-0">
+            🟢
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">Active Users</p>
+            <p className="text-xl font-black text-emerald-600 mt-1.5 leading-none">{activeUsersCount}</p>
+          </div>
+        </div>
+
+        {/* Blocked Customers */}
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 text-xl flex-shrink-0">
+            🚫
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">Blocked Users</p>
+            <p className="text-xl font-black text-rose-600 mt-1.5 leading-none">{blockedUsersCount}</p>
+          </div>
+        </div>
+
+        {/* Administrators */}
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="w-12 h-12 rounded-xl bg-amber-50/50 flex items-center justify-center text-amber-600 text-xl flex-shrink-0">
+            👑
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">Administrators</p>
+            <p className="text-xl font-black text-purple-700 mt-1.5 leading-none">{totalAdministrators}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Filter Tabs & Search ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {/* Search */}
+        <div className="relative max-w-sm w-full">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search by name, email, or phone…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all shadow-sm"
+          />
+        </div>
+
+        {/* Tab switcher */}
+        <div className="flex bg-gray-100 p-1 rounded-xl w-fit border border-gray-200/50">
+          <button
+            onClick={() => handleTabChange('ROLE_USER')}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              activeTab === 'ROLE_USER'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            👥 Customers
+          </button>
+          <button
+            onClick={() => handleTabChange('ROLE_ADMIN')}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              activeTab === 'ROLE_ADMIN'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            👑 Administrators
+          </button>
+          <button
+            onClick={() => handleTabChange('')}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              activeTab === ''
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            🌐 All Accounts
+          </button>
+        </div>
       </div>
 
       {/* ── Table Container ── */}
@@ -386,87 +517,119 @@ export default function ManageUsers() {
                     </td>
                   </tr>
                 ) : (
-                  users.map(user => (
-                    <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
-                      {/* Avatar & Name */}
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${getGradient(user.id)} flex items-center justify-center text-[12px] font-black text-white flex-shrink-0 shadow-sm`}>
-                            {getInitials(user.name, user.email)}
+                  users.map(user => {
+                    const isAdmin = user.role === 'ROLE_ADMIN' || user.role === 'ADMIN';
+                    return (
+                      <tr 
+                        key={user.id} 
+                        className={`transition-colors ${
+                          isAdmin 
+                            ? 'bg-purple-50/10 hover:bg-purple-50/20 border-l-2 border-l-purple-500' 
+                            : 'hover:bg-gray-50/50'
+                        }`}
+                      >
+                        {/* Avatar & Name */}
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${
+                              isAdmin ? 'from-amber-400 via-purple-500 to-indigo-600' : getGradient(user.id)
+                            } flex items-center justify-center text-[12px] font-black text-white flex-shrink-0 shadow-sm`}>
+                              {getInitials(user.name, user.email)}
+                            </div>
+                            <p className="font-semibold text-gray-900 text-xs tracking-tight">{user.name || '(No name)'}</p>
                           </div>
-                          <p className="font-semibold text-gray-900 text-xs tracking-tight">{user.name || '(No name)'}</p>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Email */}
-                      <td className="px-5 py-4 text-gray-600 text-xs font-medium">{user.email}</td>
+                        {/* Email */}
+                        <td className="px-5 py-4 text-gray-600 text-xs font-medium">{user.email}</td>
 
-                      {/* Phone */}
-                      <td className="px-5 py-4 text-gray-500 text-xs font-mono">{displayPhone(user.phone)}</td>
+                        {/* Phone */}
+                        <td className="px-5 py-4 text-gray-500 text-xs font-mono">{displayPhone(user.phone)}</td>
 
-                      {/* Role */}
-                      <td className="px-5 py-4">
-                        <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md ${
-                          user.role === 'ROLE_ADMIN' || user.role === 'ADMIN'
-                            ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                            : 'bg-gray-100 text-gray-600 border border-gray-200'
-                        }`}>
-                          {user.role === 'ROLE_ADMIN' || user.role === 'ADMIN' ? 'ADMIN' : 'CUSTOMER'}
-                        </span>
-                      </td>
+                        {/* Role */}
+                        <td className="px-5 py-4">
+                          {isAdmin ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-extrabold px-2.5 py-1 rounded-md bg-gradient-to-r from-amber-100 to-purple-100 text-purple-800 border border-amber-300 shadow-sm">
+                              👑 Administrator
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 border border-gray-200">
+                              CUSTOMER
+                            </span>
+                          )}
+                        </td>
 
-                      {/* Joined */}
-                      <td className="px-5 py-4 text-xs text-gray-400 font-medium">
-                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                      </td>
+                        {/* Joined */}
+                        <td className="px-5 py-4 text-xs text-gray-400 font-medium">
+                          {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                        </td>
 
-                      {/* Status */}
-                      <td className="px-5 py-4">
-                        <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2.5 py-0.5 rounded-full ${
-                          !user.isBlocked
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-150'
-                            : 'bg-red-50 text-red-600 border border-red-150'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${!user.isBlocked ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-                          {!user.isBlocked ? 'Active' : 'Blocked'}
-                        </span>
-                        {user.isBlocked && user.blockedReason && (
-                          <span className="block text-[10px] text-red-400 mt-0.5 italic max-w-[150px] truncate" title={user.blockedReason}>
-                            Reason: {user.blockedReason}
-                          </span>
-                        )}
-                      </td>
+                        {/* Status */}
+                        <td className="px-5 py-4">
+                          {isAdmin ? (
+                            <span className="inline-flex items-center gap-1.5 text-[9px] font-extrabold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-50 to-purple-50 text-purple-700 border border-amber-250 shadow-sm">
+                              👑 Administrator
+                            </span>
+                          ) : (
+                            <>
+                              <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2.5 py-0.5 rounded-full ${
+                                !user.isBlocked
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-150'
+                                  : 'bg-red-50 text-red-600 border border-red-150'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${!user.isBlocked ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                                {!user.isBlocked ? 'Active' : 'Blocked'}
+                              </span>
+                              {user.isBlocked && user.blockedReason && (
+                                <span className="block text-[10px] text-red-400 mt-0.5 italic max-w-[150px] truncate" title={user.blockedReason}>
+                                  Reason: {user.blockedReason}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </td>
 
-                      {/* E-commerce Metrics */}
-                      <td className="px-5 py-4">
-                        <div className="flex flex-col gap-0.5 text-xs text-gray-500 font-medium">
-                          <span className="font-semibold text-gray-800">{user.ordersCount} {user.ordersCount === 1 ? 'Order' : 'Orders'}</span>
-                          <span className="text-[#0C831F] font-bold">{formatSpent(user.totalAmountSpent)} Spent</span>
-                          <span className="text-[10px] text-gray-400">{formatRelativeTime(user.lastLoginAt)}</span>
-                        </div>
-                      </td>
+                        {/* E-commerce Metrics */}
+                        <td className="px-5 py-4">
+                          <div className="flex flex-col gap-0.5 text-xs text-gray-500 font-medium">
+                            <span className="font-semibold text-gray-800">{user.ordersCount} {user.ordersCount === 1 ? 'Order' : 'Orders'}</span>
+                            <span className="text-[#0C831F] font-bold">{formatSpent(user.totalAmountSpent)} Spent</span>
+                            <span className="text-[10px] text-gray-400">{formatRelativeTime(user.lastLoginAt)}</span>
+                          </div>
+                        </td>
 
-                      {/* Actions */}
-                      <td className="px-5 py-4 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => setDetailsUserId(user.id)}
-                          className="text-xs font-bold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 transition-colors shadow-sm mr-2"
-                        >
-                          View Details
-                        </button>
-                        <button
-                          onClick={() => triggerBlockToggle(user)}
-                          className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors shadow-sm ${
-                            user.isBlocked
-                              ? 'text-emerald-700 hover:text-emerald-800 bg-emerald-50/50 hover:bg-emerald-50 border-emerald-200'
-                              : 'text-red-600 hover:text-red-700 bg-red-50/50 hover:bg-red-50 border-red-200'
-                          }`}
-                        >
-                          {user.isBlocked ? 'Unblock' : 'Block'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                        {/* Actions */}
+                        <td className="px-5 py-4 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => setDetailsUserId(user.id)}
+                            className="text-xs font-bold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 transition-colors shadow-sm mr-2"
+                          >
+                            View Details
+                          </button>
+                          {!isAdmin && (
+                            <>
+                              <button
+                                onClick={() => triggerBlockToggle(user)}
+                                className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors shadow-sm mr-2 ${
+                                  user.isBlocked
+                                    ? 'text-emerald-700 hover:text-emerald-800 bg-emerald-50/50 hover:bg-emerald-50 border-emerald-200'
+                                    : 'text-red-600 hover:text-red-700 bg-red-50/50 hover:bg-red-50 border-red-200'
+                                }`}
+                              >
+                                {user.isBlocked ? 'Unblock' : 'Block'}
+                              </button>
+                              <button
+                                onClick={() => setDeletingUser(user)}
+                                className="text-xs font-bold px-3 py-1.5 rounded-xl border border-red-200 text-red-600 hover:text-white bg-red-50/10 hover:bg-red-600 transition-all shadow-sm"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -701,14 +864,20 @@ export default function ManageUsers() {
                         <div>
                           <p className="text-[10px] font-bold text-gray-400 uppercase">Status</p>
                           <div className="mt-1">
-                            <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2.5 py-0.5 rounded-full ${
-                              !details.isBlocked
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-150'
-                                : 'bg-rose-50 text-rose-700 border border-rose-150'
-                            }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${!details.isBlocked ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                              {!details.isBlocked ? 'Active' : 'Blocked'}
-                            </span>
+                            {details.role === 'ROLE_ADMIN' || details.role === 'ADMIN' ? (
+                              <span className="inline-flex items-center gap-1.5 text-[9px] font-extrabold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-50 to-purple-50 text-purple-700 border border-amber-250 shadow-sm">
+                                👑 Administrator
+                              </span>
+                            ) : (
+                              <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2.5 py-0.5 rounded-full ${
+                                !details.isBlocked
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-150'
+                                  : 'bg-rose-50 text-rose-700 border border-rose-150'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${!details.isBlocked ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                                {!details.isBlocked ? 'Active' : 'Blocked'}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div>
@@ -930,7 +1099,7 @@ export default function ManageUsers() {
               ) : null}
             </div>
 
-            {/* Block Action Button inside detail Modal Footer */}
+            {/* Action Buttons inside detail Modal Footer */}
             {details && (
               <div className="px-6 py-4 bg-gray-50 border-t border-gray-150 flex-shrink-0 flex justify-end gap-2.5">
                 <button
@@ -939,19 +1108,81 @@ export default function ManageUsers() {
                 >
                   Close View
                 </button>
-                <button
-                  onClick={() => triggerBlockToggle(details as any)}
-                  className={`text-xs font-bold px-5 py-2.5 rounded-xl border transition-colors shadow-sm ${
-                    details.isBlocked
-                      ? 'text-emerald-700 hover:text-emerald-800 bg-emerald-50/50 hover:bg-emerald-50 border-emerald-200'
-                      : 'text-red-600 hover:text-red-700 bg-red-50/50 hover:bg-red-50 border-red-200'
-                  }`}
-                >
-                  {details.isBlocked ? 'Unblock Account' : 'Block Account'}
-                </button>
+                {details.role !== 'ROLE_ADMIN' && details.role !== 'ADMIN' && (
+                  <>
+                    <button
+                      onClick={() => triggerBlockToggle(details as any)}
+                      className={`text-xs font-bold px-5 py-2.5 rounded-xl border transition-colors shadow-sm ${
+                        details.isBlocked
+                          ? 'text-emerald-700 hover:text-emerald-800 bg-emerald-50/50 hover:bg-emerald-50 border-emerald-200'
+                          : 'text-red-600 hover:text-red-700 bg-red-50/50 hover:bg-red-50 border-red-200'
+                      }`}
+                    >
+                      {details.isBlocked ? 'Unblock Account' : 'Block Account'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDeletingUser(details as any);
+                      }}
+                      className="text-xs font-bold px-5 py-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-700 hover:text-white transition-all shadow-sm"
+                    >
+                      Delete Account
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* ── Custom Deleting Modal ── */}
+      {deletingUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-red-50/20">
+              <h3 className="text-base font-bold text-red-600 flex items-center gap-2">
+                <Trash2 className="w-5 h-5" />
+                Delete Account
+              </h3>
+              <button onClick={() => setDeletingUser(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              <p className="text-sm text-gray-500 leading-relaxed">
+                Are you sure you want to permanently delete the account for <strong className="text-gray-900">{deletingUser.name || deletingUser.email}</strong>? All their data, including order history and saved addresses, will be permanently removed. This action cannot be undone.
+              </p>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2.5">
+              <button
+                onClick={() => setDeletingUser(null)}
+                className="px-5 py-2 text-sm font-semibold border border-gray-200 rounded-xl hover:bg-gray-100 bg-white transition-colors text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => executeDeleteUser(deletingUser)}
+                disabled={isSubmittingDelete}
+                className="px-6 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {isSubmittingDelete ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Deleting…
+                  </>
+                ) : 'Delete Account'}
+              </button>
+            </div>
           </div>
         </div>
       )}

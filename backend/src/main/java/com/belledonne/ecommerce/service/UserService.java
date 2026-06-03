@@ -48,6 +48,9 @@ public class UserService {
 
     public void deleteAccount(UserPrincipal principal) {
         User user = findUser(principal.getId());
+        if (user.getRole() == com.belledonne.ecommerce.enums.Role.ROLE_ADMIN) {
+            throw new BadRequestException("Admin accounts cannot be deleted");
+        }
         userRepository.delete(user);
     }
 

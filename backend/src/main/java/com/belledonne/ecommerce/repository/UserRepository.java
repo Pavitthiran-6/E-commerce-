@@ -23,10 +23,19 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
            "(SELECT COUNT(o) FROM Order o WHERE o.user.id = u.id), " +
            "(SELECT SUM(o.totalAmount) FROM Order o WHERE o.user.id = u.id)" +
            ") FROM User u " +
-           "WHERE (:search IS NULL OR :search = '' OR " +
+           "WHERE (:role IS NULL OR u.role = :role) AND " +
+           "(:search IS NULL OR :search = '' OR " +
            "LOWER(COALESCE(u.name, '')) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(COALESCE(u.email, '')) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(COALESCE(u.phone, '')) LIKE LOWER(CONCAT('%', :search, '%'))) " +
            "ORDER BY u.createdAt DESC")
-    Page<UserAdminResponse> findUsersWithMetrics(@Param("search") String search, Pageable pageable);
+    Page<UserAdminResponse> findUsersWithMetrics(
+        @Param("search") String search,
+        @Param("role") com.belledonne.ecommerce.enums.Role role,
+        Pageable pageable
+    );
+
+    long countByRole(com.belledonne.ecommerce.enums.Role role);
+    long countByIsBlockedFalseAndRole(com.belledonne.ecommerce.enums.Role role);
+    long countByIsBlockedTrueAndRole(com.belledonne.ecommerce.enums.Role role);
 }
