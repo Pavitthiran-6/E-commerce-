@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation, Link, useNavigate } from 'react-router-dom';
+import { useCategorySearch } from '../hooks/useCategorySearch';
 import { Heart, ShoppingBag, X, Search, Menu, MapPin } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -20,6 +21,20 @@ export default function Navbar() {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [announcementIndex, setAnnouncementIndex] = useState(0);
+
+  const [desktopSearchFocused, setDesktopSearchFocused] = useState(false);
+  const desktopInputRef = useRef<HTMLInputElement>(null);
+
+  const { suggestions, searchCategories } = useCategorySearch();
+
+  // Debounced search logic for category autocomplete
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      searchCategories(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [searchQuery, searchCategories]);
 
   const announcements = [
     '🚚 Free Shipping on orders above ₹999 across India!',
@@ -114,12 +129,17 @@ export default function Navbar() {
           {/* Desktop: Search bar inline */}
           <div className="hidden md:flex flex-1 items-center">
             <form onSubmit={handleSearchSubmit} className="w-full max-w-xl relative">
-              <div className="flex items-center gap-2 bg-[#F2F2F2] rounded-xl px-3 py-2 hover:bg-white hover:ring-2 hover:ring-[#0C831F] transition-all group">
-                <Search className="w-4 h-4 text-gray-400 group-hover:text-[#0C831F] flex-shrink-0" />
+              <div className={`flex items-center gap-2 bg-[#F2F2F2] rounded-xl px-3 py-2 hover:bg-white hover:ring-2 hover:ring-[#0C831F] transition-all group ${
+                desktopSearchFocused ? 'bg-white ring-2 ring-[#0C831F]' : ''
+              }`}>
+                <Search className={`w-4 h-4 transition-colors ${desktopSearchFocused ? 'text-[#0C831F]' : 'text-gray-400 group-hover:text-[#0C831F]'} flex-shrink-0`} />
                 <input
+                  ref={desktopInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setDesktopSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setDesktopSearchFocused(false), 150)}
                   placeholder="Search for products, categories..."
                   className="flex-1 text-sm text-gray-800 placeholder-gray-400 bg-transparent focus:outline-none"
                 />
@@ -129,6 +149,33 @@ export default function Navbar() {
                   </button>
                 )}
               </div>
+
+              {/* Category Suggestions Dropdown */}
+              {desktopSearchFocused && suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl border border-gray-100 shadow-xl z-50 overflow-hidden py-1">
+                  {suggestions.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        if (cat.isMain) {
+                          navigate(`/collection?mainCategory=${cat.slug}`);
+                        } else {
+                          navigate(`/collection?category=${cat.slug}`);
+                        }
+                        setSearchQuery('');
+                        setDesktopSearchFocused(false);
+                        desktopInputRef.current?.blur();
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
+                    >
+                      <span className="text-gray-400">📁</span>
+                      <span>{cat.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </form>
           </div>
 
@@ -260,24 +307,51 @@ export default function Navbar() {
                 Cancel
               </button>
             </div>
-            <div className="p-4 text-sm text-gray-500">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Popular Categories</p>
-              <div className="flex flex-wrap gap-2">
-                {['Men', 'Women', 'Footwear', 'Electronics', 'Sale'].map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => {
-                      navigate(`/collection?q=${cat}`);
-                      setSearchOpen(false);
-                      setSearchQuery('');
-                    }}
-                    className="px-3 py-1.5 bg-[#F2F2F2] rounded-xl text-sm font-medium text-gray-700 hover:bg-[#E8F5E9] hover:text-[#0C831F] transition-colors"
-                  >
-                    {cat}
-                  </button>
-                ))}
+            {suggestions.length > 0 ? (
+              <div className="p-4 flex-1 overflow-y-auto">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Suggestions</p>
+                <div className="space-y-1">
+                  {suggestions.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        if (cat.isMain) {
+                          navigate(`/collection?mainCategory=${cat.slug}`);
+                        } else {
+                          navigate(`/collection?category=${cat.slug}`);
+                        }
+                        setSearchQuery('');
+                        setSearchOpen(false);
+                      }}
+                      className="w-full text-left py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium border-b border-gray-50"
+                    >
+                      <span className="text-gray-400">📁</span>
+                      <span>{cat.name}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-4 text-sm text-gray-500">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Popular Categories</p>
+                <div className="flex flex-wrap gap-2">
+                  {['Men', 'Women', 'Footwear', 'Electronics', 'Sale'].map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        navigate(`/collection?q=${cat}`);
+                        setSearchOpen(false);
+                        setSearchQuery('');
+                      }}
+                      className="px-3 py-1.5 bg-[#F2F2F2] rounded-xl text-sm font-medium text-gray-700 hover:bg-[#E8F5E9] hover:text-[#0C831F] transition-colors"
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </header>

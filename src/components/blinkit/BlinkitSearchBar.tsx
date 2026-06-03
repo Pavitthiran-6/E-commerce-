@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
+import { useCategorySearch } from '../../hooks/useCategorySearch';
 
 interface BlinkitSearchBarProps {
   className?: string;
@@ -12,6 +13,17 @@ export default function BlinkitSearchBar({ className = '', placeholder = 'Search
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const { suggestions, searchCategories } = useCategorySearch();
+
+  // Debounced search logic
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      searchCategories(query);
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [query, searchCategories]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +103,33 @@ export default function BlinkitSearchBar({ className = '', placeholder = 'Search
             </button>
           )}
         </div>
+
+        {/* Suggestion Dropdown */}
+        {isFocused && suggestions.length > 0 && (
+          <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl border border-gray-100 shadow-xl z-50 overflow-hidden py-1">
+            {suggestions.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  if (cat.isMain) {
+                    navigate(`/collection?mainCategory=${cat.slug}`);
+                  } else {
+                    navigate(`/collection?category=${cat.slug}`);
+                  }
+                  setQuery('');
+                  setIsFocused(false);
+                  inputRef.current?.blur();
+                }}
+                className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
+              >
+                <span className="text-gray-400">📁</span>
+                <span>{cat.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </form>
     </>
   );
