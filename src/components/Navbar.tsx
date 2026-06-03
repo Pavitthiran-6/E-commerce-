@@ -168,9 +168,8 @@ export default function Navbar() {
                         setDesktopSearchFocused(false);
                         desktopInputRef.current?.blur();
                       }}
-                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors font-medium"
                     >
-                      <span className="text-gray-400">📁</span>
                       <span>{cat.name}</span>
                     </button>
                   ))}
@@ -324,9 +323,8 @@ export default function Navbar() {
                         setSearchQuery('');
                         setSearchOpen(false);
                       }}
-                      className="w-full text-left py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium border-b border-gray-50"
+                      className="w-full text-left py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors font-medium border-b border-gray-50"
                     >
-                      <span className="text-gray-400">📁</span>
                       <span>{cat.name}</span>
                     </button>
                   ))}
