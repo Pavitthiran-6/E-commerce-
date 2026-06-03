@@ -1,6 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import axiosInstance from '../../api/axiosInstance';
 import { useToast } from '../../context/ToastContext';
+import { 
+  X, 
+  Mail, 
+  Phone, 
+  Calendar, 
+  Clock, 
+  MapPin, 
+  ShoppingBag, 
+  Heart, 
+  ShieldAlert, 
+  Award, 
+  Hash, 
+  UserCheck, 
+  DollarSign, 
+  List 
+} from 'lucide-react';
 
 interface User {
   id: string;
@@ -14,6 +30,64 @@ interface User {
   blockedReason?: string;
   ordersCount: number;
   totalAmountSpent: number;
+}
+
+interface AddressDTO {
+  id: number;
+  fullName: string;
+  phone: string;
+  addressLine: string;
+  city: string;
+  state: string;
+  country: string;
+  postalCode: string;
+  isDefault: boolean;
+}
+
+interface OrderMinDTO {
+  id: string;
+  orderNumber: string;
+  createdAt: string;
+  totalAmount: number;
+  status: string;
+}
+
+interface WishlistItemDTO {
+  id: string;
+  name: string;
+  price: number;
+  image?: string;
+}
+
+interface CartItemDTO {
+  id: number;
+  productId: string;
+  productName: string;
+  quantity: number;
+  price: number;
+  image?: string;
+  size?: string;
+  color?: string;
+}
+
+interface UserDetails {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  createdAt: string;
+  lastLoginAt?: string;
+  isBlocked: boolean;
+  blockedReason?: string;
+  addresses: AddressDTO[];
+  totalOrders: number;
+  totalAmountSpent: number;
+  latestOrders: OrderMinDTO[];
+  wishlistCount: number;
+  wishlistItems: WishlistItemDTO[];
+  cartCount: number;
+  cartItems: CartItemDTO[];
 }
 
 const SkeletonRow = () => (
@@ -44,7 +118,7 @@ const SkeletonRow = () => (
       </div>
     </td>
     {/* Actions */}
-    <td className="px-5 py-4 text-right"><div className="h-8 admin-skeleton rounded-xl w-16 inline-block" /></td>
+    <td className="px-5 py-4 text-right"><div className="h-8 admin-skeleton rounded-xl w-32 inline-block" /></td>
   </tr>
 );
 
@@ -65,6 +139,11 @@ export default function ManageUsers() {
   const [blockingUser, setBlockingUser] = useState<User | null>(null);
   const [blockReason, setBlockReason] = useState('');
   const [isSubmittingBlock, setIsSubmittingBlock] = useState(false);
+
+  // Details Modal States
+  const [detailsUserId, setDetailsUserId] = useState<string | null>(null);
+  const [details, setDetails] = useState<UserDetails | null>(null);
+  const [isDetailsLoading, setIsDetailsLoading] = useState(false);
 
   // Debounce search input to avoid spamming the backend
   useEffect(() => {
@@ -97,6 +176,27 @@ export default function ManageUsers() {
   useEffect(() => {
     loadUsers(page, debouncedSearch);
   }, [page, debouncedSearch]);
+
+  // Fetch full user details when requested
+  useEffect(() => {
+    if (!detailsUserId) {
+      setDetails(null);
+      return;
+    }
+    const loadDetails = async () => {
+      setIsDetailsLoading(true);
+      try {
+        const res = await axiosInstance.get(`/api/admin/users/${detailsUserId}`);
+        setDetails(res.data.data);
+      } catch (err) {
+        showToast('Failed to load user details.', 'error');
+        setDetailsUserId(null);
+      } finally {
+        setIsDetailsLoading(false);
+      }
+    };
+    loadDetails();
+  }, [detailsUserId]);
 
   // Formats relative time since last login
   const formatRelativeTime = (dateStr?: string) => {
@@ -156,10 +256,17 @@ export default function ManageUsers() {
     try {
       await axiosInstance.put(`/api/admin/users/${user.id}/toggle-block`, { reason });
       showToast(
-        `User ${user.name || user.email} successfully ${reason === null ? 'unblocked' : 'blocked'}!`,
+        `User successfully ${reason === null ? 'unblocked' : 'blocked'}!`,
         'success'
       );
       setBlockingUser(null);
+      
+      // If details modal is open, refresh detail states
+      if (detailsUserId === user.id) {
+        setDetailsUserId(null);
+        setTimeout(() => setDetailsUserId(user.id), 50);
+      }
+      
       loadUsers(page, debouncedSearch);
     } catch (err) {
       showToast('Failed to change user status.', 'error');
@@ -187,6 +294,22 @@ export default function ManageUsers() {
     let sum = 0;
     for (let i = 0; i < id.length; i++) sum += id.charCodeAt(i);
     return avatarGradients[sum % avatarGradients.length];
+  };
+
+  // Status mapping for order display
+  const getOrderStatusStyle = (status: string) => {
+    switch (status.toUpperCase()) {
+      case 'DELIVERED':
+        return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+      case 'CANCELLED':
+      case 'REFUNDED':
+        return 'bg-rose-50 text-rose-700 border-rose-100';
+      case 'SHIPPED':
+      case 'DISPATCHED':
+        return 'bg-blue-50 text-blue-700 border-blue-100';
+      default:
+        return 'bg-amber-50 text-amber-700 border-amber-100';
+    }
   };
 
   return (
@@ -324,7 +447,13 @@ export default function ManageUsers() {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-5 py-4 text-right">
+                      <td className="px-5 py-4 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => setDetailsUserId(user.id)}
+                          className="text-xs font-bold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 transition-colors shadow-sm mr-2"
+                        >
+                          View Details
+                        </button>
                         <button
                           onClick={() => triggerBlockToggle(user)}
                           className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors shadow-sm ${
@@ -414,15 +543,11 @@ export default function ManageUsers() {
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-red-50/20">
               <h3 className="text-base font-bold text-red-600 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-                </svg>
+                <ShieldAlert className="w-5 h-5" />
                 Block Account
               </h3>
               <button onClick={() => setBlockingUser(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -470,6 +595,363 @@ export default function ManageUsers() {
                 ) : 'Block Account'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── User Details Modal / Drawer ── */}
+      {detailsUserId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9997] flex items-end md:items-center justify-center p-0 md:p-6">
+          <div className="w-full h-[95vh] md:h-auto md:max-h-[90vh] md:max-w-5xl bg-white rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-in-bottom md:animate-fade-in border border-gray-100">
+            
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-150 flex items-center justify-between bg-gray-50/50 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(detailsUserId)} flex items-center justify-center text-xs font-black text-white shadow-sm flex-shrink-0`}>
+                  {details ? getInitials(details.name, details.email) : '?'}
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 tracking-tight">
+                    {isDetailsLoading ? 'Loading details…' : details?.name || '(No name)'}
+                  </h2>
+                  <p className="text-[11px] text-gray-400 font-medium">
+                    {isDetailsLoading ? 'Fetching profile...' : details?.email}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setDetailsUserId(null)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/20 custom-scrollbar">
+              {isDetailsLoading ? (
+                <div className="space-y-6">
+                  {/* Skeletal layout matching columns */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-1 space-y-6">
+                      <div className="h-60 bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
+                        <div className="h-4 admin-skeleton rounded w-24 mb-2" />
+                        <div className="h-3 admin-skeleton rounded w-full" />
+                        <div className="h-3 admin-skeleton rounded w-full" />
+                        <div className="h-3 admin-skeleton rounded w-2/3" />
+                      </div>
+                    </div>
+                    <div className="lg:col-span-2 space-y-6">
+                      <div className="h-64 bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
+                        <div className="h-4 admin-skeleton rounded w-32 mb-2" />
+                        <div className="h-10 admin-skeleton rounded w-full" />
+                        <div className="h-10 admin-skeleton rounded w-full" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : details ? (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  
+                  {/* Left Column: Basic Info & Addresses */}
+                  <div className="lg:col-span-1 space-y-6">
+                    
+                    {/* Basic Info Card */}
+                    <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 pb-2 border-b border-gray-100">
+                        <Award className="w-3.5 h-3.5 text-gray-500" />
+                        Basic Information
+                      </h3>
+
+                      <div className="space-y-3.5">
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">User ID</p>
+                          <p className="text-xs font-mono text-gray-900 bg-gray-50 px-2 py-1 rounded border border-gray-100 select-all mt-1 break-all">{details.id}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Full Name</p>
+                          <p className="text-xs font-semibold text-gray-900 mt-0.5">{details.name || '(No name)'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Email Address</p>
+                          <p className="text-xs font-semibold text-gray-900 mt-0.5 flex items-center gap-1">
+                            <Mail className="w-3.5 h-3.5 text-gray-400" />
+                            {details.email}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Phone Number</p>
+                          <p className="text-xs font-semibold text-gray-900 mt-0.5 flex items-center gap-1">
+                            <Phone className="w-3.5 h-3.5 text-gray-400" />
+                            {displayPhone(details.phone)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">System Role</p>
+                          <div className="mt-1">
+                            <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md ${
+                              details.role === 'ROLE_ADMIN' || details.role === 'ADMIN'
+                                ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                                : 'bg-gray-100 text-gray-600 border border-gray-200'
+                            }`}>
+                              {details.role === 'ROLE_ADMIN' || details.role === 'ADMIN' ? 'ADMIN' : 'CUSTOMER'}
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Status</p>
+                          <div className="mt-1">
+                            <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2.5 py-0.5 rounded-full ${
+                              !details.isBlocked
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-150'
+                                : 'bg-rose-50 text-rose-700 border border-rose-150'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${!details.isBlocked ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                              {!details.isBlocked ? 'Active' : 'Blocked'}
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Joined Date</p>
+                          <p className="text-xs font-semibold text-gray-900 mt-0.5 flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                            {details.createdAt ? new Date(details.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Last Login Activity</p>
+                          <p className="text-xs font-semibold text-gray-900 mt-0.5 flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-gray-400" />
+                            {formatRelativeTime(details.lastLoginAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Address Information Card */}
+                    <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 pb-2 border-b border-gray-100">
+                        <MapPin className="w-3.5 h-3.5 text-gray-500" />
+                        Saved Addresses ({details.addresses.length})
+                      </h3>
+
+                      {details.addresses.length === 0 ? (
+                        <div className="p-8 text-center bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                          <MapPin className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                          <p className="text-xs font-semibold text-gray-500">No address added</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3.5 max-h-[350px] overflow-y-auto custom-scrollbar pr-1">
+                          {details.addresses.map((addr) => (
+                            <div 
+                              key={addr.id} 
+                              className={`p-3.5 rounded-xl border text-xs space-y-1.5 transition-all ${
+                                addr.isDefault 
+                                  ? 'border-emerald-250 bg-emerald-50/10 shadow-sm' 
+                                  : 'border-gray-100 bg-white hover:border-gray-200'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-gray-800">{addr.fullName}</span>
+                                {addr.isDefault && (
+                                  <span className="bg-emerald-50 text-emerald-700 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-emerald-100">
+                                    Default
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-gray-500 leading-relaxed">{addr.addressLine}</p>
+                              <p className="text-gray-500 leading-none">{addr.city}, {addr.state} - <span className="font-medium text-gray-700">{addr.postalCode}</span></p>
+                              <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                                <span>📞</span> {addr.phone} | {addr.country}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+
+                  {/* Right Column: Orders, Wishlist, Cart */}
+                  <div className="lg:col-span-2 space-y-6">
+                    
+                    {/* Orders Information */}
+                    <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-5">
+                      
+                      {/* Metric Boxes */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+                            <List className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase leading-none">Total Orders</p>
+                            <p className="text-lg font-bold text-gray-900 mt-1 leading-none">{details.totalOrders}</p>
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                            <DollarSign className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase leading-none">Total Spent</p>
+                            <p className="text-lg font-bold text-[#0C831F] mt-1 leading-none">{formatSpent(details.totalAmountSpent)}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Latest 5 Orders List */}
+                      <div className="space-y-3.5">
+                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest pb-1.5 border-b border-gray-100">
+                          Latest 5 Orders
+                        </h4>
+
+                        {details.latestOrders.length === 0 ? (
+                          <div className="py-8 text-center text-xs text-gray-400 font-medium">
+                            No orders placed yet.
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs text-left">
+                              <thead>
+                                <tr className="border-b border-gray-100 text-[10px] font-bold uppercase text-gray-400">
+                                  <th className="py-2.5">Order No.</th>
+                                  <th className="py-2.5">Date</th>
+                                  <th className="py-2.5 text-right">Amount</th>
+                                  <th className="py-2.5 text-right">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-50">
+                                {details.latestOrders.map((o) => (
+                                  <tr key={o.id} className="hover:bg-gray-50/30 transition-colors">
+                                    <td className="py-3 font-mono font-bold text-gray-900 uppercase tracking-wider">{o.orderNumber}</td>
+                                    <td className="py-3 text-gray-500">
+                                      {new Date(o.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    </td>
+                                    <td className="py-3 text-right font-bold text-gray-800">{formatSpent(o.totalAmount)}</td>
+                                    <td className="py-3 text-right">
+                                      <span className={`inline-flex items-center text-[9px] font-bold px-2 py-0.5 rounded-full border ${getOrderStatusStyle(o.status)}`}>
+                                        {o.status}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+
+                    {/* Wishlist and Cart Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      {/* Wishlist details */}
+                      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 pb-2 border-b border-gray-100">
+                          <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+                          Wishlist Items ({details.wishlistCount})
+                        </h3>
+
+                        {details.wishlistItems.length === 0 ? (
+                          <div className="p-8 text-center text-xs text-gray-400 font-medium">
+                            No items in wishlist.
+                          </div>
+                        ) : (
+                          <div className="space-y-3 max-h-[250px] overflow-y-auto custom-scrollbar pr-1">
+                            {details.wishlistItems.map((item) => (
+                              <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-gray-50/50 rounded-xl transition-colors border border-transparent hover:border-gray-100">
+                                <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                                  {item.image ? (
+                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-gray-300">🖼️</div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold text-gray-800 truncate" title={item.name}>{item.name}</p>
+                                  <p className="text-[11px] font-bold text-gray-900 mt-0.5">{formatSpent(item.price)}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Cart Details */}
+                      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 pb-2 border-b border-gray-100">
+                          <ShoppingBag className="w-3.5 h-3.5 text-emerald-600" />
+                          Active Cart ({details.cartCount})
+                        </h3>
+
+                        {details.cartItems.length === 0 ? (
+                          <div className="p-8 text-center text-xs text-gray-400 font-medium">
+                            Cart is empty.
+                          </div>
+                        ) : (
+                          <div className="space-y-3 max-h-[250px] overflow-y-auto custom-scrollbar pr-1">
+                            {details.cartItems.map((item) => (
+                              <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-gray-50/50 rounded-xl transition-colors border border-transparent hover:border-gray-100">
+                                <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                                  {item.image ? (
+                                    <img src={item.image} alt={item.productName} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-gray-300">🖼️</div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold text-gray-800 truncate" title={item.productName}>{item.productName}</p>
+                                  <div className="flex items-center gap-2.5 mt-0.5">
+                                    <span className="text-[10px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded">Qty: {item.quantity}</span>
+                                    {(item.size || item.color) && (
+                                      <span className="text-[10px] text-gray-400 truncate">
+                                        {item.size ? `Size: ${item.size}` : ''}
+                                        {item.size && item.color ? ' | ' : ''}
+                                        {item.color ? `Color: ${item.color}` : ''}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] font-bold text-gray-900 mt-1">{formatSpent(item.price)}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+              ) : null}
+            </div>
+
+            {/* Block Action Button inside detail Modal Footer */}
+            {details && (
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-150 flex-shrink-0 flex justify-end gap-2.5">
+                <button
+                  onClick={() => setDetailsUserId(null)}
+                  className="px-5 py-2.5 text-xs font-bold border border-gray-200 rounded-xl hover:bg-gray-100 bg-white transition-colors text-gray-700"
+                >
+                  Close View
+                </button>
+                <button
+                  onClick={() => triggerBlockToggle(details as any)}
+                  className={`text-xs font-bold px-5 py-2.5 rounded-xl border transition-colors shadow-sm ${
+                    details.isBlocked
+                      ? 'text-emerald-700 hover:text-emerald-800 bg-emerald-50/50 hover:bg-emerald-50 border-emerald-200'
+                      : 'text-red-600 hover:text-red-700 bg-red-50/50 hover:bg-red-50 border-red-200'
+                  }`}
+                >
+                  {details.isBlocked ? 'Unblock Account' : 'Block Account'}
+                </button>
+              </div>
+            )}
+
           </div>
         </div>
       )}
