@@ -796,7 +796,7 @@ export default function ManageUsers() {
       {/* ── User Details Modal / Drawer ── */}
       {detailsUserId && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9997] flex items-end md:items-center justify-center p-0 md:p-6">
-          <div className="w-full h-[95vh] md:h-auto md:max-h-[90vh] md:max-w-5xl bg-white rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-in-bottom md:animate-fade-in border border-gray-100">
+          <div className="w-full max-h-[90vh] md:max-w-5xl bg-white rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-in-bottom md:animate-fade-in border border-gray-100">
             
             {/* Header */}
             <div className="px-6 py-4 border-b border-gray-150 flex items-center justify-between bg-gray-50/50 flex-shrink-0">
@@ -876,12 +876,12 @@ export default function ManageUsers() {
                       </h4>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-3">
-                        <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase">User ID</p>
+                        <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 md:col-span-2">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">System Admin ID</p>
                           <p className="text-xs font-mono text-gray-700 mt-1 select-all break-all">{details.id}</p>
                         </div>
                         <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase">Role Level</p>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Administrator Role</p>
                           <p className="text-xs font-semibold text-gray-800 mt-1">Full System Administrator (Level 1)</p>
                         </div>
                         <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
@@ -892,8 +892,15 @@ export default function ManageUsers() {
                           </p>
                         </div>
                         <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase">API Access Rights</p>
-                          <p className="text-xs font-semibold text-[#0C831F] mt-1">Read / Write / Delete</p>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Access Rights</p>
+                          <p className="text-xs font-semibold text-[#0C831F] mt-1">Full Read / Write / Delete Access</p>
+                        </div>
+                        <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Protected Account Status</p>
+                          <p className="text-xs font-semibold text-purple-700 mt-1 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse" />
+                            Active & Protected
+                          </p>
                         </div>
                       </div>
                     </div>
