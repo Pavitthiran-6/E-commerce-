@@ -70,6 +70,7 @@ public class AuthService {
             .password(passwordEncoder.encode(request.getPassword()))
             .phone(request.getPhone())
             .isEmailVerified(false)
+            .lastLoginAt(LocalDateTime.now())
             .build();
         userRepository.save(user);
         emailService.sendWelcomeEmail(user.getEmail(), user.getName());
@@ -90,6 +91,10 @@ public class AuthService {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         User user = userRepository.findById(principal.getId())
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getId()));
+        
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
+
         return AuthResponse.builder()
             .accessToken(tokenProvider.generateAccessToken(auth))
             .refreshToken(tokenProvider.generateRefreshToken(auth))
@@ -144,6 +149,7 @@ public class AuthService {
             .isEmailVerified(user.getIsEmailVerified())
             .isBlocked(user.getIsBlocked())
             .blockedReason(user.getBlockedReason())
+            .lastLoginAt(user.getLastLoginAt())
             .createdAt(user.getCreatedAt())
             .build();
     }

@@ -21,5 +21,6 @@ public class UserResponse {
     private Boolean isEmailVerified;
     private Boolean isBlocked;
     private String blockedReason;
+    private LocalDateTime lastLoginAt;
     private LocalDateTime createdAt;
 }

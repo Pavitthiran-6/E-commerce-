@@ -67,6 +67,9 @@ public class User {
     @Column(name = "blocked_reason", columnDefinition = "TEXT")
     private String blockedReason;
 
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
