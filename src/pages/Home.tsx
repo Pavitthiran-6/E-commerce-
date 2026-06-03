@@ -311,7 +311,7 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {[
               { label: '3-Day Delivery', image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600', link: '/cart', color: '#E8F5E9' },
-              { label: 'Weekly Sale', image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=600', link: '/sale', color: '#FFF8E1' },
+              { label: 'Weekly Arrived', image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=600', link: '/new-arrivals', color: '#FFF8E1' },
               { label: 'Flash Deals', image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=600', link: '/collection?promo=flash-deals', color: '#FFF3E0' },
             ].map((promo) => (
               <Link key={promo.label} to={promo.link} className="relative rounded-2xl overflow-hidden group h-28 shadow-sm hover:shadow-md transition-shadow">
