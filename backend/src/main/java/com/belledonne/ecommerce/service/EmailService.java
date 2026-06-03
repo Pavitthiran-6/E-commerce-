@@ -42,6 +42,14 @@ public class EmailService {
     }
 
     @Async
+    public void sendAccountLockedEmail(String toEmail, String name) {
+        Context context = new Context();
+        context.setVariable("name", name);
+        String htmlContent = templateEngine.process("account-locked-email", context);
+        sendEmail(toEmail, "Security Alert - Account Temporarily Locked", htmlContent);
+    }
+
+    @Async
     public void sendOrderConfirmationEmail(String toEmail, Order order) {
         Context context = new Context();
         context.setVariable("order", order);
@@ -64,6 +72,20 @@ public class EmailService {
         context.setVariable("order", order);
         String htmlContent = templateEngine.process("order-delivered-email", context);
         sendEmail(toEmail, "Your Order Has Been Delivered! 📦 — " + order.getOrderNumber(), htmlContent);
+    }
+
+    @Value("${app.security.alert-email:admin@belledonne.in}")
+    private String adminAlertEmail;
+
+    @Async
+    public void sendSecurityAlertEmail(String triggerType, String ipAddress, String timeWindow, String details) {
+        Context context = new Context();
+        context.setVariable("triggerType", triggerType);
+        context.setVariable("ipAddress", ipAddress);
+        context.setVariable("timeWindow", timeWindow);
+        context.setVariable("details", details);
+        String htmlContent = templateEngine.process("security-alert-email", context);
+        sendEmail(adminAlertEmail, "🚨 Security Alert Detected - " + triggerType, htmlContent);
     }
 
     private void sendEmail(String to, String subject, String htmlContent) {

@@ -24,6 +24,8 @@ public class UserDetailsAdminResponse {
     private LocalDateTime lastLoginAt;
     private Boolean isBlocked;
     private String blockedReason;
+    private Integer failedLoginAttempts;
+    private LocalDateTime accountLockedUntil;
 
     private List<AddressDTO> addresses;
     

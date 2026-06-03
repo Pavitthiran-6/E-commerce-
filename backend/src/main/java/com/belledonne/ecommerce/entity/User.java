@@ -70,6 +70,19 @@ public class User {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
+    /** Incremented on each failed login attempt. Reset to 0 on successful login. */
+    @Column(name = "failed_login_attempts")
+    @Builder.Default
+    private int failedLoginAttempts = 0;
+
+    /**
+     * Set to now + 15 minutes when failedLoginAttempts reaches the threshold.
+     * Null means account is not locked. Auto-unlocks when time passes.
+     */
+    @Column(name = "account_locked_until")
+    private LocalDateTime accountLockedUntil;
+
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

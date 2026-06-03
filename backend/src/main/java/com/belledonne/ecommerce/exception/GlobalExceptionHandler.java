@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 @RestControllerAdvice
 @Slf4j
@@ -52,6 +54,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex, HttpServletRequest req) {
         log.warn("Unauthorized access: {}", ex.getMessage());
         return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), "UNAUTHORIZED", req.getRequestURI(), null);
+    }
+
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<?> handleAccountLocked(AccountLockedException ex, HttpServletRequest req) {
+        log.warn("Account locked attempt on path {}: locked until {}", req.getRequestURI(), ex.getLockedUntil());
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("success", false);
+        body.put("message", ex.getMessage());
+        body.put("errorCode", "ACCOUNT_LOCKED");
+        body.put("lockedUntil", ex.getLockedUntil().toString());
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("path", req.getRequestURI());
+        return ResponseEntity.status(423).body(body);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

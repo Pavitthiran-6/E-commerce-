@@ -21,7 +21,8 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     @Query("SELECT new com.belledonne.ecommerce.dto.response.UserAdminResponse(" +
            "u.id, u.name, u.email, u.phone, u.role, u.createdAt, u.lastLoginAt, u.isBlocked, u.blockedReason, " +
            "(SELECT COUNT(o) FROM Order o WHERE o.user.id = u.id), " +
-           "(SELECT SUM(o.totalAmount) FROM Order o WHERE o.user.id = u.id)" +
+           "(SELECT SUM(o.totalAmount) FROM Order o WHERE o.user.id = u.id), " +
+           "u.accountLockedUntil" +
            ") FROM User u " +
            "WHERE (:role IS NULL OR u.role = :role) AND " +
            "(:blocked IS NULL OR u.isBlocked = :blocked) AND " +
@@ -36,6 +37,8 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
         @Param("blocked") Boolean blocked,
         Pageable pageable
     );
+
+    long countByAccountLockedUntilAfter(java.time.LocalDateTime dateTime);
 
     long countByRole(com.belledonne.ecommerce.enums.Role role);
     long countByIsBlockedFalseAndRole(com.belledonne.ecommerce.enums.Role role);

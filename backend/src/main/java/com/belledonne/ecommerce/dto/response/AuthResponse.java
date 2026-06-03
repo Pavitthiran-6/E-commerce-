@@ -18,5 +18,6 @@ public class AuthResponse {
 
     private UserResponse user;
 
+    @JsonIgnore
     private String refreshToken;
 }

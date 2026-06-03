@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -25,6 +26,14 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+
+    /**
+     * Controls whether the refresh token cookie is sent with Secure flag.
+     * Set COOKIE_SECURE=false only in local HTTP development environments.
+     * Defaults to true for production safety.
+     */
+    @Value("${COOKIE_SECURE:true}")
+    private boolean cookieSecure;
 
     @PostMapping("/register")
     @Operation(summary = "Register a new user", description = "Create a user account and return access token + user details")
@@ -110,10 +119,10 @@ public class AuthController {
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
             .httpOnly(true)
-            .secure(false) // Set to true in production (HTTPS)
+            .secure(cookieSecure)  // Set COOKIE_SECURE=false only for local HTTP development
             .path("/")
             .maxAge(7 * 24 * 60 * 60) // 7 days
-            .sameSite("Lax")
+            .sameSite("Strict")
             .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
@@ -121,10 +130,10 @@ public class AuthController {
     private void clearRefreshTokenCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
             .httpOnly(true)
-            .secure(false)
+            .secure(cookieSecure)
             .path("/")
             .maxAge(0)
-            .sameSite("Lax")
+            .sameSite("Strict")
             .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }

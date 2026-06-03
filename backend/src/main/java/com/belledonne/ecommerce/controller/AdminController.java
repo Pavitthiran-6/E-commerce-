@@ -32,7 +32,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.belledonne.ecommerce.enums.SecurityAction;
+import com.belledonne.ecommerce.security.UserPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -50,6 +54,7 @@ public class AdminController {
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final SecurityAuditLogRepository securityAuditLogRepository;
     private final ProductRepository productRepository;
     private final OrderItemRepository orderItemRepository;
     private final WishlistRepository wishlistRepository;
@@ -62,6 +67,10 @@ public class AdminController {
     private final OrderTrackingService orderTrackingService;
     private final FileUploadService fileUploadService;
     private final SaleSettingsService saleSettingsService;
+    private final LoginLockoutService loginLockoutService;
+    private final SecurityAuditService securityAuditService;
+    private final SecurityLogsExportService securityLogsExportService;
+    private final HttpServletRequest request;
 
     // ---- 5A: ADMIN DASHBOARD ----
     @GetMapping("/dashboard")
@@ -447,7 +456,10 @@ public class AdminController {
             .isBlocked(user.getIsBlocked()).blockedReason(user.getBlockedReason())
             .addresses(addressDTOs).totalOrders(totalOrders).totalAmountSpent(totalSpent)
             .latestOrders(orderDTOs).wishlistCount(wishlistCount).wishlistItems(wishlistDTOs)
-            .cartCount(cartCount).cartItems(cartDTOs).build();
+            .cartCount(cartCount).cartItems(cartDTOs)
+            .failedLoginAttempts(loginLockoutService.getFailedAttempts(user))
+            .accountLockedUntil(loginLockoutService.getLockedUntil(user))
+            .build();
 
         return ResponseEntity.ok(ApiResponse.success("User details fetched successfully", details));
     }
@@ -473,8 +485,17 @@ public class AdminController {
             user.setBlockedReason(reason != null && !reason.isBlank() ? reason.trim() : "Blocked by administrator");
         }
         userRepository.save(user);
-        String action = user.getIsBlocked() ? "blocked" : "unblocked";
-        return ResponseEntity.ok(ApiResponse.success("User successfully " + action));
+        
+        // Audit log
+        User admin = getLoggedInUser();
+        String ip = SecurityAuditService.getClientIp(request);
+        String ua = request.getHeader("User-Agent");
+        SecurityAction action = user.getIsBlocked() ? SecurityAction.ADMIN_BLOCK_USER : SecurityAction.ADMIN_UNBLOCK_USER;
+        String detail = user.getIsBlocked() ? "Blocked user: " + user.getEmail() + " (Reason: " + user.getBlockedReason() + ")" : "Unblocked user: " + user.getEmail();
+        securityAuditService.log(admin != null ? admin.getId() : null, admin != null ? admin.getEmail() : "admin@belledonne.in", action, ip, ua, "SUCCESS", detail);
+
+        String resultAction = user.getIsBlocked() ? "blocked" : "unblocked";
+        return ResponseEntity.ok(ApiResponse.success("User successfully " + resultAction));
     }
 
     @DeleteMapping("/users/{id}")
@@ -488,7 +509,36 @@ public class AdminController {
         }
 
         userRepository.delete(user);
+
+        // Audit log
+        User admin = getLoggedInUser();
+        String ip = SecurityAuditService.getClientIp(request);
+        String ua = request.getHeader("User-Agent");
+        securityAuditService.log(admin != null ? admin.getId() : null, admin != null ? admin.getEmail() : "admin@belledonne.in", SecurityAction.ADMIN_DELETE_USER, ip, ua, "SUCCESS", "Deleted user: " + user.getEmail());
+
         return ResponseEntity.ok(ApiResponse.success("User account deleted successfully"));
+    }
+
+    @PutMapping("/users/{id}/unlock")
+    @Operation(summary = "Unlock a temporarily locked user account (admin override)")
+    public ResponseEntity<ApiResponse<?>> unlockUser(@PathVariable UUID id) {
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+
+        if (user.getRole() == Role.ROLE_ADMIN) {
+            throw new BadRequestException("Administrator accounts do not have login lockout applied.");
+        }
+
+        loginLockoutService.resetLockout(user);
+        log.info("[AdminController] Account {} unlocked by admin.", user.getEmail());
+
+        // Audit log
+        User admin = getLoggedInUser();
+        String ip = SecurityAuditService.getClientIp(request);
+        String ua = request.getHeader("User-Agent");
+        securityAuditService.log(admin != null ? admin.getId() : null, admin != null ? admin.getEmail() : "admin@belledonne.in", SecurityAction.ADMIN_UNLOCK_ACCOUNT, ip, ua, "SUCCESS", "Unlocked user account: " + user.getEmail());
+
+        return ResponseEntity.ok(ApiResponse.success("Account unlocked successfully. User can now log in."));
     }
 
     @PutMapping("/users/{id}/role")
@@ -498,8 +548,16 @@ public class AdminController {
         User user = userRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
         Role newRole = Role.valueOf(body.get("role").toUpperCase());
+        Role oldRole = user.getRole();
         user.setRole(newRole);
         userRepository.save(user);
+
+        // Audit log
+        User admin = getLoggedInUser();
+        String ip = SecurityAuditService.getClientIp(request);
+        String ua = request.getHeader("User-Agent");
+        securityAuditService.log(admin != null ? admin.getId() : null, admin != null ? admin.getEmail() : "admin@belledonne.in", SecurityAction.ADMIN_ACTION, ip, ua, "SUCCESS", "Updated role of user " + user.getEmail() + " from " + oldRole + " to " + newRole);
+
         return ResponseEntity.ok(ApiResponse.success("User role updated successfully"));
     }
 
@@ -659,5 +717,135 @@ public class AdminController {
         product.setSpecifications(entries);
         Product saved = productService.saveProduct(product);
         return ResponseEntity.ok(ApiResponse.success("Specifications updated successfully", productService.toResponse(saved)));
+    }
+
+    // ---- 5G: SECURITY AUDIT LOGS ----
+    @GetMapping("/security-logs")
+    @Operation(summary = "Get filtered and paginated security audit logs")
+    public ResponseEntity<ApiResponse<Page<SecurityAuditLog>>> getSecurityLogs(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) UUID userId,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String ipAddress,
+            @RequestParam(required = false) SecurityAction action,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        Specification<SecurityAuditLog> spec = SecurityAuditService.getSpec(search, userId, email, ipAddress, action, status, dateFrom, dateTo);
+
+        org.springframework.data.domain.Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+        Page<SecurityAuditLog> logs = securityAuditLogRepository.findAll(spec, pageable);
+
+        return ResponseEntity.ok(ApiResponse.success("Security audit logs fetched successfully", logs));
+    }
+
+    @GetMapping("/security-logs/stats")
+    @Operation(summary = "Get today's security logs summary statistics")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSecurityStats() {
+        return ResponseEntity.ok(ApiResponse.success("Security statistics fetched successfully", securityAuditService.getSecurityStats()));
+    }
+
+    @GetMapping("/security-logs/export")
+    @Operation(summary = "Export filtered security logs to CSV, Excel, or PDF")
+    public void exportSecurityLogs(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) UUID userId,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String ipAddress,
+            @RequestParam(required = false) SecurityAction action,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(defaultValue = "CSV") String format,
+            jakarta.servlet.http.HttpServletResponse response) {
+
+        Specification<SecurityAuditLog> spec = SecurityAuditService.getSpec(search, userId, email, ipAddress, action, status, dateFrom, dateTo);
+        long totalRecords = securityAuditLogRepository.count(spec);
+
+        // 1. Audit Log the export action
+        User admin = getLoggedInUser();
+        String clientIp = SecurityAuditService.getClientIp(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        // Format details for auditing
+        StringBuilder detailsBuilder = new StringBuilder("Admin exported security logs in ")
+            .append(format).append(" format.");
+        List<String> activeFilters = new ArrayList<>();
+        if (action != null) activeFilters.add("Action: " + action);
+        if (status != null && !status.isBlank()) activeFilters.add("Status: " + status);
+        if (dateFrom != null || dateTo != null) {
+            activeFilters.add("Date Range: " + (dateFrom != null ? dateFrom : "Any") + " - " + (dateTo != null ? dateTo : "Any"));
+        }
+        if (email != null && !email.isBlank()) activeFilters.add("Email: " + email);
+        if (ipAddress != null && !ipAddress.isBlank()) activeFilters.add("IP: " + ipAddress);
+        if (search != null && !search.isBlank()) activeFilters.add("Search: " + search);
+
+        if (!activeFilters.isEmpty()) {
+            detailsBuilder.append(" Applied filters: ").append(String.join(", ", activeFilters));
+        } else {
+            detailsBuilder.append(" No filters applied.");
+        }
+        detailsBuilder.append(" Total records exported: ").append(totalRecords);
+
+        // Write the audit log entry
+        securityAuditService.log(
+            admin != null ? admin.getId() : null,
+            admin != null ? admin.getEmail() : "admin@belledonne.in",
+            SecurityAction.ADMIN_EXPORT_LOGS,
+            clientIp,
+            userAgent,
+            "SUCCESS",
+            detailsBuilder.toString()
+        );
+
+        // 2. Setup response headers and stream output
+        try {
+            String filename = "SecurityLogs_" + LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+            if ("EXCEL".equalsIgnoreCase(format) || "XLSX".equalsIgnoreCase(format)) {
+                response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                response.setHeader("Content-Disposition", "attachment; filename=" + filename + ".xlsx");
+                securityLogsExportService.exportLogsToExcel(response.getOutputStream(), spec);
+            } else if ("PDF".equalsIgnoreCase(format)) {
+                response.setContentType("application/pdf");
+                response.setHeader("Content-Disposition", "attachment; filename=" + filename + ".pdf");
+                Map<String, String> filterMap = new HashMap<>();
+                if (search != null && !search.isBlank()) filterMap.put("Search Query", search);
+                if (action != null) filterMap.put("Action Type", action.name());
+                if (status != null && !status.isBlank()) filterMap.put("Status", status);
+                if (email != null && !email.isBlank()) filterMap.put("Email", email);
+                if (ipAddress != null && !ipAddress.isBlank()) filterMap.put("IP Address", ipAddress);
+                if (dateFrom != null) filterMap.put("Start Date", dateFrom.toString());
+                if (dateTo != null) filterMap.put("End Date", dateTo.toString());
+                securityLogsExportService.exportLogsToPdf(response.getOutputStream(), spec, filterMap, totalRecords);
+            } else { // Fallback to CSV
+                response.setContentType("text/csv");
+                response.setHeader("Content-Disposition", "attachment; filename=" + filename + ".csv");
+                securityLogsExportService.exportLogsToCsv(response.getOutputStream(), spec);
+            }
+        } catch (Exception e) {
+            log.error("Failed to export security logs: {}", e.getMessage(), e);
+            response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            try {
+                response.getWriter().write("Export failed: " + e.getMessage());
+            } catch (IOException ignored) {}
+        }
+    }
+
+    @GetMapping("/security-overview")
+    @Operation(summary = "Get aggregated security analytics for trend overview charts")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSecurityOverview() {
+        return ResponseEntity.ok(ApiResponse.success("Security overview analytics fetched successfully", securityAuditService.getCachedSecurityOverview()));
+    }
+
+    private User getLoggedInUser() {
+        org.springframework.security.core.context.SecurityContext context = org.springframework.security.core.context.SecurityContextHolder.getContext();
+        if (context.getAuthentication() != null && context.getAuthentication().getPrincipal() instanceof UserPrincipal) {
+            UserPrincipal principal = (UserPrincipal) context.getAuthentication().getPrincipal();
+            return userRepository.findById(principal.getId()).orElse(null);
+        }
+        return null;
     }
 }

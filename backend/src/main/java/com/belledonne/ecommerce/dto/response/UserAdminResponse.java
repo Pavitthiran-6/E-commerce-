@@ -25,11 +25,17 @@ public class UserAdminResponse {
     private String blockedReason;
     private Long ordersCount;
     private BigDecimal totalAmountSpent;
+    /** True when accountLockedUntil is in the future (temporary lockout from failed logins). */
+    private Boolean isLocked;
+    private LocalDateTime lockedUntil;
 
-    // Custom constructor for JpaRepository projection (constructor expression)
-    public UserAdminResponse(UUID id, String name, String email, String phone, com.belledonne.ecommerce.enums.Role role,
-                             LocalDateTime createdAt, LocalDateTime lastLoginAt, Boolean isBlocked, String blockedReason,
-                             Long ordersCount, BigDecimal totalAmountSpent) {
+    // Custom constructor for JpaRepository JPQL projection
+    public UserAdminResponse(UUID id, String name, String email, String phone,
+                             com.belledonne.ecommerce.enums.Role role,
+                             LocalDateTime createdAt, LocalDateTime lastLoginAt,
+                             Boolean isBlocked, String blockedReason,
+                             Long ordersCount, BigDecimal totalAmountSpent,
+                             LocalDateTime accountLockedUntil) {
         this.id = id;
         this.name = name;
         this.email = email;
@@ -41,5 +47,7 @@ public class UserAdminResponse {
         this.blockedReason = blockedReason;
         this.ordersCount = ordersCount;
         this.totalAmountSpent = totalAmountSpent != null ? totalAmountSpent : BigDecimal.ZERO;
+        this.lockedUntil = accountLockedUntil;
+        this.isLocked = accountLockedUntil != null && accountLockedUntil.isAfter(LocalDateTime.now());
     }
 }

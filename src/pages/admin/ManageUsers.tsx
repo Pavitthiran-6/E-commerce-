@@ -31,6 +31,8 @@ interface User {
   blockedReason?: string;
   ordersCount: number;
   totalAmountSpent: number;
+  isLocked?: boolean;
+  lockedUntil?: string;
 }
 
 interface AddressDTO {
@@ -89,6 +91,8 @@ interface UserDetails {
   wishlistItems: WishlistItemDTO[];
   cartCount: number;
   cartItems: CartItemDTO[];
+  failedLoginAttempts?: number;
+  accountLockedUntil?: string;
 }
 
 const SkeletonRow = () => (
@@ -122,6 +126,23 @@ const SkeletonRow = () => (
     <td className="px-5 py-4 text-right"><div className="h-8 admin-skeleton rounded-xl w-32 inline-block" /></td>
   </tr>
 );
+
+const formatLockTime = (dateStr?: string) => {
+  if (!dateStr) return '—';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '—';
+  const day = String(date.getDate()).padStart(2, '0');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const strTime = String(hours).padStart(2, '0') + ':' + minutes + ' ' + ampm;
+  return `${day} ${month} ${year} ${strTime}`;
+};
 
 export default function ManageUsers() {
   const { showToast } = useToast();
@@ -329,6 +350,20 @@ export default function ManageUsers() {
       console.error(err);
     } finally {
       setIsSubmittingBlock(false);
+    }
+  };
+
+  // Unlock a temporarily locked account (admin override)
+  const handleUnlock = async (user: User) => {
+    try {
+      await axiosInstance.put(`/api/admin/users/${user.id}/unlock`);
+      showToast(`Account for ${user.name || user.email} has been unlocked.`, 'success');
+      loadUsers(page, debouncedSearch, activeTab);
+    } catch (err: any) {
+      showToast(
+        err?.response?.data?.message || 'Failed to unlock account.',
+        'error'
+      );
     }
   };
 
@@ -558,6 +593,20 @@ export default function ManageUsers() {
                               {formatRelativeTime(details.lastLoginAt)}
                             </p>
                           </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">Failed Attempts</p>
+                            <p className="text-xs font-semibold text-gray-900 mt-0.5">
+                              {details.failedLoginAttempts ?? 0}
+                            </p>
+                          </div>
+                          {details.accountLockedUntil && (
+                            <div>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase">Locked Until</p>
+                              <p className="text-xs font-semibold text-rose-600 mt-0.5">
+                                {formatLockTime(details.accountLockedUntil)}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1003,10 +1052,17 @@ export default function ManageUsers() {
                                 {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                               </td>
                               <td className="px-5 py-4">
-                                <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2.5 py-0.5 rounded-full ${!user.isBlocked ? 'bg-emerald-50 text-emerald-700 border border-emerald-150' : 'bg-red-50 text-red-600 border border-red-150'}`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${!user.isBlocked ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-                                  {!user.isBlocked ? 'Active' : 'Blocked'}
-                                </span>
+                                {user.isLocked ? (
+                                  <span className="inline-flex items-center gap-1.5 text-[9px] font-bold px-2.5 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">
+                                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-orange-500 animate-pulse" />
+                                    🔒 Locked
+                                  </span>
+                                ) : (
+                                  <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2.5 py-0.5 rounded-full ${!user.isBlocked ? 'bg-emerald-50 text-emerald-700 border border-emerald-150' : 'bg-red-50 text-red-600 border border-red-150'}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${!user.isBlocked ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                                    {!user.isBlocked ? 'Active' : 'Blocked'}
+                                  </span>
+                                )}
                               </td>
                               <td className="px-5 py-4 text-right whitespace-nowrap">
                                 <button
@@ -1015,6 +1071,15 @@ export default function ManageUsers() {
                                 >
                                   View Details
                                 </button>
+                                {user.isLocked && (
+                                  <button
+                                    onClick={() => handleUnlock(user)}
+                                    className="text-xs font-bold px-3 py-1.5 rounded-xl border border-orange-300 text-orange-700 bg-orange-50 hover:bg-orange-100 transition-colors shadow-sm mr-2 cursor-pointer"
+                                    title={`Locked until ${user.lockedUntil ? new Date(user.lockedUntil).toLocaleTimeString('en-IN') : 'unknown'}`}
+                                  >
+                                    Unlock
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => triggerBlockToggle(user)}
                                   className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors shadow-sm mr-2 cursor-pointer ${user.isBlocked ? 'text-emerald-700 hover:text-emerald-800 bg-emerald-50/50 hover:bg-emerald-50 border-emerald-200' : 'text-red-600 hover:text-red-700 bg-red-50/50 hover:bg-red-50 border-red-200'}`}
