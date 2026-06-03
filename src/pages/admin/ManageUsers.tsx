@@ -142,8 +142,8 @@ export default function ManageUsers() {
   const [activeUsersCount, setActiveUsersCount] = useState(0);
   const [blockedUsersCount, setBlockedUsersCount] = useState(0);
 
-  // Active role tab state
-  const [activeTab, setActiveTab] = useState<'ROLE_USER' | 'ROLE_ADMIN' | ''>('ROLE_USER');
+  // Active tab state
+  const [activeTab, setActiveTab] = useState<'customers' | 'blocked' | 'admins'>('customers');
 
   // Blocking Modal States
   const [blockingUser, setBlockingUser] = useState<User | null>(null);
@@ -170,12 +170,23 @@ export default function ManageUsers() {
   }, [search]);
 
   // Load users from backend
-  const loadUsers = async (p = 0, query = '', roleFilter = 'ROLE_USER') => {
+  const loadUsers = async (p = 0, query = '', tab = 'customers') => {
     setIsLoading(true);
     setError('');
     try {
-      const roleParam = roleFilter ? `&role=${roleFilter}` : '';
-      const res = await axiosInstance.get(`/api/admin/users?page=${p}&size=15&search=${encodeURIComponent(query)}${roleParam}`);
+      let roleParam = '';
+      let blockedParam = '';
+      if (tab === 'customers') {
+        roleParam = '&role=ROLE_USER';
+        blockedParam = '&blocked=false';
+      } else if (tab === 'blocked') {
+        roleParam = '&role=ROLE_USER';
+        blockedParam = '&blocked=true';
+      } else if (tab === 'admins') {
+        roleParam = '&role=ROLE_ADMIN';
+      }
+
+      const res = await axiosInstance.get(`/api/admin/users?page=${p}&size=15&search=${encodeURIComponent(query)}${roleParam}${blockedParam}`);
       const data = res.data.data;
       setUsers(data.content || []);
       setTotalPages(data.totalPages || 1);
@@ -196,7 +207,7 @@ export default function ManageUsers() {
     loadUsers(page, debouncedSearch, activeTab);
   }, [page, debouncedSearch, activeTab]);
 
-  const handleTabChange = (tab: 'ROLE_USER' | 'ROLE_ADMIN' | '') => {
+  const handleTabChange = (tab: 'customers' | 'blocked' | 'admins') => {
     setActiveTab(tab);
     setPage(0);
   };
@@ -442,9 +453,9 @@ export default function ManageUsers() {
         {/* Tab switcher */}
         <div className="flex bg-gray-100 p-1 rounded-xl w-fit border border-gray-200/50">
           <button
-            onClick={() => handleTabChange('ROLE_USER')}
+            onClick={() => handleTabChange('customers')}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-              activeTab === 'ROLE_USER'
+              activeTab === 'customers'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-500 hover:text-gray-900'
             }`}
@@ -452,24 +463,24 @@ export default function ManageUsers() {
             👥 Customers
           </button>
           <button
-            onClick={() => handleTabChange('ROLE_ADMIN')}
+            onClick={() => handleTabChange('blocked')}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-              activeTab === 'ROLE_ADMIN'
+              activeTab === 'blocked'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            🚫 Blocked Customers
+          </button>
+          <button
+            onClick={() => handleTabChange('admins')}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+              activeTab === 'admins'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-500 hover:text-gray-900'
             }`}
           >
             👑 Administrators
-          </button>
-          <button
-            onClick={() => handleTabChange('')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-              activeTab === ''
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            🌐 All Accounts
           </button>
         </div>
       </div>
@@ -490,145 +501,165 @@ export default function ManageUsers() {
           <div className="overflow-x-auto admin-sticky-head">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-100">
-                  <th className="px-5 py-4 whitespace-nowrap">User</th>
-                  <th className="px-5 py-4 whitespace-nowrap">Email</th>
-                  <th className="px-5 py-4 whitespace-nowrap">Phone</th>
-                  <th className="px-5 py-4 whitespace-nowrap">Role</th>
-                  <th className="px-5 py-4 whitespace-nowrap">Joined</th>
-                  <th className="px-5 py-4 whitespace-nowrap">Status</th>
-                  <th className="px-5 py-4 whitespace-nowrap">Activity & Spend</th>
-                  <th className="px-5 py-4 whitespace-nowrap text-right">Actions</th>
-                </tr>
+                {activeTab === 'admins' ? (
+                  <tr className="text-left text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-100">
+                    <th className="px-5 py-4 whitespace-nowrap">Name</th>
+                    <th className="px-5 py-4 whitespace-nowrap">Email</th>
+                    <th className="px-5 py-4 whitespace-nowrap">Role</th>
+                    <th className="px-5 py-4 whitespace-nowrap">Created Date</th>
+                    <th className="px-5 py-4 whitespace-nowrap text-right">Actions</th>
+                  </tr>
+                ) : (
+                  <tr className="text-left text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-100">
+                    <th className="px-5 py-4 whitespace-nowrap">Name</th>
+                    <th className="px-5 py-4 whitespace-nowrap">Email</th>
+                    <th className="px-5 py-4 whitespace-nowrap">Phone</th>
+                    <th className="px-5 py-4 whitespace-nowrap">Orders</th>
+                    <th className="px-5 py-4 whitespace-nowrap">Total Spent</th>
+                    <th className="px-5 py-4 whitespace-nowrap">Joined Date</th>
+                    <th className="px-5 py-4 whitespace-nowrap">Status</th>
+                    <th className="px-5 py-4 whitespace-nowrap text-right">Actions</th>
+                  </tr>
+                )}
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
                 ) : users.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-5 py-16 text-center">
+                    <td colSpan={activeTab === 'admins' ? 5 : 8} className="px-5 py-16 text-center">
                       <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-gray-100">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-400">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
                         </svg>
                       </div>
                       <p className="text-sm font-bold text-gray-700">No users found</p>
-                      <p className="text-xs text-gray-400 mt-1">{search ? `No matches for "${search}"` : 'No customers have registered yet.'}</p>
+                      <p className="text-xs text-gray-400 mt-1">{search ? `No matches for "${search}"` : 'No accounts found.'}</p>
                     </td>
                   </tr>
                 ) : (
                   users.map(user => {
                     const isAdmin = user.role === 'ROLE_ADMIN' || user.role === 'ADMIN';
-                    return (
-                      <tr 
-                        key={user.id} 
-                        className={`transition-colors ${
-                          isAdmin 
-                            ? 'bg-purple-50/10 hover:bg-purple-50/20 border-l-2 border-l-purple-500' 
-                            : 'hover:bg-gray-50/50'
-                        }`}
-                      >
-                        {/* Avatar & Name */}
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${
-                              isAdmin ? 'from-amber-400 via-purple-500 to-indigo-600' : getGradient(user.id)
-                            } flex items-center justify-center text-[12px] font-black text-white flex-shrink-0 shadow-sm`}>
-                              {getInitials(user.name, user.email)}
+                    if (activeTab === 'admins') {
+                      return (
+                        <tr 
+                          key={user.id} 
+                          className="bg-purple-50/10 hover:bg-purple-50/20 border-l-2 border-l-purple-500 transition-colors"
+                        >
+                          {/* Name */}
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 via-purple-500 to-indigo-600 flex items-center justify-center text-[12px] font-black text-white flex-shrink-0 shadow-sm">
+                                {getInitials(user.name, user.email)}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-gray-900 text-xs tracking-tight">{user.name || '(No name)'}</p>
+                                <span className="inline-block text-[9px] text-purple-600 bg-purple-50 px-1 py-0.2 rounded border border-purple-100 mt-0.5">🔒 Protected Account</span>
+                              </div>
                             </div>
-                            <p className="font-semibold text-gray-900 text-xs tracking-tight">{user.name || '(No name)'}</p>
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Email */}
-                        <td className="px-5 py-4 text-gray-600 text-xs font-medium">{user.email}</td>
+                          {/* Email */}
+                          <td className="px-5 py-4 text-gray-600 text-xs font-medium">{user.email}</td>
 
-                        {/* Phone */}
-                        <td className="px-5 py-4 text-gray-500 text-xs font-mono">{displayPhone(user.phone)}</td>
-
-                        {/* Role */}
-                        <td className="px-5 py-4">
-                          {isAdmin ? (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-extrabold px-2.5 py-1 rounded-md bg-gradient-to-r from-amber-100 to-purple-100 text-purple-800 border border-amber-300 shadow-sm">
+                          {/* Role */}
+                          <td className="px-5 py-4">
+                            <span className="inline-flex items-center gap-1 text-[9px] font-extrabold px-2.5 py-1 rounded-md bg-gradient-to-r from-amber-100 to-purple-100 text-purple-800 border border-amber-300 shadow-sm animate-pulse-subtle">
                               👑 Administrator
                             </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 border border-gray-200">
-                              CUSTOMER
-                            </span>
-                          )}
-                        </td>
+                          </td>
 
-                        {/* Joined */}
-                        <td className="px-5 py-4 text-xs text-gray-400 font-medium">
-                          {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                        </td>
+                          {/* Created Date */}
+                          <td className="px-5 py-4 text-xs text-gray-400 font-medium">
+                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                          </td>
 
-                        {/* Status */}
-                        <td className="px-5 py-4">
-                          {isAdmin ? (
-                            <span className="inline-flex items-center gap-1.5 text-[9px] font-extrabold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-50 to-purple-50 text-purple-700 border border-amber-250 shadow-sm">
-                              👑 Administrator
+                          {/* Actions */}
+                          <td className="px-5 py-4 text-right whitespace-nowrap">
+                            <button
+                              onClick={() => setDetailsUserId(user.id)}
+                              className="text-xs font-bold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 transition-colors shadow-sm"
+                            >
+                              View Details
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    } else {
+                      return (
+                        <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
+                          {/* Name */}
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${getGradient(user.id)} flex items-center justify-center text-[12px] font-black text-white flex-shrink-0 shadow-sm`}>
+                                {getInitials(user.name, user.email)}
+                              </div>
+                              <p className="font-semibold text-gray-900 text-xs tracking-tight">{user.name || '(No name)'}</p>
+                            </div>
+                          </td>
+
+                          {/* Email */}
+                          <td className="px-5 py-4 text-gray-600 text-xs font-medium">{user.email}</td>
+
+                          {/* Phone */}
+                          <td className="px-5 py-4 text-gray-500 text-xs font-mono">{displayPhone(user.phone)}</td>
+
+                          {/* Orders */}
+                          <td className="px-5 py-4 text-xs text-gray-800 font-semibold">{user.ordersCount}</td>
+
+                          {/* Total Spent */}
+                          <td className="px-5 py-4 text-xs text-[#0C831F] font-bold">{formatSpent(user.totalAmountSpent)}</td>
+
+                          {/* Joined Date */}
+                          <td className="px-5 py-4 text-xs text-gray-400 font-medium">
+                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                          </td>
+
+                          {/* Status */}
+                          <td className="px-5 py-4">
+                            <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2.5 py-0.5 rounded-full ${
+                              !user.isBlocked
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-150'
+                                : 'bg-red-50 text-red-600 border border-red-150'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${!user.isBlocked ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                              {!user.isBlocked ? 'Active' : 'Blocked'}
                             </span>
-                          ) : (
-                            <>
-                              <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2.5 py-0.5 rounded-full ${
-                                !user.isBlocked
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-150'
-                                  : 'bg-red-50 text-red-600 border border-red-150'
-                              }`}>
-                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${!user.isBlocked ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-                                {!user.isBlocked ? 'Active' : 'Blocked'}
+                            {user.isBlocked && user.blockedReason && (
+                              <span className="block text-[10px] text-red-400 mt-0.5 italic max-w-[150px] truncate" title={user.blockedReason}>
+                                Reason: {user.blockedReason}
                               </span>
-                              {user.isBlocked && user.blockedReason && (
-                                <span className="block text-[10px] text-red-400 mt-0.5 italic max-w-[150px] truncate" title={user.blockedReason}>
-                                  Reason: {user.blockedReason}
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </td>
+                            )}
+                          </td>
 
-                        {/* E-commerce Metrics */}
-                        <td className="px-5 py-4">
-                          <div className="flex flex-col gap-0.5 text-xs text-gray-500 font-medium">
-                            <span className="font-semibold text-gray-800">{user.ordersCount} {user.ordersCount === 1 ? 'Order' : 'Orders'}</span>
-                            <span className="text-[#0C831F] font-bold">{formatSpent(user.totalAmountSpent)} Spent</span>
-                            <span className="text-[10px] text-gray-400">{formatRelativeTime(user.lastLoginAt)}</span>
-                          </div>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="px-5 py-4 text-right whitespace-nowrap">
-                          <button
-                            onClick={() => setDetailsUserId(user.id)}
-                            className="text-xs font-bold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 transition-colors shadow-sm mr-2"
-                          >
-                            View Details
-                          </button>
-                          {!isAdmin && (
-                            <>
-                              <button
-                                onClick={() => triggerBlockToggle(user)}
-                                className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors shadow-sm mr-2 ${
-                                  user.isBlocked
-                                    ? 'text-emerald-700 hover:text-emerald-800 bg-emerald-50/50 hover:bg-emerald-50 border-emerald-200'
-                                    : 'text-red-600 hover:text-red-700 bg-red-50/50 hover:bg-red-50 border-red-200'
-                                }`}
-                              >
-                                {user.isBlocked ? 'Unblock' : 'Block'}
-                              </button>
-                              <button
-                                onClick={() => setDeletingUser(user)}
-                                className="text-xs font-bold px-3 py-1.5 rounded-xl border border-red-200 text-red-600 hover:text-white bg-red-50/10 hover:bg-red-600 transition-all shadow-sm"
-                              >
-                                Delete
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    );
+                          {/* Actions */}
+                          <td className="px-5 py-4 text-right whitespace-nowrap">
+                            <button
+                              onClick={() => setDetailsUserId(user.id)}
+                              className="text-xs font-bold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 transition-colors shadow-sm mr-2"
+                            >
+                              View Details
+                            </button>
+                            <button
+                              onClick={() => triggerBlockToggle(user)}
+                              className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors shadow-sm mr-2 ${
+                                user.isBlocked
+                                  ? 'text-emerald-700 hover:text-emerald-800 bg-emerald-50/50 hover:bg-emerald-50 border-emerald-200'
+                                  : 'text-red-600 hover:text-red-700 bg-red-50/50 hover:bg-red-50 border-red-200'
+                              }`}
+                            >
+                              {user.isBlocked ? 'Unblock' : 'Block'}
+                            </button>
+                            <button
+                              onClick={() => setDeletingUser(user)}
+                              className="text-xs font-bold px-3 py-1.5 rounded-xl border border-red-200 text-red-600 hover:text-white bg-red-50/10 hover:bg-red-600 transition-all shadow-sm"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    }
                   })
                 )}
               </tbody>
@@ -814,61 +845,106 @@ export default function ManageUsers() {
                   </div>
                 </div>
               ) : details ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  
-                  {/* Left Column: Basic Info & Addresses */}
-                  <div className="lg:col-span-1 space-y-6">
+                details.role === 'ROLE_ADMIN' || details.role === 'ADMIN' ? (
+                  /* ── Administrator Details View ── */
+                  <div className="max-w-2xl mx-auto w-full bg-white border border-purple-100 rounded-3xl p-8 shadow-xl space-y-6 relative overflow-hidden my-4">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
                     
-                    {/* Basic Info Card */}
-                    <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
-                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 pb-2 border-b border-gray-100">
-                        <Award className="w-3.5 h-3.5 text-gray-500" />
-                        Basic Information
-                      </h3>
+                    <div className="flex flex-col items-center text-center space-y-4">
+                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-400 via-purple-500 to-indigo-600 flex items-center justify-center text-3xl font-black text-white shadow-lg shadow-purple-500/20">
+                        {getInitials(details.name, details.email)}
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-extrabold text-gray-900 tracking-tight">{details.name || '(No name)'}</h3>
+                        <p className="text-sm text-gray-500 font-medium mt-0.5">{details.email}</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 justify-center">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-black px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-100 to-purple-100 text-purple-800 border border-amber-300 shadow-sm">
+                          👑 Administrator
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100">
+                          🔒 Protected Account
+                        </span>
+                      </div>
+                    </div>
 
-                      <div className="space-y-3.5">
-                        <div>
+                    <div className="border-t border-gray-100 pt-6 space-y-4">
+                      <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 justify-center">
+                        <Award className="w-4 h-4 text-purple-600" />
+                        System Profile Details
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-3">
+                        <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
                           <p className="text-[10px] font-bold text-gray-400 uppercase">User ID</p>
-                          <p className="text-xs font-mono text-gray-900 bg-gray-50 px-2 py-1 rounded border border-gray-100 select-all mt-1 break-all">{details.id}</p>
+                          <p className="text-xs font-mono text-gray-700 mt-1 select-all break-all">{details.id}</p>
                         </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase">Full Name</p>
-                          <p className="text-xs font-semibold text-gray-900 mt-0.5">{details.name || '(No name)'}</p>
+                        <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Role Level</p>
+                          <p className="text-xs font-semibold text-gray-800 mt-1">Full System Administrator (Level 1)</p>
                         </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase">Email Address</p>
-                          <p className="text-xs font-semibold text-gray-900 mt-0.5 flex items-center gap-1">
-                            <Mail className="w-3.5 h-3.5 text-gray-400" />
-                            {details.email}
+                        <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Registered Date</p>
+                          <p className="text-xs font-semibold text-gray-800 mt-1 flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                            {details.createdAt ? new Date(details.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'}
                           </p>
                         </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase">Phone Number</p>
-                          <p className="text-xs font-semibold text-gray-900 mt-0.5 flex items-center gap-1">
-                            <Phone className="w-3.5 h-3.5 text-gray-400" />
-                            {displayPhone(details.phone)}
-                          </p>
+                        <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">API Access Rights</p>
+                          <p className="text-xs font-semibold text-[#0C831F] mt-1">Read / Write / Delete</p>
                         </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase">System Role</p>
-                          <div className="mt-1">
-                            <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md ${
-                              details.role === 'ROLE_ADMIN' || details.role === 'ADMIN'
-                                ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                                : 'bg-gray-100 text-gray-600 border border-gray-200'
-                            }`}>
-                              {details.role === 'ROLE_ADMIN' || details.role === 'ADMIN' ? 'ADMIN' : 'CUSTOMER'}
-                            </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* ── Customer Details View ── */
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Left Column: Basic Info & Addresses */}
+                    <div className="lg:col-span-1 space-y-6">
+                      
+                      {/* Basic Info Card */}
+                      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 pb-2 border-b border-gray-100">
+                          <Award className="w-3.5 h-3.5 text-gray-500" />
+                          Basic Information
+                        </h3>
+
+                        <div className="space-y-3.5">
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">User ID</p>
+                            <p className="text-xs font-mono text-gray-900 bg-gray-50 px-2 py-1 rounded border border-gray-100 select-all mt-1 break-all">{details.id}</p>
                           </div>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase">Status</p>
-                          <div className="mt-1">
-                            {details.role === 'ROLE_ADMIN' || details.role === 'ADMIN' ? (
-                              <span className="inline-flex items-center gap-1.5 text-[9px] font-extrabold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-50 to-purple-50 text-purple-700 border border-amber-250 shadow-sm">
-                                👑 Administrator
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">Full Name</p>
+                            <p className="text-xs font-semibold text-gray-900 mt-0.5">{details.name || '(No name)'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">Email Address</p>
+                            <p className="text-xs font-semibold text-gray-900 mt-0.5 flex items-center gap-1">
+                              <Mail className="w-3.5 h-3.5 text-gray-400" />
+                              {details.email}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">Phone Number</p>
+                            <p className="text-xs font-semibold text-gray-900 mt-0.5 flex items-center gap-1">
+                              <Phone className="w-3.5 h-3.5 text-gray-400" />
+                              {displayPhone(details.phone)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">System Role</p>
+                            <div className="mt-1">
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 border border-gray-200">
+                                CUSTOMER
                               </span>
-                            ) : (
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">Status</p>
+                            <div className="mt-1">
                               <span className={`inline-flex items-center gap-1.5 text-[9px] font-bold px-2.5 py-0.5 rounded-full ${
                                 !details.isBlocked
                                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-150'
@@ -877,226 +953,225 @@ export default function ManageUsers() {
                                 <span className={`w-1.5 h-1.5 rounded-full ${!details.isBlocked ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
                                 {!details.isBlocked ? 'Active' : 'Blocked'}
                               </span>
-                            )}
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase">Joined Date</p>
-                          <p className="text-xs font-semibold text-gray-900 mt-0.5 flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                            {details.createdAt ? new Date(details.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase">Last Login Activity</p>
-                          <p className="text-xs font-semibold text-gray-900 mt-0.5 flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-gray-400" />
-                            {formatRelativeTime(details.lastLoginAt)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Address Information Card */}
-                    <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
-                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 pb-2 border-b border-gray-100">
-                        <MapPin className="w-3.5 h-3.5 text-gray-500" />
-                        Saved Addresses ({details.addresses.length})
-                      </h3>
-
-                      {details.addresses.length === 0 ? (
-                        <div className="p-8 text-center bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
-                          <MapPin className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                          <p className="text-xs font-semibold text-gray-500">No address added</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3.5 max-h-[350px] overflow-y-auto custom-scrollbar pr-1">
-                          {details.addresses.map((addr) => (
-                            <div 
-                              key={addr.id} 
-                              className={`p-3.5 rounded-xl border text-xs space-y-1.5 transition-all ${
-                                addr.isDefault 
-                                  ? 'border-emerald-250 bg-emerald-50/10 shadow-sm' 
-                                  : 'border-gray-100 bg-white hover:border-gray-200'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-gray-800">{addr.fullName}</span>
-                                {addr.isDefault && (
-                                  <span className="bg-emerald-50 text-emerald-700 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-emerald-100">
-                                    Default
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-gray-500 leading-relaxed">{addr.addressLine}</p>
-                              <p className="text-gray-500 leading-none">{addr.city}, {addr.state} - <span className="font-medium text-gray-700">{addr.postalCode}</span></p>
-                              <p className="text-[10px] text-gray-400 flex items-center gap-1">
-                                <span>📞</span> {addr.phone} | {addr.country}
-                              </p>
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                  </div>
-
-                  {/* Right Column: Orders, Wishlist, Cart */}
-                  <div className="lg:col-span-2 space-y-6">
-                    
-                    {/* Orders Information */}
-                    <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-5">
-                      
-                      {/* Metric Boxes */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
-                            <List className="w-5 h-5" />
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase leading-none">Total Orders</p>
-                            <p className="text-lg font-bold text-gray-900 mt-1 leading-none">{details.totalOrders}</p>
-                          </div>
-                        </div>
-
-                        <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                            <DollarSign className="w-5 h-5" />
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">Joined Date</p>
+                            <p className="text-xs font-semibold text-gray-900 mt-0.5 flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                              {details.createdAt ? new Date(details.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'}
+                            </p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase leading-none">Total Spent</p>
-                            <p className="text-lg font-bold text-[#0C831F] mt-1 leading-none">{formatSpent(details.totalAmountSpent)}</p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">Last Login Activity</p>
+                            <p className="text-xs font-semibold text-gray-900 mt-0.5 flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5 text-gray-400" />
+                              {formatRelativeTime(details.lastLoginAt)}
+                            </p>
                           </div>
                         </div>
                       </div>
 
-                      {/* Latest 5 Orders List */}
-                      <div className="space-y-3.5">
-                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest pb-1.5 border-b border-gray-100">
-                          Latest 5 Orders
-                        </h4>
-
-                        {details.latestOrders.length === 0 ? (
-                          <div className="py-8 text-center text-xs text-gray-400 font-medium">
-                            No orders placed yet.
-                          </div>
-                        ) : (
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-xs text-left">
-                              <thead>
-                                <tr className="border-b border-gray-100 text-[10px] font-bold uppercase text-gray-400">
-                                  <th className="py-2.5">Order No.</th>
-                                  <th className="py-2.5">Date</th>
-                                  <th className="py-2.5 text-right">Amount</th>
-                                  <th className="py-2.5 text-right">Status</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-50">
-                                {details.latestOrders.map((o) => (
-                                  <tr key={o.id} className="hover:bg-gray-50/30 transition-colors">
-                                    <td className="py-3 font-mono font-bold text-gray-900 uppercase tracking-wider">{o.orderNumber}</td>
-                                    <td className="py-3 text-gray-500">
-                                      {new Date(o.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                    </td>
-                                    <td className="py-3 text-right font-bold text-gray-800">{formatSpent(o.totalAmount)}</td>
-                                    <td className="py-3 text-right">
-                                      <span className={`inline-flex items-center text-[9px] font-bold px-2 py-0.5 rounded-full border ${getOrderStatusStyle(o.status)}`}>
-                                        {o.status}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-
-                    </div>
-
-                    {/* Wishlist and Cart Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      
-                      {/* Wishlist details */}
+                      {/* Address Information Card */}
                       <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 pb-2 border-b border-gray-100">
-                          <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
-                          Wishlist Items ({details.wishlistCount})
+                          <MapPin className="w-3.5 h-3.5 text-gray-500" />
+                          Saved Addresses ({details.addresses.length})
                         </h3>
 
-                        {details.wishlistItems.length === 0 ? (
-                          <div className="p-8 text-center text-xs text-gray-400 font-medium">
-                            No items in wishlist.
+                        {details.addresses.length === 0 ? (
+                          <div className="p-8 text-center bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                            <MapPin className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                            <p className="text-xs font-semibold text-gray-500">No address added</p>
                           </div>
                         ) : (
-                          <div className="space-y-3 max-h-[250px] overflow-y-auto custom-scrollbar pr-1">
-                            {details.wishlistItems.map((item) => (
-                              <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-gray-50/50 rounded-xl transition-colors border border-transparent hover:border-gray-100">
-                                <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                                  {item.image ? (
-                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-gray-300">🖼️</div>
+                          <div className="space-y-3.5 max-h-[350px] overflow-y-auto custom-scrollbar pr-1">
+                            {details.addresses.map((addr) => (
+                              <div 
+                                key={addr.id} 
+                                className={`p-3.5 rounded-xl border text-xs space-y-1.5 transition-all ${
+                                  addr.isDefault 
+                                    ? 'border-emerald-250 bg-emerald-50/10 shadow-sm' 
+                                    : 'border-gray-100 bg-white hover:border-gray-200'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-gray-800">{addr.fullName}</span>
+                                  {addr.isDefault && (
+                                    <span className="bg-emerald-50 text-emerald-700 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border border-emerald-100">
+                                      Default
+                                    </span>
                                   )}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold text-gray-800 truncate" title={item.name}>{item.name}</p>
-                                  <p className="text-[11px] font-bold text-gray-900 mt-0.5">{formatSpent(item.price)}</p>
-                                </div>
+                                <p className="text-gray-500 leading-relaxed">{addr.addressLine}</p>
+                                <p className="text-gray-500 leading-none">{addr.city}, {addr.state} - <span className="font-medium text-gray-700">{addr.postalCode}</span></p>
+                                <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                                  <span>📞</span> {addr.phone} | {addr.country}
+                                </p>
                               </div>
                             ))}
                           </div>
                         )}
                       </div>
 
-                      {/* Cart Details */}
-                      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 pb-2 border-b border-gray-100">
-                          <ShoppingBag className="w-3.5 h-3.5 text-emerald-600" />
-                          Active Cart ({details.cartCount})
-                        </h3>
+                    </div>
 
-                        {details.cartItems.length === 0 ? (
-                          <div className="p-8 text-center text-xs text-gray-400 font-medium">
-                            Cart is empty.
+                    {/* Right Column: Orders, Wishlist, Cart */}
+                    <div className="lg:col-span-2 space-y-6">
+                      
+                      {/* Orders Information */}
+                      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-5">
+                        
+                        {/* Metric Boxes */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+                              <List className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase leading-none">Total Orders</p>
+                              <p className="text-lg font-bold text-gray-900 mt-1 leading-none">{details.totalOrders}</p>
+                            </div>
                           </div>
-                        ) : (
-                          <div className="space-y-3 max-h-[250px] overflow-y-auto custom-scrollbar pr-1">
-                            {details.cartItems.map((item) => (
-                              <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-gray-50/50 rounded-xl transition-colors border border-transparent hover:border-gray-100">
-                                <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                                  {item.image ? (
-                                    <img src={item.image} alt={item.productName} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-gray-300">🖼️</div>
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold text-gray-800 truncate" title={item.productName}>{item.productName}</p>
-                                  <div className="flex items-center gap-2.5 mt-0.5">
-                                    <span className="text-[10px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded">Qty: {item.quantity}</span>
-                                    {(item.size || item.color) && (
-                                      <span className="text-[10px] text-gray-400 truncate">
-                                        {item.size ? `Size: ${item.size}` : ''}
-                                        {item.size && item.color ? ' | ' : ''}
-                                        {item.color ? `Color: ${item.color}` : ''}
-                                      </span>
+
+                          <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                              <DollarSign className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase leading-none">Total Spent</p>
+                              <p className="text-lg font-bold text-[#0C831F] mt-1 leading-none">{formatSpent(details.totalAmountSpent)}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Latest 5 Orders List */}
+                        <div className="space-y-3.5">
+                          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest pb-1.5 border-b border-gray-100">
+                            Latest 5 Orders
+                          </h4>
+
+                          {details.latestOrders.length === 0 ? (
+                            <div className="py-8 text-center text-xs text-gray-400 font-medium">
+                              No orders placed yet.
+                            </div>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs text-left">
+                                <thead>
+                                  <tr className="border-b border-gray-100 text-[10px] font-bold uppercase text-gray-400">
+                                    <th className="py-2.5">Order No.</th>
+                                    <th className="py-2.5">Date</th>
+                                    <th className="py-2.5 text-right">Amount</th>
+                                    <th className="py-2.5 text-right">Status</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                  {details.latestOrders.map((o) => (
+                                    <tr key={o.id} className="hover:bg-gray-50/30 transition-colors">
+                                      <td className="py-3 font-mono font-bold text-gray-900 uppercase tracking-wider">{o.orderNumber}</td>
+                                      <td className="py-3 text-gray-500">
+                                        {new Date(o.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                      </td>
+                                      <td className="py-3 text-right font-bold text-gray-800">{formatSpent(o.totalAmount)}</td>
+                                      <td className="py-3 text-right">
+                                        <span className={`inline-flex items-center text-[9px] font-bold px-2 py-0.5 rounded-full border ${getOrderStatusStyle(o.status)}`}>
+                                          {o.status}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+
+                      {/* Wishlist and Cart Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        {/* Wishlist details */}
+                        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
+                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 pb-2 border-b border-gray-100">
+                            <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+                            Wishlist Items ({details.wishlistCount})
+                          </h3>
+
+                          {details.wishlistItems.length === 0 ? (
+                            <div className="p-8 text-center text-xs text-gray-400 font-medium">
+                              No items in wishlist.
+                            </div>
+                          ) : (
+                            <div className="space-y-3 max-h-[250px] overflow-y-auto custom-scrollbar pr-1">
+                              {details.wishlistItems.map((item) => (
+                                <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-gray-50/50 rounded-xl transition-colors border border-transparent hover:border-gray-100">
+                                  <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                                    {item.image ? (
+                                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-gray-300">🖼️</div>
                                     )}
                                   </div>
-                                  <p className="text-[11px] font-bold text-gray-900 mt-1">{formatSpent(item.price)}</p>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-gray-800 truncate" title={item.name}>{item.name}</p>
+                                    <p className="text-[11px] font-bold text-gray-900 mt-0.5">{formatSpent(item.price)}</p>
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Cart Details */}
+                        <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
+                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 pb-2 border-b border-gray-100">
+                            <ShoppingBag className="w-3.5 h-3.5 text-emerald-600" />
+                            Active Cart ({details.cartCount})
+                          </h3>
+
+                          {details.cartItems.length === 0 ? (
+                            <div className="p-8 text-center text-xs text-gray-400 font-medium">
+                              Cart is empty.
+                            </div>
+                          ) : (
+                            <div className="space-y-3 max-h-[250px] overflow-y-auto custom-scrollbar pr-1">
+                              {details.cartItems.map((item) => (
+                                <div key={item.id} className="flex items-center gap-3 p-2 hover:bg-gray-50/50 rounded-xl transition-colors border border-transparent hover:border-gray-100">
+                                  <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                                    {item.image ? (
+                                      <img src={item.image} alt={item.productName} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-gray-300">🖼️</div>
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-gray-800 truncate" title={item.productName}>{item.productName}</p>
+                                    <div className="flex items-center gap-2.5 mt-0.5">
+                                      <span className="text-[10px] text-gray-400 font-bold bg-gray-100 px-1.5 py-0.5 rounded">Qty: {item.quantity}</span>
+                                      {(item.size || item.color) && (
+                                        <span className="text-[10px] text-gray-400 truncate">
+                                          {item.size ? `Size: ${item.size}` : ''}
+                                          {item.size && item.color ? ' | ' : ''}
+                                          {item.color ? `Color: ${item.color}` : ''}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[11px] font-bold text-gray-900 mt-1">{formatSpent(item.price)}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
                       </div>
 
                     </div>
 
                   </div>
-
-                </div>
-              ) : null}
+                ) ) : null}
             </div>
 
             {/* Action Buttons inside detail Modal Footer */}

@@ -334,6 +334,7 @@ public class AdminController {
     public ResponseEntity<ApiResponse<com.belledonne.ecommerce.dto.response.UserManagementResponse>> getAllUsers(
         @RequestParam(defaultValue = "") String search,
         @RequestParam(required = false) String role,
+        @RequestParam(required = false) Boolean blocked,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "15") int size) {
 
@@ -347,7 +348,7 @@ public class AdminController {
         }
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<UserAdminResponse> usersPage = userRepository.findUsersWithMetrics(search.trim(), roleEnum, pageable);
+        Page<UserAdminResponse> usersPage = userRepository.findUsersWithMetrics(search.trim(), roleEnum, blocked, pageable);
 
         long totalCustomers = userRepository.countByRole(Role.ROLE_USER);
         long activeUsers = userRepository.countByIsBlockedFalseAndRole(Role.ROLE_USER);
