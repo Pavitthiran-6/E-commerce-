@@ -7,6 +7,7 @@ export interface FlatCategory {
   slug: string;
   isMain: boolean;
   parentSlug?: string;
+  parentName?: string;
 }
 
 export function useCategorySearch() {
@@ -35,6 +36,7 @@ export function useCategorySearch() {
               slug: child.slug,
               isMain: false,
               parentSlug: parent.slug,
+              parentName: parent.name,
             });
           }
         }
@@ -60,9 +62,11 @@ export function useCategorySearch() {
         return;
       }
 
-      const matches = flatCategories.filter((cat) =>
-        cat.name.toLowerCase().includes(trimmed)
-      );
+      const matches = flatCategories.filter((cat) => {
+        const nameMatches = cat.name.toLowerCase().includes(trimmed);
+        const parentMatches = cat.parentName && cat.parentName.toLowerCase().includes(trimmed);
+        return nameMatches || parentMatches;
+      });
 
       setSuggestions(matches.slice(0, 8));
     },
