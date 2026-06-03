@@ -1,12 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay, Pagination } from 'swiper/modules';
 import type { HeroData, HeroCardData } from '../../services/heroService';
-
-// Import Swiper styles
-import 'swiper/css';
-import 'swiper/css/pagination';
 
 interface HeroSectionProps {
   heroData: HeroData | null;
@@ -79,7 +73,7 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
               ₹{Number(featuredOriginalPrice).toLocaleString('en-IN')}
             </span>
           )}
-          <span className="bg-[#0C831F] text-white text-[11px] md:text-lg font-black px-2.5 py-1 md:px-4 md:py-1.5 rounded-lg md:rounded-xl shadow-sm leading-none flex items-center">
+          <span className="bg-[#0C831F] text-white text-[10px] sm:text-xs md:text-lg font-black px-1.5 py-0.5 sm:px-2.5 sm:py-1 md:px-4 md:py-1.5 rounded-md sm:rounded-lg md:rounded-xl shadow-sm leading-none flex items-center">
             ₹{Number(featuredSalePrice).toLocaleString('en-IN')}
           </span>
         </div>
@@ -87,7 +81,7 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
         {featuredProductImage && (
           <div
             className={`aspect-square overflow-hidden bg-white/60 rounded-xl md:rounded-2xl border border-white/80 shadow-inner hover:scale-105 transition-transform duration-300 ${
-              isVertical ? 'w-20 md:w-40 mt-3' : 'w-16 md:w-28'
+              isVertical ? 'w-14 sm:w-20 md:w-40 mt-1 md:mt-3' : 'w-16 md:w-28'
             }`}
           >
             <img src={featuredProductImage} alt={featuredProductName} className="w-full h-full object-cover" loading="lazy" />
@@ -96,7 +90,7 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
       </>
     );
 
-    const className = `w-full h-full rounded-2xl border border-amber-100/60 shadow-sm p-4 md:p-6 flex transition-colors duration-300 hover:bg-[#FFF6DB] select-none ${
+    const className = `w-full h-full rounded-2xl border border-amber-100/60 shadow-sm p-2 sm:p-4 md:p-6 flex transition-colors duration-300 hover:bg-[#FFF6DB] select-none ${
       heroData?.productSlug ? 'cursor-pointer' : ''
     } ${
       isVertical ? 'flex-col justify-between items-center text-center' : 'flex-row justify-between items-center'
@@ -166,7 +160,7 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
 
   return (
     <div
-      className="relative overflow-hidden rounded-3xl border border-amber-500/10 shadow-md p-3 md:p-6 lg:p-8 flex flex-col gap-4 md:gap-6 lg:gap-8"
+      className="relative overflow-hidden rounded-3xl border border-amber-500/10 shadow-md p-3 md:p-6 lg:p-8 flex flex-col gap-2 md:gap-6 lg:gap-8"
       style={heroStyle}
     >
       {/* ── Header Title & Graphic Layout ────────────────────────── */}
@@ -204,58 +198,16 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
         </div>
       </div>
 
-      {/* ── DESKTOP LAYOUT (Large Left Card, 4 promo cards right) ────────────────── */}
-      <div className="hidden lg:grid grid-cols-3 gap-5 items-stretch relative z-10">
+      {/* ── GRID LAYOUT FOR ALL SCREEN SIZES (Large Left Card, 4 promo cards right) ── */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-5 items-stretch relative z-10 w-full">
         <div className="col-span-1 self-stretch">
           {renderFeaturedCard('vertical')}
         </div>
-        <div className="col-span-2 grid grid-cols-2 gap-4">
+        <div className="col-span-2 grid grid-cols-2 gap-2 sm:gap-4">
           {sortedCards.slice(0, 4).map((card, idx) => (
             <div key={card.id || idx}>{renderPromoCard(card)}</div>
           ))}
         </div>
-      </div>
-
-      {/* ── TABLET LAYOUT (Featured on top, Promo cards below) ──────────────────── */}
-      <div className="hidden md:flex lg:hidden flex-col gap-4 relative z-10">
-        <div className="w-full">
-          {renderFeaturedCard('horizontal')}
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          {sortedCards.slice(0, 4).map((card, idx) => (
-            <div key={card.id || idx}>{renderPromoCard(card)}</div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── MOBILE SWIPER SLIDER (Featured card first, promotional cards follow) ──── */}
-      <div className="block md:hidden relative z-10 hero-mobile-swiper">
-        <Swiper
-          modules={[Autoplay, Pagination]}
-          autoplay={{
-            delay: 4000,
-            disableOnInteraction: false,
-          }}
-          pagination={{ clickable: true }}
-          spaceBetween={10}
-          className="w-full pb-8"
-        >
-          {/* Slide 1: Featured Card */}
-          <SwiperSlide>
-            <div className="h-[280px]">
-              {renderFeaturedCard('vertical')}
-            </div>
-          </SwiperSlide>
-
-          {/* Promotional Slides */}
-          {sortedCards.slice(0, 4).map((card, idx) => (
-            <SwiperSlide key={card.id || idx}>
-              <div className="h-[280px]">
-                {renderPromoCard(card)}
-              </div>
-            </SwiperSlide>
-          ))}
-        </Swiper>
       </div>
     </div>
   );

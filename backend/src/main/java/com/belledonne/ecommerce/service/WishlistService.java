@@ -32,8 +32,8 @@ public class WishlistService {
 
     public List<ProductResponse> getWishlist(UserPrincipal principal) {
         return wishlistRepository.findByUserId(principal.getId()).stream()
-            .map(w -> productService.toResponse(w.getProduct()))
-            .collect(Collectors.toList());
+                .map(w -> productService.toResponse(w.getProduct()))
+                .collect(Collectors.toList());
     }
 
     // ── Add To Wishlist (idempotent — no exception on duplicate) ─────────────
@@ -44,9 +44,9 @@ public class WishlistService {
             return;
         }
         User user = userRepository.findById(principal.getId())
-            .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getId()));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getId()));
         Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new ResourceNotFoundException("Product", "id", productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "id", productId));
         wishlistRepository.save(Wishlist.builder().user(user).product(product).build());
     }
 
@@ -83,10 +83,11 @@ public class WishlistService {
         }
 
         User user = userRepository.findById(principal.getId())
-            .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getId()));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getId()));
 
         for (UUID productId : request.getProductIds()) {
-            if (productId == null) continue;
+            if (productId == null)
+                continue;
 
             // Skip if already in wishlist
             if (wishlistRepository.existsByUserIdAndProductId(principal.getId(), productId)) {
@@ -94,11 +95,9 @@ public class WishlistService {
             }
 
             productRepository.findById(productId).ifPresentOrElse(
-                product -> wishlistRepository.save(
-                    Wishlist.builder().user(user).product(product).build()
-                ),
-                () -> log.warn("Wishlist merge: product {} not found, skipping", productId)
-            );
+                    product -> wishlistRepository.save(
+                            Wishlist.builder().user(user).product(product).build()),
+                    () -> log.warn("Wishlist merge: product {} not found, skipping", productId));
         }
 
         return getWishlist(principal);
