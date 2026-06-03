@@ -822,7 +822,7 @@ export default function ManageUsers() {
             </div>
 
             {/* Scrollable Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/20 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto max-h-[calc(90vh-160px)] p-6 space-y-6 bg-gray-50/20 custom-scrollbar">
               {isDetailsLoading ? (
                 <div className="space-y-6">
                   {/* Skeletal layout matching columns */}
