@@ -5,6 +5,8 @@ import com.belledonne.ecommerce.dto.response.ApiResponse;
 import com.belledonne.ecommerce.dto.response.OrderResponse;
 import com.belledonne.ecommerce.dto.response.ProductResponse;
 import com.belledonne.ecommerce.dto.response.SaleSettingsResponse;
+import com.belledonne.ecommerce.dto.response.UserAdminResponse;
+import com.belledonne.ecommerce.dto.response.UserDetailsAdminResponse;
 import com.belledonne.ecommerce.entity.*;
 import com.belledonne.ecommerce.enums.OrderStatus;
 import com.belledonne.ecommerce.enums.PaymentMethod;
@@ -50,6 +52,8 @@ public class AdminController {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final OrderItemRepository orderItemRepository;
+    private final WishlistRepository wishlistRepository;
+    private final CartRepository cartRepository;
     private final CouponService couponService;
     private final ReviewService reviewService;
     private final OrderService orderService;
@@ -326,72 +330,117 @@ public class AdminController {
 
     // ---- 5D: USER MANAGEMENT (Admin) ----
     @GetMapping("/users")
-    @Operation(summary = "Get filtered users list with pagination")
-    public ResponseEntity<ApiResponse<?>> getAllUsersFiltered(
-        @RequestParam(required = false) String search,
-        @RequestParam(required = false) String role,
-        @RequestParam(required = false) Boolean isBlocked,
+    @Operation(summary = "Get all registered users with metrics (paginated & searchable)")
+    public ResponseEntity<ApiResponse<Page<UserAdminResponse>>> getAllUsers(
+        @RequestParam(defaultValue = "") String search,
         @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "20") int size) {
+        @RequestParam(defaultValue = "15") int size) {
 
-        Specification<User> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            if (search != null && !search.isBlank()) {
-                String pattern = "%" + search.trim().toLowerCase() + "%";
-                predicates.add(cb.or(
-                    cb.like(cb.lower(root.get("name")), pattern),
-                    cb.like(cb.lower(root.get("email")), pattern),
-                    cb.like(cb.lower(root.get("phone")), pattern)
-                ));
-            }
-            if (role != null && !role.isBlank()) {
-                predicates.add(cb.equal(root.get("role"), Role.valueOf(role.toUpperCase())));
-            }
-            if (isBlocked != null) {
-                predicates.add(cb.equal(root.get("isBlocked"), isBlocked));
-            }
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
-        Page<User> users = userRepository.findAll(spec, PageRequest.of(page, size));
+        Pageable pageable = PageRequest.of(page, size);
+        Page<UserAdminResponse> users = userRepository.findUsersWithMetrics(search.trim(), pageable);
         return ResponseEntity.ok(ApiResponse.success("Users fetched successfully", users));
     }
 
     @GetMapping("/users/{id}")
-    @Operation(summary = "Get details of user including order history and spent sum")
-    public ResponseEntity<ApiResponse<?>> getUserDetails(@PathVariable UUID id) {
+    @Operation(summary = "Get full user details — addresses, orders, wishlist, cart")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<UserDetailsAdminResponse>> getUserDetails(@PathVariable UUID id) {
         User user = userRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
-        
-        List<Order> userOrders = orderRepository.findAll((root, query, cb) -> cb.equal(root.get("user").get("id"), id));
-        BigDecimal totalSpent = userOrders.stream()
-            .filter(o -> o.getStatus() == OrderStatus.DELIVERED)
-            .map(Order::getTotalAmount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("user", user);
-        data.put("orders", userOrders.stream().map(orderService::toResponse).collect(Collectors.toList()));
-        data.put("totalSpent", totalSpent);
+        // Addresses
+        List<UserDetailsAdminResponse.AddressDTO> addressDTOs = user.getAddresses().stream()
+            .map(addr -> UserDetailsAdminResponse.AddressDTO.builder()
+                .id(addr.getId())
+                .fullName(addr.getFullName())
+                .phone(addr.getPhone())
+                .addressLine(addr.getAddressLine1() +
+                    (addr.getAddressLine2() != null && !addr.getAddressLine2().isBlank()
+                        ? ", " + addr.getAddressLine2() : ""))
+                .city(addr.getCity())
+                .state(addr.getState())
+                .country("India")
+                .postalCode(addr.getPincode())
+                .isDefault(addr.getIsDefault())
+                .build())
+            .collect(Collectors.toList());
 
-        return ResponseEntity.ok(ApiResponse.success("User details fetched", data));
+        // Orders
+        long totalOrders = orderRepository.countByUserId(id);
+        BigDecimal totalSpent = orderRepository.sumTotalAmountByUserId(id);
+        if (totalSpent == null) totalSpent = BigDecimal.ZERO;
+        List<UserDetailsAdminResponse.OrderMinDTO> orderDTOs =
+            orderRepository.findByUserIdOrderByCreatedAtDesc(id, PageRequest.of(0, 5))
+                .getContent().stream()
+                .map(o -> UserDetailsAdminResponse.OrderMinDTO.builder()
+                    .id(o.getId())
+                    .orderNumber(o.getOrderNumber())
+                    .createdAt(o.getCreatedAt())
+                    .totalAmount(o.getTotalAmount())
+                    .status(o.getStatus() != null ? o.getStatus().name() : "PLACED")
+                    .build())
+                .collect(Collectors.toList());
+
+        // Wishlist
+        List<Wishlist> wishlists = wishlistRepository.findByUserId(id);
+        int wishlistCount = wishlists.size();
+        List<UserDetailsAdminResponse.WishlistItemDTO> wishlistDTOs = wishlists.stream()
+            .map(w -> {
+                Product p = w.getProduct();
+                String img = p.getImages() != null && p.getImages().length > 0 ? p.getImages()[0] : null;
+                return UserDetailsAdminResponse.WishlistItemDTO.builder()
+                    .id(p.getId()).name(p.getName()).price(p.getPrice()).image(img).build();
+            }).collect(Collectors.toList());
+
+        // Cart
+        Optional<Cart> cartOpt = cartRepository.findByUserId(id);
+        int cartCount = 0;
+        List<UserDetailsAdminResponse.CartItemDTO> cartDTOs = new ArrayList<>();
+        if (cartOpt.isPresent()) {
+            Cart cart = cartOpt.get();
+            cartCount = cart.getItems().stream().mapToInt(CartItem::getQuantity).sum();
+            cartDTOs = cart.getItems().stream()
+                .map(ci -> {
+                    Product p = ci.getProduct();
+                    String img = p.getImages() != null && p.getImages().length > 0 ? p.getImages()[0] : null;
+                    return UserDetailsAdminResponse.CartItemDTO.builder()
+                        .id(ci.getId()).productId(p.getId()).productName(p.getName())
+                        .quantity(ci.getQuantity()).price(ci.getPriceAtAddition())
+                        .image(img).size(ci.getSize()).color(ci.getColor()).build();
+                }).collect(Collectors.toList());
+        }
+
+        UserDetailsAdminResponse details = UserDetailsAdminResponse.builder()
+            .id(user.getId()).name(user.getName()).email(user.getEmail()).phone(user.getPhone())
+            .role(user.getRole() != null ? user.getRole().name() : "ROLE_USER")
+            .createdAt(user.getCreatedAt()).lastLoginAt(user.getLastLoginAt())
+            .isBlocked(user.getIsBlocked()).blockedReason(user.getBlockedReason())
+            .addresses(addressDTOs).totalOrders(totalOrders).totalAmountSpent(totalSpent)
+            .latestOrders(orderDTOs).wishlistCount(wishlistCount).wishlistItems(wishlistDTOs)
+            .cartCount(cartCount).cartItems(cartDTOs).build();
+
+        return ResponseEntity.ok(ApiResponse.success("User details fetched successfully", details));
     }
 
-    @PutMapping("/users/{id}/block")
-    @Operation(summary = "Block or unblock a user")
-    public ResponseEntity<ApiResponse<?>> blockUser(
-        @PathVariable UUID id, @RequestBody Map<String, Object> body) {
+    @PutMapping("/users/{id}/toggle-block")
+    @Operation(summary = "Toggle block status of a user")
+    public ResponseEntity<ApiResponse<?>> toggleBlockUser(
+        @PathVariable UUID id, @RequestBody(required = false) Map<String, String> body) {
         User user = userRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
-        
-        boolean block = (Boolean) body.getOrDefault("blocked", true);
-        String reason = (String) body.get("reason");
 
-        user.setIsBlocked(block);
-        user.setBlockedReason(block ? reason : null);
+        boolean currentlyBlocked = user.getIsBlocked() != null && user.getIsBlocked();
+        if (currentlyBlocked) {
+            user.setIsBlocked(false);
+            user.setBlockedReason(null);
+        } else {
+            user.setIsBlocked(true);
+            String reason = body != null ? body.get("reason") : null;
+            user.setBlockedReason(reason != null && !reason.isBlank() ? reason.trim() : "Blocked by administrator");
+        }
         userRepository.save(user);
-
-        return ResponseEntity.ok(ApiResponse.success(block ? "User blocked successfully" : "User unblocked successfully"));
+        String action = user.getIsBlocked() ? "blocked" : "unblocked";
+        return ResponseEntity.ok(ApiResponse.success("User successfully " + action));
     }
 
     @PutMapping("/users/{id}/role")
@@ -400,11 +449,9 @@ public class AdminController {
         @PathVariable UUID id, @RequestBody Map<String, String> body) {
         User user = userRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
-
         Role newRole = Role.valueOf(body.get("role").toUpperCase());
         user.setRole(newRole);
         userRepository.save(user);
-
         return ResponseEntity.ok(ApiResponse.success("User role updated successfully"));
     }
 
