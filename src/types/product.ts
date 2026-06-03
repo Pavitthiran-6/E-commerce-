@@ -10,6 +10,7 @@ export interface Product {
   brand: string;
   category: string;
   subCategory: string;
+  categoryName?: string;
   price: number;
   originalPrice: number;
   discount: number;
@@ -18,6 +19,7 @@ export interface Product {
   sizes: string[];
   description: string;
   tags: string[];
+  keywords?: string;
   rating: number;
   reviewCount: number;
   inStock: boolean;

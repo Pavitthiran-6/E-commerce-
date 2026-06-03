@@ -308,6 +308,7 @@ export default function AddProduct() {
 
   // Form states
   const [name, setName] = useState('');
+  const [keywords, setKeywords] = useState('');
   const [brand, setBrand] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [subCategoryId, setSubCategoryId] = useState('');
@@ -470,6 +471,7 @@ export default function AddProduct() {
 
       const payload = {
         name: name.trim(),
+        keywords: keywords.trim(),
         brand: brand,
         categoryId: finalCategoryId,
         price: parseFloat(price),
@@ -599,6 +601,19 @@ export default function AddProduct() {
                   placeholder="e.g. Bo Velcro Sneaker"
                   className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all"
                 />
+              </div>
+
+              {/* Keywords */}
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Keywords</label>
+                <input
+                  type="text"
+                  value={keywords}
+                  onChange={e => setKeywords(e.target.value)}
+                  placeholder="e.g. headphones, headset, bluetooth, gaming, wireless"
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all"
+                />
+                <span className="text-[11px] text-gray-400 mt-1 block">Optional. Enter comma-separated search keywords for this product.</span>
               </div>
 
               {/* Brand */}

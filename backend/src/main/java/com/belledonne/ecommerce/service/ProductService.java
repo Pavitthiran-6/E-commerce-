@@ -185,6 +185,7 @@ public class ProductService {
             .averageRating(p.getAverageRating())
             .reviewCount(p.getReviewCount())
             .tags(p.getTags())
+            .keywords(p.getKeywords())
             .images(includeImages ? p.getImages() : null)
             .image(p.getImages() != null && p.getImages().length > 0 ? p.getImages()[0] : null)
             .colors(p.getColors())
@@ -236,6 +237,7 @@ public class ProductService {
             .discountPercentage(request.getDiscountPercentage() != null ? request.getDiscountPercentage() : 0)
             .stockQuantity(request.getStockQuantity() != null ? request.getStockQuantity() : 0)
             .tags(request.getTags())
+            .keywords(request.getKeywords())
             .images(request.getImages() != null ? request.getImages() : new String[0])
             .colors(request.getColors())
             .sizes(request.getSizes())
@@ -300,6 +302,7 @@ public class ProductService {
         product.setDiscountPercentage(request.getDiscountPercentage() != null ? request.getDiscountPercentage() : 0);
         product.setStockQuantity(request.getStockQuantity() != null ? request.getStockQuantity() : 0);
         product.setTags(request.getTags());
+        product.setKeywords(request.getKeywords());
         product.setColors(request.getColors());
         product.setSizes(request.getSizes());
         if (request.getImages() != null) {

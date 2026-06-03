@@ -32,6 +32,7 @@ public class ProductResponse {
     private BigDecimal averageRating;
     private Integer reviewCount;
     private String[] tags;
+    private String keywords;
     private String[] images;
     private String image;
     private String[] colors;

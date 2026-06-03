@@ -32,6 +32,8 @@ public class ProductRequest {
 
     private String[] tags;
 
+    private String keywords;
+
     private String[] colors;
 
     private String[] sizes;

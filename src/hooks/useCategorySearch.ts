@@ -108,15 +108,51 @@ export function useCategorySearch() {
       }
 
       // 2. Filter products:
-      // Product name, brand, category, subcategory, or tags match.
-      const matchedProducts = allProducts.filter((prod) => {
-        const nameMatches = prod.name.toLowerCase().includes(trimmed);
-        const brandMatches = prod.brand && prod.brand.toLowerCase().includes(trimmed);
-        const categoryMatches = prod.category && prod.category.toLowerCase().includes(trimmed);
-        const subCategoryMatches = prod.subCategory && prod.subCategory.toLowerCase().includes(trimmed);
-        const tagMatches = prod.tags && prod.tags.some(tag => tag.toLowerCase().includes(trimmed));
-        return nameMatches || brandMatches || categoryMatches || subCategoryMatches || tagMatches;
-      });
+      // Product name, brand, keywords, tags, description, category, subcategory match.
+      const matchedProducts = allProducts
+        .map((prod) => {
+          let score = 0;
+          const nameMatches = prod.name.toLowerCase().includes(trimmed);
+          const brandMatches = prod.brand && prod.brand.toLowerCase().includes(trimmed);
+          const keywordMatches = prod.keywords && prod.keywords.toLowerCase().includes(trimmed);
+          const tagMatches = prod.tags && prod.tags.some(tag => tag.toLowerCase().includes(trimmed));
+          const descMatches = (prod.description && prod.description.toLowerCase().includes(trimmed)) ||
+                              (prod.shortDescription && prod.shortDescription.toLowerCase().includes(trimmed));
+
+          // Resolve main and sub categories
+          const pCatName = (prod.categoryName || prod.category || '').toLowerCase();
+          const match = flatCategories.find(c => c.name.toLowerCase() === pCatName);
+          
+          let mainCategoryName = '';
+          let subCategoryName = '';
+          
+          if (match) {
+            if (match.isMain) {
+              mainCategoryName = match.name;
+            } else {
+              subCategoryName = match.name;
+              mainCategoryName = match.parentName || '';
+            }
+          } else {
+            mainCategoryName = pCatName;
+          }
+
+          const categoryMatches = mainCategoryName && mainCategoryName.toLowerCase().includes(trimmed);
+          const subCategoryMatches = subCategoryName && subCategoryName.toLowerCase().includes(trimmed);
+
+          if (nameMatches) score = Math.max(score, 100);
+          if (brandMatches) score = Math.max(score, 80);
+          if (keywordMatches) score = Math.max(score, 60);
+          if (tagMatches) score = Math.max(score, 40);
+          if (descMatches) score = Math.max(score, 20);
+          if (categoryMatches) score = Math.max(score, 10);
+          if (subCategoryMatches) score = Math.max(score, 5);
+
+          return { prod, score };
+        })
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map((item) => item.prod);
 
       // 3. Balance suggestions to ensure we have a maximum of 10:
       let finalCategories: FlatCategory[] = [];

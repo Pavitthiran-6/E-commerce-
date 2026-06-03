@@ -26,9 +26,42 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
     boolean existsByCategoryId(Long categoryId);
     long countByStockQuantityLessThan(int threshold);
 
-    @Query("SELECT p FROM Product p WHERE p.isActive = true AND " +
+    @Query(value = "SELECT p.* FROM products p " +
+           "LEFT JOIN categories c ON p.category_id = c.id " +
+           "LEFT JOIN categories parent_c ON c.parent_id = parent_c.id " +
+           "WHERE p.is_active = true AND " +
            "(LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
            "LOWER(p.brand) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(p.shortDescription) LIKE LOWER(CONCAT('%', :query, '%')))")
+           "LOWER(COALESCE(p.keywords, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(COALESCE(ARRAY_TO_STRING(p.tags, ','), '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(COALESCE(p.description, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(COALESCE(p.short_description, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "(c.parent_id IS NULL AND LOWER(COALESCE(c.name, '')) LIKE LOWER(CONCAT('%', :query, '%'))) OR " +
+           "(c.parent_id IS NOT NULL AND LOWER(COALESCE(parent_c.name, '')) LIKE LOWER(CONCAT('%', :query, '%'))) OR " +
+           "(c.parent_id IS NOT NULL AND LOWER(COALESCE(c.name, '')) LIKE LOWER(CONCAT('%', :query, '%')))) " +
+           "ORDER BY (CASE " +
+           "  WHEN LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) THEN 7 " +
+           "  WHEN LOWER(p.brand) LIKE LOWER(CONCAT('%', :query, '%')) THEN 6 " +
+           "  WHEN LOWER(COALESCE(p.keywords, '')) LIKE LOWER(CONCAT('%', :query, '%')) THEN 5 " +
+           "  WHEN LOWER(COALESCE(ARRAY_TO_STRING(p.tags, ','), '')) LIKE LOWER(CONCAT('%', :query, '%')) THEN 4 " +
+           "  WHEN LOWER(COALESCE(p.description, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(COALESCE(p.short_description, '')) LIKE LOWER(CONCAT('%', :query, '%')) THEN 3 " +
+           "  WHEN (c.parent_id IS NULL AND LOWER(COALESCE(c.name, '')) LIKE LOWER(CONCAT('%', :query, '%'))) OR (c.parent_id IS NOT NULL AND LOWER(COALESCE(parent_c.name, '')) LIKE LOWER(CONCAT('%', :query, '%'))) THEN 2 " +
+           "  WHEN c.parent_id IS NOT NULL AND LOWER(COALESCE(c.name, '')) LIKE LOWER(CONCAT('%', :query, '%')) THEN 1 " +
+           "  ELSE 0 " +
+           "END) DESC, p.name ASC",
+           countQuery = "SELECT COUNT(*) FROM products p " +
+           "LEFT JOIN categories c ON p.category_id = c.id " +
+           "LEFT JOIN categories parent_c ON c.parent_id = parent_c.id " +
+           "WHERE p.is_active = true AND " +
+           "(LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(p.brand) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(COALESCE(p.keywords, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(COALESCE(ARRAY_TO_STRING(p.tags, ','), '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(COALESCE(p.description, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(COALESCE(p.short_description, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "(c.parent_id IS NULL AND LOWER(COALESCE(c.name, '')) LIKE LOWER(CONCAT('%', :query, '%'))) OR " +
+           "(c.parent_id IS NOT NULL AND LOWER(COALESCE(parent_c.name, '')) LIKE LOWER(CONCAT('%', :query, '%'))) OR " +
+           "(c.parent_id IS NOT NULL AND LOWER(COALESCE(c.name, '')) LIKE LOWER(CONCAT('%', :query, '%'))))",
+           nativeQuery = true)
     Page<Product> searchProducts(String query, Pageable pageable);
 }
