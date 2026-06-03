@@ -21,7 +21,7 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     @Query("SELECT new com.belledonne.ecommerce.dto.response.UserAdminResponse(" +
            "u.id, u.name, u.email, u.phone, u.role, u.createdAt, u.lastLoginAt, u.isBlocked, u.blockedReason, " +
            "(SELECT COUNT(o) FROM Order o WHERE o.user.id = u.id), " +
-           "(SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.user.id = u.id)" +
+           "(SELECT SUM(o.totalAmount) FROM Order o WHERE o.user.id = u.id)" +
            ") FROM User u " +
            "WHERE (:search IS NULL OR :search = '' OR " +
            "LOWER(COALESCE(u.name, '')) LIKE LOWER(CONCAT('%', :search, '%')) OR " +

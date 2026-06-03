@@ -19,7 +19,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
     Page<Order> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
     long countByUserId(UUID userId);
 
-    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.user.id = :userId")
+    @Query("SELECT SUM(o.totalAmount) FROM Order o WHERE o.user.id = :userId")
     BigDecimal sumTotalAmountByUserId(@Param("userId") UUID userId);
 
     boolean existsByUserIdAndCouponCodeIgnoreCaseAndStatusNot(UUID userId, String couponCode, OrderStatus status);

@@ -73,6 +73,7 @@ public class AdminUserController {
         // 2. Map Orders
         long totalOrders = orderRepository.countByUserId(id);
         BigDecimal totalSpent = orderRepository.sumTotalAmountByUserId(id);
+        if (totalSpent == null) totalSpent = BigDecimal.ZERO;
         
         java.util.List<UserDetailsAdminResponse.OrderMinDTO> orderDTOs = orderRepository.findByUserIdOrderByCreatedAtDesc(id, PageRequest.of(0, 5))
             .getContent().stream()

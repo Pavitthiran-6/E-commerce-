@@ -23,13 +23,13 @@ public class UserAdminResponse {
     private LocalDateTime lastLoginAt;
     private Boolean isBlocked;
     private String blockedReason;
-    private long ordersCount;
+    private Long ordersCount;
     private BigDecimal totalAmountSpent;
 
     // Custom constructor for JpaRepository projection (constructor expression)
     public UserAdminResponse(UUID id, String name, String email, String phone, com.belledonne.ecommerce.enums.Role role,
                              LocalDateTime createdAt, LocalDateTime lastLoginAt, Boolean isBlocked, String blockedReason,
-                             long ordersCount, BigDecimal totalAmountSpent) {
+                             Long ordersCount, BigDecimal totalAmountSpent) {
         this.id = id;
         this.name = name;
         this.email = email;
