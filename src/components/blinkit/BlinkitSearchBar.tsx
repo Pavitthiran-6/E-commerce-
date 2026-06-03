@@ -29,7 +29,7 @@ export default function BlinkitSearchBar({ className = '', placeholder = 'Search
     e.preventDefault();
     const trimmed = query.trim();
     if (trimmed) {
-      navigate(`/collection?q=${encodeURIComponent(trimmed)}`);
+      navigate(`/collection?search=${encodeURIComponent(trimmed)}`);
       setIsFocused(false);
       inputRef.current?.blur();
     }
@@ -51,6 +51,8 @@ export default function BlinkitSearchBar({ className = '', placeholder = 'Search
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
+
+  const hasSuggestions = suggestions.categories.length > 0 || suggestions.products.length > 0;
 
   return (
     <>
@@ -105,28 +107,63 @@ export default function BlinkitSearchBar({ className = '', placeholder = 'Search
         </div>
 
         {/* Suggestion Dropdown */}
-        {isFocused && suggestions.length > 0 && (
-          <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl border border-gray-100 shadow-xl z-50 overflow-hidden py-1">
-            {suggestions.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  if (cat.isMain) {
-                    navigate(`/collection?mainCategory=${cat.slug}`);
-                  } else {
-                    navigate(`/collection?category=${cat.slug}`);
-                  }
-                  setQuery('');
-                  setIsFocused(false);
-                  inputRef.current?.blur();
-                }}
-                className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors font-medium"
-              >
-                <span>{cat.name}</span>
-              </button>
-            ))}
+        {isFocused && hasSuggestions && (
+          <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl border border-gray-100 shadow-xl z-50 overflow-hidden py-1 max-h-[380px] overflow-y-auto custom-scrollbar">
+            {suggestions.categories.length > 0 && (
+              <div>
+                <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">Categories</div>
+                {suggestions.categories.map((cat) => (
+                  <button
+                    key={`cat-${cat.id}`}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      if (cat.isMain) {
+                        navigate(`/collection?mainCategory=${cat.slug}`);
+                      } else {
+                        navigate(`/collection?category=${cat.slug}`);
+                      }
+                      setQuery('');
+                      setIsFocused(false);
+                      inputRef.current?.blur();
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
+                  >
+                    <span className="text-gray-400">📁</span>
+                    <span>{cat.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {suggestions.products.length > 0 && (
+              <div className="border-t border-gray-100">
+                <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">Products</div>
+                {suggestions.products.map((prod) => (
+                  <button
+                    key={`prod-${prod.id}`}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      navigate(`/collection?search=${encodeURIComponent(prod.name)}`);
+                      setQuery('');
+                      setIsFocused(false);
+                      inputRef.current?.blur();
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors font-medium"
+                  >
+                    <span className="text-gray-400">🔍</span>
+                    <span>{prod.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty Search Results */}
+        {isFocused && query.trim() && !hasSuggestions && (
+          <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-xl border border-gray-100 shadow-xl z-50 p-4 text-center text-sm text-gray-500 font-medium">
+            No matching products or categories found.
           </div>
         )}
       </form>

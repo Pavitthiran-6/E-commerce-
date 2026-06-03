@@ -24,7 +24,7 @@ export default function Collection() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
-  const searchQuery = queryParams.get('q');
+  const searchQuery = queryParams.get('q') || queryParams.get('search');
   const departmentQuery = queryParams.get('department');
   const categoryQuery = queryParams.get('category');
   const mainCategoryQuery = queryParams.get('mainCategory');
