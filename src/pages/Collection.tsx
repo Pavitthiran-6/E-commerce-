@@ -27,6 +27,7 @@ export default function Collection() {
   const searchQuery = queryParams.get('q');
   const departmentQuery = queryParams.get('department');
   const categoryQuery = queryParams.get('category');
+  const mainCategoryQuery = queryParams.get('mainCategory');
   const promoQuery = queryParams.get('promo');
   const subcategoriesQuery = queryParams.get('subcategories');
   const minPriceQuery = queryParams.get('minPrice');
@@ -69,18 +70,63 @@ export default function Collection() {
 
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
+  // Helper to recursively find category by slug
+  const findCategoryBySlug = useCallback((slug: string, catList: Category[] = categories): Category | null => {
+    for (const cat of catList) {
+      if (cat.slug.toLowerCase() === slug.toLowerCase()) {
+        return cat;
+      }
+      if (cat.children && cat.children.length > 0) {
+        const found = findCategoryBySlug(slug, cat.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  }, [categories]);
+
+  // Helper to recursively find category by name
+  const findCategoryByName = useCallback((name: string, catList: Category[] = categories): Category | null => {
+    for (const cat of catList) {
+      if (cat.name.toLowerCase() === name.toLowerCase()) {
+        return cat;
+      }
+      if (cat.children && cat.children.length > 0) {
+        const found = findCategoryByName(name, cat.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  }, [categories]);
+
   // URL State Sync
-  const updateURL = useCallback((selectedCats: string[], minP: number, maxP: number) => {
+  const updateURL = useCallback((selectedCats: string[], minP: number, maxP: number, mainCat: string = selectedMainCategory) => {
     const params = new URLSearchParams(window.location.search);
-    
-    if (selectedCats.length > 0) {
-      params.set('subcategories', selectedCats.join(','));
+
+    if (mainCat && mainCat !== 'all') {
+      const match = findCategoryByName(mainCat);
+      if (match) {
+        params.set('mainCategory', match.slug);
+      } else {
+        params.set('mainCategory', mainCat.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+      }
+    } else {
+      params.delete('mainCategory');
+    }
+
+    // Convert category names to slugs
+    const selectedSlugs = selectedCats.map(name => {
+      const match = findCategoryByName(name);
+      return match ? match.slug : name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    });
+
+    if (selectedSlugs.length > 0) {
+      params.set('subcategories', selectedSlugs.join(','));
     } else {
       params.delete('subcategories');
     }
     
-    if (selectedCats.length === 1) {
-      params.set('category', selectedCats[0]);
+    if (selectedSlugs.length === 1) {
+      params.set('category', selectedSlugs[0]);
     } else {
       params.delete('category');
     }
@@ -98,7 +144,7 @@ export default function Collection() {
     }
 
     navigate({ search: params.toString() }, { replace: true });
-  }, [navigate]);
+  }, [navigate, findCategoryByName, selectedMainCategory]);
 
   // Load categories tree from API
   const fetchCategories = useCallback(async () => {
@@ -174,46 +220,89 @@ export default function Collection() {
   useEffect(() => {
     if (categories.length === 0) return;
 
-    if (categoryQuery) {
-      const parent = categories.find(c => c.name.toLowerCase() === categoryQuery.toLowerCase());
-      if (parent) {
-        setSelectedMainCategory(parent.name);
-        if (!subcategoriesQuery) {
-          setSelectedCategories([]);
+    const mainCatQuery = queryParams.get('mainCategory');
+    const catQuery = queryParams.get('category');
+    const subcatsQuery = queryParams.get('subcategories');
+
+    let resolvedMainCategory = 'all';
+    let resolvedCategories: string[] = [];
+
+    if (mainCatQuery) {
+      const match = findCategoryBySlug(mainCatQuery);
+      if (match) {
+        resolvedMainCategory = match.name;
+      }
+    }
+
+    if (catQuery) {
+      const match = findCategoryBySlug(catQuery);
+      if (match) {
+        // Check if it's a parent category
+        const isParent = categories.some(c => c.id === match.id);
+        if (isParent) {
+          resolvedMainCategory = match.name;
+          resolvedCategories = [];
+        } else {
+          // It's a subcategory. Find its parent.
+          let parentName = 'all';
+          for (const parent of categories) {
+            if (parent.children?.some(child => child.id === match.id)) {
+              parentName = parent.name;
+              break;
+            }
+          }
+          resolvedMainCategory = parentName;
+          resolvedCategories = [match.name];
         }
       } else {
-        let foundParent: Category | null = null;
-        for (const p of categories) {
-          if (p.children?.some(c => c.name.toLowerCase() === categoryQuery.toLowerCase())) {
-            foundParent = p;
-            break;
+        // Fallback to name match just in case
+        const nameMatch = findCategoryByName(catQuery);
+        if (nameMatch) {
+          const isParent = categories.some(c => c.id === nameMatch.id);
+          if (isParent) {
+            resolvedMainCategory = nameMatch.name;
+            resolvedCategories = [];
+          } else {
+            let parentName = 'all';
+            for (const parent of categories) {
+              if (parent.children?.some(child => child.id === nameMatch.id)) {
+                parentName = parent.name;
+                break;
+              }
+            }
+            resolvedMainCategory = parentName;
+            resolvedCategories = [nameMatch.name];
           }
         }
-        if (foundParent) {
-          setSelectedMainCategory(foundParent.name);
+      }
+    } else if (subcatsQuery) {
+      const slugs = subcatsQuery.split(',');
+      const names: string[] = [];
+      let commonParentName = 'all';
+
+      for (const slug of slugs) {
+        const match = findCategoryBySlug(slug) || findCategoryByName(slug);
+        if (match) {
+          names.push(match.name);
+          // Find parent
+          for (const parent of categories) {
+            if (parent.children?.some(child => child.id === match.id)) {
+              commonParentName = parent.name;
+              break;
+            }
+          }
         }
-        setSelectedCategories([categoryQuery]);
       }
-    } else if (subcategoriesQuery) {
-      const subCats = subcategoriesQuery.split(',');
-      setSelectedCategories(subCats);
-      let foundParent: Category | null = null;
-      for (const p of categories) {
-        if (p.children?.some(c => c.name.toLowerCase() === subCats[0].toLowerCase())) {
-          foundParent = p;
-          break;
-        }
+
+      if (names.length > 0) {
+        resolvedCategories = names;
+        resolvedMainCategory = commonParentName;
       }
-      if (foundParent) {
-        setSelectedMainCategory(foundParent.name);
-      } else {
-        setSelectedMainCategory('all');
-      }
-    } else {
-      setSelectedMainCategory('all');
-      setSelectedCategories([]);
     }
-  }, [categoryQuery, subcategoriesQuery, categories]);
+
+    setSelectedMainCategory(resolvedMainCategory);
+    setSelectedCategories(resolvedCategories);
+  }, [location.search, categories, findCategoryBySlug, findCategoryByName]);
 
   useEffect(() => {
     if (departmentQuery) {
@@ -237,7 +326,7 @@ export default function Collection() {
       : [...selectedCategories, cat];
     setSelectedCategories(next);
     setCurrentPage(1);
-    updateURL(next, sliderPrice[0], sliderPrice[1]);
+    updateURL(next, sliderPrice[0], sliderPrice[1], selectedMainCategory);
   };
 
   const toggleDepartment = (dept: string) => {
@@ -254,7 +343,7 @@ export default function Collection() {
     setSelectedColors([]);
     setSelectedDepartments([]);
     setCurrentPage(1);
-    updateURL([], 0, 50000);
+    updateURL([], 0, 50000, 'all');
   };
 
   // Helper to map and resolve parent & subcategory names for a product
@@ -481,7 +570,7 @@ export default function Collection() {
               onChange={(e) => {
                 const value = Math.min(Number(e.target.value), sliderPrice[1] - 500);
                 setSliderPrice([value, sliderPrice[1]]);
-                updateURL(selectedCategories, value, sliderPrice[1]);
+                updateURL(selectedCategories, value, sliderPrice[1], selectedMainCategory);
               }}
               className="absolute pointer-events-none appearance-none w-full h-2 bg-transparent top-0 left-0 dual-slider-input outline-none"
               style={{ zIndex: sliderPrice[0] > 40000 ? 5 : 3 }}
@@ -495,7 +584,7 @@ export default function Collection() {
               onChange={(e) => {
                 const value = Math.max(Number(e.target.value), sliderPrice[0] + 500);
                 setSliderPrice([sliderPrice[0], value]);
-                updateURL(selectedCategories, sliderPrice[0], value);
+                updateURL(selectedCategories, sliderPrice[0], value, selectedMainCategory);
               }}
               className="absolute pointer-events-none appearance-none w-full h-2 bg-transparent top-0 left-0 dual-slider-input outline-none"
               style={{ zIndex: 4 }}
@@ -534,7 +623,7 @@ export default function Collection() {
           {/* Category type pills */}
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1">
             <button
-              onClick={() => { setSelectedMainCategory('all'); setSelectedCategories([]); setCurrentPage(1); updateURL([], sliderPrice[0], sliderPrice[1]); }}
+              onClick={() => { setSelectedMainCategory('all'); setSelectedCategories([]); setCurrentPage(1); updateURL([], sliderPrice[0], sliderPrice[1], 'all'); }}
               className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-150 ${
                 selectedMainCategory === 'all'
                   ? 'bg-[#0C831F] text-white border-[#0C831F]'
@@ -550,7 +639,7 @@ export default function Collection() {
                   setSelectedMainCategory(cat.name);
                   setSelectedCategories([]);
                   setCurrentPage(1);
-                  updateURL([], sliderPrice[0], sliderPrice[1]);
+                  updateURL([], sliderPrice[0], sliderPrice[1], cat.name);
                 }}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-150 ${
                   selectedMainCategory.toLowerCase() === cat.name.toLowerCase()
@@ -629,7 +718,7 @@ export default function Collection() {
               </button>
             ))}
             {(sliderPrice[0] > 0 || sliderPrice[1] < 50000) && (
-              <button onClick={() => { setSliderPrice([0, 50000]); updateURL(selectedCategories, 0, 50000); }} className="flex items-center gap-1 bg-[#E8F5E9] text-[#0C831F] text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-[#C8E6C9] transition-colors">
+              <button onClick={() => { setSliderPrice([0, 50000]); updateURL(selectedCategories, 0, 50000, selectedMainCategory); }} className="flex items-center gap-1 bg-[#E8F5E9] text-[#0C831F] text-xs font-semibold px-2.5 py-1 rounded-full hover:bg-[#C8E6C9] transition-colors">
                 ₹{sliderPrice[0]} - ₹{sliderPrice[1]} <X className="w-3 h-3" />
               </button>
             )}

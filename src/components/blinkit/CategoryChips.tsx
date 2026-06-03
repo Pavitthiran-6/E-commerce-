@@ -20,10 +20,10 @@ const DEFAULT_CATEGORIES: CategoryChip[] = [
   { name: 'New Arrivals', emoji: '✨', link: '/new-arrivals', color: '#FFF8E6' },
   { name: 'Men', emoji: '👔', link: '/collection?department=Men', color: '#EEF4FF' },
   { name: 'Women', emoji: '👗', link: '/collection?department=Women', color: '#FFF0F5' },
-  { name: 'Footwear', emoji: '👟', link: '/collection?category=footwear', color: '#F0FFF4' },
-  { name: 'Electronics', emoji: '📱', link: '/collection?category=electronics', color: '#EEF0FF' },
-  { name: 'Kitchen', emoji: '🍳', link: '/collection?category=Kitchen Items', color: '#FFF3E0' },
-  { name: 'Accessories', emoji: '💎', link: '/collection?category=Accessories', color: '#F3E8FF' },
+  { name: 'Footwear', emoji: '👟', link: '/collection?mainCategory=footwear', color: '#F0FFF4' },
+  { name: 'Electronics', emoji: '📱', link: '/collection?mainCategory=tech-kitchen', color: '#EEF0FF' },
+  { name: 'Kitchen', emoji: '🍳', link: '/collection?mainCategory=tech-kitchen', color: '#FFF3E0' },
+  { name: 'Accessories', emoji: '💎', link: '/collection?mainCategory=accessories', color: '#F3E8FF' },
 ];
 
 export default function CategoryChips({ categories = DEFAULT_CATEGORIES, className = '' }: CategoryChipsProps) {

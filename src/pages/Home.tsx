@@ -28,7 +28,7 @@ function CategoryCard({ subCat }: { subCat: Category }) {
   const [imgError, setImgError] = useState(false);
   return (
     <Link
-      to={`/collection?category=${encodeURIComponent(subCat.name)}`}
+      to={`/collection?category=${subCat.slug}`}
       className="group flex flex-col justify-between p-2 bg-white border border-gray-100/80 rounded-2xl shadow-sm hover:shadow-md hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer hover:border-gray-200 h-full w-full"
     >
       {/* Image container */}
@@ -328,7 +328,7 @@ export default function Home() {
         {/* ── Tech & Home Products ─────────────────────── */}
         {(isLoading || techHome.length > 0) && (
           <section className="pb-4">
-            <SectionHeader title="Tech & Home" seeAllLink="/collection?productType=electronics" />
+            <SectionHeader title="Tech & Home" seeAllLink="/collection?category=tech-home" />
             {isLoading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
                 {Array.from({ length: 5 }).map((_, i) => <ProductCardSkeleton key={i} />)}

@@ -51,9 +51,9 @@ export default function Navbar() {
 
   const navLinks = [
     { name: 'New Arrivals', path: '/new-arrivals' },
-    { name: 'Men', path: '/collection?category=men' },
-    { name: 'Women', path: '/collection?category=women' },
-    { name: 'Tech & Kitchen', path: '/collection?category=tech-kitchen' },
+    { name: 'Men', path: '/collection?mainCategory=men' },
+    { name: 'Women', path: '/collection?mainCategory=women' },
+    { name: 'Tech & Kitchen', path: '/collection?mainCategory=tech-kitchen' },
     { name: 'Sale', path: '/sale', className: 'text-[#E53935] font-semibold' },
     { name: 'About', path: '/about' },
     { name: 'Contact', path: '/contact' },

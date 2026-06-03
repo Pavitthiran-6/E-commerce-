@@ -36,9 +36,9 @@ export default function Footer() {
           {/* Column 2 - Shop */}
           <div className="flex flex-col gap-5">
             <h3 className="font-serif text-lg tracking-wide mb-2">Shop</h3>
-            <Link to="/collection?category=men" className="text-gray-300 text-sm hover:text-warm-sand transition-colors w-fit">Men's Collection</Link>
-            <Link to="/collection?category=women" className="text-gray-300 text-sm hover:text-warm-sand transition-colors w-fit">Women's Collection</Link>
-            <Link to="/collection?category=tech-kitchen" className="text-gray-300 text-sm hover:text-warm-sand transition-colors w-fit">Tech & Kitchen</Link>
+            <Link to="/collection?mainCategory=men" className="text-gray-300 text-sm hover:text-warm-sand transition-colors w-fit">Men's Collection</Link>
+            <Link to="/collection?mainCategory=women" className="text-gray-300 text-sm hover:text-warm-sand transition-colors w-fit">Women's Collection</Link>
+            <Link to="/collection?mainCategory=tech-kitchen" className="text-gray-300 text-sm hover:text-warm-sand transition-colors w-fit">Tech & Kitchen</Link>
             <Link to="/new-arrivals" className="text-gray-300 text-sm hover:text-warm-sand transition-colors w-fit">New Arrivals</Link>
             <Link to="/sale" className="text-red-400 text-sm hover:text-red-300 font-medium transition-colors w-fit">Sale</Link>
           </div>

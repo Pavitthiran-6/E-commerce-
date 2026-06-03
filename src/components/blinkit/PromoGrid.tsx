@@ -57,7 +57,7 @@ export default function PromoGrid({ categories, products, isLoading }: PromoGrid
       {displayCats.map((cat, idx) => {
         const colors = PASTEL_COLORS[idx % PASTEL_COLORS.length];
         const maxDiscount = getCategoryDiscount(cat.name);
-        const linkPath = `/collection?category=${encodeURIComponent(cat.name)}`;
+        const linkPath = `/collection?category=${cat.slug}`;
         const imageSrc = cat.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=400';
 
         return (

@@ -19,9 +19,9 @@ export default function MobileNavDrawer({ isOpen, onClose, isLoggedIn, avatarLet
 
   const navLinks = [
     { label: 'Home', path: '/' },
-    { label: 'Men', path: '/collection?category=men' },
-    { label: 'Women', path: '/collection?category=women' },
-    { label: 'Tech & Kitchen', path: '/collection?category=tech-kitchen' },
+    { label: 'Men', path: '/collection?mainCategory=men' },
+    { label: 'Women', path: '/collection?mainCategory=women' },
+    { label: 'Tech & Kitchen', path: '/collection?mainCategory=tech-kitchen' },
     { label: 'New Arrivals', path: '/new-arrivals' },
     { label: 'Sale', path: '/sale', isRed: true },
     { label: 'About Us', path: '/about' },
