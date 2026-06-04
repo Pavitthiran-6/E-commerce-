@@ -45,8 +45,8 @@ export default function Signup() {
         password,
         phone
       });
-      showToast('Account created! Please verify your email.', 'success');
-      navigate('/auth/verify-otp', { state: { email, source: 'signup' } });
+      showToast('Verification code sent! Please verify your email.', 'success');
+      navigate('/auth/verify-registration', { state: { email } });
     } catch (err: any) {
       const message = err.response?.data?.message || 'Failed to create account.';
       setError(message);

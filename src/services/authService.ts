@@ -36,6 +36,21 @@ export const verifyOTP = async (data: {
   return response.data;
 };
 
+// Verify registration OTP
+export const verifyRegistration = async (data: {
+  email: string;
+  otp: string;
+}) => {
+  const response = await axiosInstance.post(ENDPOINTS.VERIFY_REGISTRATION, data);
+  return response.data;
+};
+
+// Resend registration OTP
+export const resendRegistrationOtp = async (email: string) => {
+  const response = await axiosInstance.post(ENDPOINTS.RESEND_REGISTRATION_OTP, { email });
+  return response.data;
+};
+
 // Reset password
 export const resetPassword = async (data: {
   email: string;

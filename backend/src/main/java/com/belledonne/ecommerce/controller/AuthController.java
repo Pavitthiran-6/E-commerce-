@@ -36,16 +36,30 @@ public class AuthController {
     private boolean cookieSecure;
 
     @PostMapping("/register")
-    @Operation(summary = "Register a new user", description = "Create a user account and return access token + user details")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Registration successful")
+    @Operation(summary = "Register a new user (Verification OTP request)", description = "Initiate registration by validating details and sending verification OTP")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Verification code sent")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation or registration error")
-    public ResponseEntity<ApiResponse<?>> register(@Valid @RequestBody RegisterRequest request, HttpServletResponse response) {
-        AuthResponse authResponse = authService.register(request);
+    public ResponseEntity<ApiResponse<?>> register(@Valid @RequestBody RegisterRequest request) {
+        authService.register(request);
+        return ResponseEntity.ok(ApiResponse.success("Verification code sent."));
+    }
+
+    @PostMapping("/verify-registration")
+    @Operation(summary = "Verify registration OTP", description = "Verify OTP to finalize user creation and return access token")
+    public ResponseEntity<ApiResponse<?>> verifyRegistration(@Valid @RequestBody VerifyRegistrationRequest request, HttpServletResponse response) {
+        AuthResponse authResponse = authService.verifyRegistration(request);
         if (authResponse.getRefreshToken() != null) {
             setRefreshTokenCookie(response, authResponse.getRefreshToken());
         }
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.success("Registration successful", authResponse));
+            .body(ApiResponse.success("Email verified successfully", authResponse));
+    }
+
+    @PostMapping("/resend-registration-otp")
+    @Operation(summary = "Resend registration OTP", description = "Resend a new registration OTP code to user's email")
+    public ResponseEntity<ApiResponse<?>> resendRegistrationOtp(@Valid @RequestBody ResendRegistrationOtpRequest request) {
+        authService.resendRegistrationOtp(request);
+        return ResponseEntity.ok(ApiResponse.success("New verification code sent."));
     }
 
     @PostMapping("/login")

@@ -6,6 +6,8 @@ export const ENDPOINTS = {
   FORGOT_PASSWORD: '/api/auth/forgot-password',
   RESET_PASSWORD: '/api/auth/reset-password',
   VERIFY_OTP: '/api/auth/verify-otp',
+  VERIFY_REGISTRATION: '/api/auth/verify-registration',
+  RESEND_REGISTRATION_OTP: '/api/auth/resend-registration-otp',
 
   // Products
   PRODUCTS: '/api/products',

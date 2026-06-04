@@ -42,6 +42,14 @@ public class EmailService {
     }
 
     @Async
+    public void sendRegistrationOtpEmail(String toEmail, String otp) {
+        Context context = new Context();
+        context.setVariable("otp", otp);
+        String htmlContent = templateEngine.process("registration-otp-email", context);
+        sendEmail(toEmail, "Verify Your Email Address — OTP", htmlContent);
+    }
+
+    @Async
     public void sendAccountLockedEmail(String toEmail, String name) {
         Context context = new Context();
         context.setVariable("name", name);

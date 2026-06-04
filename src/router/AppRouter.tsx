@@ -89,6 +89,7 @@ const Signup = lazyWithRetry(() => import('../pages/auth/Signup'));
 const ForgotPassword = lazyWithRetry(() => import('../pages/auth/ForgotPassword'));
 const ResetPassword = lazyWithRetry(() => import('../pages/auth/ResetPassword'));
 const VerifyOTP = lazyWithRetry(() => import('../pages/auth/VerifyOTP'));
+const VerifyRegistration = lazyWithRetry(() => import('../pages/auth/VerifyRegistration'));
 
 // Checkout Pages
 const Address = lazyWithRetry(() => import('../pages/checkout/Address'));
@@ -156,6 +157,7 @@ export default function AppRouter() {
               <Route path="/auth/forgot-password" element={<ForgotPassword />} />
               <Route path="/auth/reset-password" element={<ResetPassword />} />
               <Route path="/auth/verify-otp" element={<VerifyOTP />} />
+              <Route path="/auth/verify-registration" element={<VerifyRegistration />} />
               
               {/* Backwards compatibility / root-level paths */}
               <Route path="/login" element={<Navigate to="/auth/login" replace />} />
@@ -163,6 +165,7 @@ export default function AppRouter() {
               <Route path="/forgot-password" element={<Navigate to="/auth/forgot-password" replace />} />
               <Route path="/reset-password" element={<Navigate to="/auth/reset-password" replace />} />
               <Route path="/verify-otp" element={<Navigate to="/auth/verify-otp" replace />} />
+              <Route path="/verify-registration" element={<Navigate to="/auth/verify-registration" replace />} />
             </Route>
           </Route>
 

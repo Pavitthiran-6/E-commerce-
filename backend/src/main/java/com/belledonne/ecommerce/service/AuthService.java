@@ -11,6 +11,8 @@ import com.belledonne.ecommerce.repository.UserRepository;
 import com.belledonne.ecommerce.security.JwtTokenProvider;
 import com.belledonne.ecommerce.security.UserPrincipal;
 import com.belledonne.ecommerce.util.OtpUtil;
+import com.belledonne.ecommerce.dto.PendingRegistration;
+import org.springframework.security.core.userdetails.UserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -39,6 +41,7 @@ public class AuthService {
     private final TokenBlacklistService tokenBlacklistService;
     private final LoginLockoutService loginLockoutService;
     private final SecurityAuditService securityAuditService;
+    private final PendingRegistrationService pendingRegistrationService;
     private final HttpServletRequest request;
 
     public String refreshToken(String refreshToken) {
@@ -87,28 +90,139 @@ public class AuthService {
         securityAuditService.log(userId, email, SecurityAction.LOGOUT, ip, ua, "SUCCESS", "Logged out successfully");
     }
 
-    public AuthResponse register(RegisterRequest request) {
+    private void validatePasswordRules(String password) {
+        if (password == null || password.length() < 8) {
+            throw new BadRequestException("Password must be at least 8 characters long.");
+        }
+        boolean hasUpper = false;
+        boolean hasLower = false;
+        boolean hasDigit = false;
+        boolean hasSpecial = false;
+
+        for (char c : password.toCharArray()) {
+            if (Character.isUpperCase(c)) hasUpper = true;
+            else if (Character.isLowerCase(c)) hasLower = true;
+            else if (Character.isDigit(c)) hasDigit = true;
+            else if ("!@#$%^&*(),.?\":{}|<>".indexOf(c) >= 0) hasSpecial = true;
+        }
+
+        if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+            throw new BadRequestException("Password must include at least one uppercase letter, one lowercase letter, one number, and one symbol.");
+        }
+    }
+
+    private void validatePhoneRules(String phone) {
+        if (phone == null || phone.isBlank()) {
+            throw new BadRequestException("Phone number is required.");
+        }
+        if (!phone.matches("^\\+?[0-9\\s\\-()]{7,15}$")) {
+            throw new BadRequestException("Invalid phone number format.");
+        }
+    }
+
+    public void register(RegisterRequest request) {
+        String ip = SecurityAuditService.getClientIp(this.request);
+        String ua = this.request.getHeader("User-Agent");
+
+        securityAuditService.log(null, request.getEmail(), SecurityAction.REGISTRATION_STARTED, ip, ua, "SUCCESS", "Registration flow initiated");
+
         if (userRepository.existsByEmail(request.getEmail())) {
+            securityAuditService.log(null, request.getEmail(), SecurityAction.REGISTRATION_STARTED, ip, ua, "FAILED", "Email already exists");
             throw new BadRequestException("An account with this email already exists");
         }
-        User user = User.builder()
+
+        validatePasswordRules(request.getPassword());
+        validatePhoneRules(request.getPhone());
+
+        String hashedPassword = passwordEncoder.encode(request.getPassword());
+        String otp = OtpUtil.generateOtp();
+
+        PendingRegistration pendingReg = PendingRegistration.builder()
             .name(request.getName())
             .email(request.getEmail())
-            .password(passwordEncoder.encode(request.getPassword()))
+            .hashedPassword(hashedPassword)
             .phone(request.getPhone())
-            .isEmailVerified(false)
+            .otp(otp)
+            .otpExpiry(LocalDateTime.now().plusMinutes(15))
+            .build();
+
+        pendingRegistrationService.save(request.getEmail(), pendingReg);
+
+        securityAuditService.log(null, request.getEmail(), SecurityAction.REGISTRATION_OTP_SENT, ip, ua, "SUCCESS", "OTP generated and sent");
+
+        emailService.sendRegistrationOtpEmail(request.getEmail(), otp);
+    }
+
+    public AuthResponse verifyRegistration(VerifyRegistrationRequest request) {
+        String ip = SecurityAuditService.getClientIp(this.request);
+        String ua = this.request.getHeader("User-Agent");
+
+        PendingRegistration pendingReg = pendingRegistrationService.get(request.getEmail());
+        if (pendingReg == null) {
+            securityAuditService.log(null, request.getEmail(), SecurityAction.EMAIL_VERIFICATION_FAILED, ip, ua, "FAILED", "No pending registration found");
+            throw new BadRequestException("No pending registration found. Please register again.");
+        }
+
+        if (!pendingReg.getOtp().equals(request.getOtp())) {
+            securityAuditService.log(null, request.getEmail(), SecurityAction.EMAIL_VERIFICATION_FAILED, ip, ua, "FAILED", "Invalid OTP");
+            throw new BadRequestException("Invalid OTP code.");
+        }
+
+        if (pendingReg.getOtpExpiry().isBefore(LocalDateTime.now())) {
+            securityAuditService.log(null, request.getEmail(), SecurityAction.EMAIL_VERIFICATION_FAILED, ip, ua, "FAILED", "OTP expired");
+            throw new BadRequestException("OTP has expired. Please register again or request a new code.");
+        }
+
+        // Save verified user to database
+        User user = User.builder()
+            .name(pendingReg.getName())
+            .email(pendingReg.getEmail())
+            .password(pendingReg.getHashedPassword())
+            .phone(pendingReg.getPhone())
+            .isEmailVerified(true)
             .lastLoginAt(LocalDateTime.now())
             .build();
+
         userRepository.save(user);
+
+        // Delete from cache
+        pendingRegistrationService.delete(request.getEmail());
+
+        securityAuditService.log(user.getId(), user.getEmail(), SecurityAction.EMAIL_VERIFIED, ip, ua, "SUCCESS", "Email verified and user saved to database");
+
+        // Send welcome email
         emailService.sendWelcomeEmail(user.getEmail(), user.getName());
-        Authentication auth = authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+
+        // Generate authenticated session
+        UserDetails userDetails = UserPrincipal.create(user);
+        Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
         return AuthResponse.builder()
             .accessToken(tokenProvider.generateAccessToken(auth))
             .refreshToken(tokenProvider.generateRefreshToken(auth))
             .user(toUserResponse(user))
             .build();
+    }
+
+    public void resendRegistrationOtp(ResendRegistrationOtpRequest request) {
+        String ip = SecurityAuditService.getClientIp(this.request);
+        String ua = this.request.getHeader("User-Agent");
+
+        PendingRegistration pendingReg = pendingRegistrationService.get(request.getEmail());
+        if (pendingReg == null) {
+            securityAuditService.log(null, request.getEmail(), SecurityAction.REGISTRATION_OTP_RESENT, ip, ua, "FAILED", "No pending registration found");
+            throw new BadRequestException("No pending registration found for this email. Please register again.");
+        }
+
+        String newOtp = OtpUtil.generateOtp();
+        pendingReg.setOtp(newOtp);
+        pendingReg.setOtpExpiry(LocalDateTime.now().plusMinutes(15));
+
+        pendingRegistrationService.save(request.getEmail(), pendingReg);
+
+        securityAuditService.log(null, request.getEmail(), SecurityAction.REGISTRATION_OTP_RESENT, ip, ua, "SUCCESS", "New registration OTP sent");
+
+        emailService.sendRegistrationOtpEmail(request.getEmail(), newOtp);
     }
 
     public AuthResponse login(LoginRequest request) {

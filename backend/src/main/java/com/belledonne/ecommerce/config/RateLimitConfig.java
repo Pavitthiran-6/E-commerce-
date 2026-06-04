@@ -23,7 +23,9 @@ public class RateLimitConfig implements WebMvcConfigurer {
                     "/api/auth/login",
                     "/api/auth/forgot-password",
                     "/api/auth/reset-password",
-                    "/api/auth/verify-otp"
+                    "/api/auth/verify-otp",
+                    "/api/auth/verify-registration",
+                    "/api/auth/resend-registration-otp"
                 );
     }
 }
