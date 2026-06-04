@@ -25,7 +25,7 @@ public class EmailService {
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
 
-    @Value("${app.mail.from:noreply@belledonne.in}")
+    @Value("${app.mail.from:pavitthiran6@gmail.com}")
     private String fromEmail;
 
     @Async
