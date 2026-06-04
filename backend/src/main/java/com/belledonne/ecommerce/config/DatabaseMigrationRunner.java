@@ -52,5 +52,22 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("Database migration categories.image_url alter skipped or not needed: {}", e.getMessage());
         }
+
+        try {
+            log.info("Updating check constraint on security_audit_logs.action...");
+            // Drop old constraint if it exists
+            jdbcTemplate.execute("ALTER TABLE security_audit_logs DROP CONSTRAINT IF EXISTS security_audit_logs_action_check");
+            // Add updated constraint containing all the current/new enum values
+            jdbcTemplate.execute("ALTER TABLE security_audit_logs ADD CONSTRAINT security_audit_logs_action_check CHECK (action IN (" +
+                "'LOGIN_SUCCESS', 'LOGIN_FAILED', 'ACCOUNT_LOCKED', 'ACCOUNT_UNLOCKED', 'PASSWORD_RESET_REQUESTED', " +
+                "'PASSWORD_RESET_SUCCESS', 'OTP_VERIFIED', 'OTP_FAILED', 'TOKEN_REFRESH', 'LOGOUT', 'ADMIN_UNLOCK_ACCOUNT', " +
+                "'ADMIN_BLOCK_USER', 'ADMIN_UNBLOCK_USER', 'ADMIN_DELETE_USER', 'ADMIN_LOGIN', 'ADMIN_ACTION', " +
+                "'ADMIN_EXPORT_LOGS', 'SECURITY_ALERT_TRIGGERED', 'SUSPICIOUS_ACTIVITY', 'REGISTRATION_STARTED', " +
+                "'REGISTRATION_OTP_SENT', 'REGISTRATION_OTP_RESENT', 'EMAIL_VERIFIED', 'EMAIL_VERIFICATION_FAILED'" +
+                "))");
+            log.info("Database migration successfully updated security_audit_logs_action_check constraint!");
+        } catch (Exception e) {
+            log.warn("Database migration security_audit_logs.action check constraint update skipped or failed: {}", e.getMessage());
+        }
     }
 }
