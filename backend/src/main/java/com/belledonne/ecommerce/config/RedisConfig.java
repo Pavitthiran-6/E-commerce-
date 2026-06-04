@@ -4,18 +4,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisPassword;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
- * Conditionally configures Redis for production token blacklisting.
+ * Conditionally configures Redis for production token blacklisting and registration flow.
  *
  * <p>If {@code REDIS_URL} environment variable is provided, a real Redis connection
  * is created using Lettuce. Otherwise, no Redis bean is registered and
- * {@link com.belledonne.ecommerce.service.TokenBlacklistService} falls back to
- * the in-memory implementation automatically.
+ * dependent services automatically fall back to in-memory/DB implementations.
  *
  * <p><b>Render deployment:</b>
  * <ol>
@@ -32,32 +32,46 @@ public class RedisConfig {
     private String redisUrl;
 
     /**
-     * Returns a {@link StringRedisTemplate} only when {@code REDIS_URL} is configured.
-     * Returns {@code null} when not configured — Spring skips bean registration and
-     * {@link com.belledonne.ecommerce.service.TokenBlacklistService} uses in-memory fallback.
+     * Configures and returns a {@link RedisConnectionFactory} only when {@code REDIS_URL} is configured.
+     * Returns {@code null} otherwise.
      */
     @Bean
-    public StringRedisTemplate stringRedisTemplate() {
+    public RedisConnectionFactory redisConnectionFactory() {
         if (redisUrl == null || redisUrl.isBlank()) {
-            log.info("[RedisConfig] REDIS_URL not set — Redis disabled. " +
-                     "TokenBlacklistService will use in-memory fallback. " +
-                     "Set REDIS_URL in production for persistent token blacklisting.");
+            log.info("[RedisConfig] REDIS_URL not set — RedisConnectionFactory disabled (returns null).");
             return null;
         }
 
         try {
-            log.info("[RedisConfig] Connecting to Redis…");
+            log.info("[RedisConfig] Configuring LettuceConnectionFactory…");
             RedisStandaloneConfiguration config = parseRedisUrl(redisUrl);
             LettuceConnectionFactory factory = new LettuceConnectionFactory(config);
             factory.afterPropertiesSet();
-            StringRedisTemplate template = new StringRedisTemplate(factory);
+            return factory;
+        } catch (Exception e) {
+            log.error("[RedisConfig] ⚠️ Failed to configure LettuceConnectionFactory: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Returns a {@link StringRedisTemplate} only when {@link RedisConnectionFactory} is available.
+     * Returns {@code null} when not configured — dependent services fall back to their in-memory/DB implementations.
+     */
+    @Bean
+    public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory connectionFactory) {
+        if (connectionFactory == null) {
+            log.info("[RedisConfig] RedisConnectionFactory is null — StringRedisTemplate disabled (returns null).");
+            return null;
+        }
+
+        try {
+            StringRedisTemplate template = new StringRedisTemplate(connectionFactory);
             template.afterPropertiesSet();
-            log.info("[RedisConfig] ✅ Redis connected successfully (host={}, port={}).",
-                     config.getHostName(), config.getPort());
+            log.info("[RedisConfig] ✅ StringRedisTemplate configured successfully.");
             return template;
         } catch (Exception e) {
-            log.error("[RedisConfig] ⚠️ Redis connection failed: {}. Falling back to in-memory blacklist.",
-                      e.getMessage());
+            log.error("[RedisConfig] ⚠️ Failed to configure StringRedisTemplate: {}", e.getMessage());
             return null;
         }
     }
