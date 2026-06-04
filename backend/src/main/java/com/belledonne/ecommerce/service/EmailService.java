@@ -14,6 +14,9 @@ import org.thymeleaf.context.Context;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 
+import org.springframework.mail.MailAuthenticationException;
+import org.springframework.mail.MailSendException;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -27,58 +30,126 @@ public class EmailService {
 
     @Async
     public void sendWelcomeEmail(String toEmail, String name) {
-        Context context = new Context();
-        context.setVariable("name", name);
-        String htmlContent = templateEngine.process("welcome-email", context);
+        log.info("[EmailService] Email request started: Welcome Email to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("name", name);
+            htmlContent = templateEngine.process("welcome-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for welcome-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
         sendEmail(toEmail, "Welcome to BELLEDONNE! 🎉", htmlContent);
     }
 
-    @Async
-    public void sendOtpEmail(String toEmail, String otp) {
-        Context context = new Context();
-        context.setVariable("otp", otp);
-        String htmlContent = templateEngine.process("otp-email", context);
-        sendEmail(toEmail, "Your Password Reset OTP", htmlContent);
+    /**
+     * Sends password reset OTP. Executes synchronously to report delivery status.
+     */
+    public boolean sendOtpEmail(String toEmail, String otp) {
+        log.info("[EmailService] Email request started: Password Reset OTP to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("otp", otp);
+            htmlContent = templateEngine.process("otp-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for otp-email to {}: {}", toEmail, e.getMessage(), e);
+            return false;
+        }
+        return sendEmail(toEmail, "Your Password Reset OTP", htmlContent);
+    }
+
+    /**
+     * Sends registration OTP. Executes synchronously to report delivery status.
+     */
+    public boolean sendRegistrationOtpEmail(String toEmail, String otp) {
+        log.info("[EmailService] Email request started: Registration OTP to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("otp", otp);
+            htmlContent = templateEngine.process("registration-otp-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for registration-otp-email to {}: {}", toEmail, e.getMessage(), e);
+            return false;
+        }
+        return sendEmail(toEmail, "Verify Your Email Address — OTP", htmlContent);
     }
 
     @Async
-    public void sendRegistrationOtpEmail(String toEmail, String otp) {
-        Context context = new Context();
-        context.setVariable("otp", otp);
-        String htmlContent = templateEngine.process("registration-otp-email", context);
-        sendEmail(toEmail, "Verify Your Email Address — OTP", htmlContent);
+    public void sendPasswordResetSuccessEmail(String toEmail, String name) {
+        log.info("[EmailService] Email request started: Password Reset Confirmation to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("name", name);
+            htmlContent = templateEngine.process("password-reset-success-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for password-reset-success-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
+        sendEmail(toEmail, "Password Reset Successful", htmlContent);
     }
 
     @Async
     public void sendAccountLockedEmail(String toEmail, String name) {
-        Context context = new Context();
-        context.setVariable("name", name);
-        String htmlContent = templateEngine.process("account-locked-email", context);
+        log.info("[EmailService] Email request started: Account Locked Alert to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("name", name);
+            htmlContent = templateEngine.process("account-locked-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for account-locked-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
         sendEmail(toEmail, "Security Alert - Account Temporarily Locked", htmlContent);
     }
 
     @Async
     public void sendOrderConfirmationEmail(String toEmail, Order order) {
-        Context context = new Context();
-        context.setVariable("order", order);
-        String htmlContent = templateEngine.process("order-confirmation-email", context);
+        log.info("[EmailService] Email request started: Order Confirmation to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("order", order);
+            htmlContent = templateEngine.process("order-confirmation-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for order-confirmation-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
         sendEmail(toEmail, "Order Confirmed — " + order.getOrderNumber(), htmlContent);
     }
 
     @Async
     public void sendOrderShippedEmail(String toEmail, Order order, String trackingNumber) {
-        Context context = new Context();
-        context.setVariable("order", order);
-        context.setVariable("trackingNumber", trackingNumber);
-        String htmlContent = templateEngine.process("order-shipped-email", context);
+        log.info("[EmailService] Email request started: Order Shipped to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("order", order);
+            context.setVariable("trackingNumber", trackingNumber);
+            htmlContent = templateEngine.process("order-shipped-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for order-shipped-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
         sendEmail(toEmail, "Your Order is on its Way! 🚚 — " + order.getOrderNumber(), htmlContent);
     }
 
     @Async
     public void sendOrderDeliveredEmail(String toEmail, Order order) {
-        Context context = new Context();
-        context.setVariable("order", order);
-        String htmlContent = templateEngine.process("order-delivered-email", context);
+        log.info("[EmailService] Email request started: Order Delivered to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("order", order);
+            htmlContent = templateEngine.process("order-delivered-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for order-delivered-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
         sendEmail(toEmail, "Your Order Has Been Delivered! 📦 — " + order.getOrderNumber(), htmlContent);
     }
 
@@ -87,16 +158,24 @@ public class EmailService {
 
     @Async
     public void sendSecurityAlertEmail(String triggerType, String ipAddress, String timeWindow, String details) {
-        Context context = new Context();
-        context.setVariable("triggerType", triggerType);
-        context.setVariable("ipAddress", ipAddress);
-        context.setVariable("timeWindow", timeWindow);
-        context.setVariable("details", details);
-        String htmlContent = templateEngine.process("security-alert-email", context);
+        log.info("[EmailService] Email request started: Security Alert to {}", adminAlertEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("triggerType", triggerType);
+            context.setVariable("ipAddress", ipAddress);
+            context.setVariable("timeWindow", timeWindow);
+            context.setVariable("details", details);
+            htmlContent = templateEngine.process("security-alert-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for security-alert-email to {}: {}", adminAlertEmail, e.getMessage(), e);
+            return;
+        }
         sendEmail(adminAlertEmail, "🚨 Security Alert Detected - " + triggerType, htmlContent);
     }
 
-    private void sendEmail(String to, String subject, String htmlContent) {
+    private boolean sendEmail(String to, String subject, String htmlContent) {
+        log.info("[EmailService] Attempting to send email to {} with subject: '{}'...", to, subject);
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -104,9 +183,32 @@ public class EmailService {
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlContent, true);
+
             mailSender.send(message);
-        } catch (MessagingException e) {
-            log.error("Failed to send email to {}: {}", to, e.getMessage());
+            log.info("[EmailService] ✅ Email sent successfully to {}", to);
+            return true;
+        } catch (MailAuthenticationException e) {
+            log.error("[EmailService] ❌ SMTP authentication failure while sending to {}: {}", to, e.getMessage(), e);
+        } catch (MailSendException e) {
+            Throwable rootCause = e.getMostSpecificCause();
+            if (rootCause instanceof jakarta.mail.SendFailedException || rootCause.getMessage().contains("Invalid Addresses")) {
+                log.error("[EmailService] ❌ Recipient rejected (invalid address) for {}: {}", to, rootCause.getMessage(), e);
+            } else if (rootCause instanceof java.net.ConnectException || rootCause instanceof java.net.SocketTimeoutException || rootCause.getMessage().contains("Connect timed out")) {
+                log.error("[EmailService] ❌ SMTP connection failure (timeout/refused) while sending to {}: {}", to, rootCause.getMessage(), e);
+            } else {
+                log.error("[EmailService] ❌ Mail send failure (MailSendException) to {}: {}", to, e.getMessage(), e);
+            }
+        } catch (Exception e) {
+            Throwable cause = e.getCause();
+            String msg = e.getMessage() != null ? e.getMessage() : "";
+            if (msg.contains("authentication failed") || (cause != null && cause.getMessage() != null && cause.getMessage().contains("authentication failed"))) {
+                log.error("[EmailService] ❌ SMTP authentication failure to {}: {}", to, msg, e);
+            } else if (msg.contains("Connect timed out") || msg.contains("connection refused") || (cause != null && (cause instanceof java.net.ConnectException || cause instanceof java.net.SocketTimeoutException))) {
+                log.error("[EmailService] ❌ SMTP connection failure to {}: {}", to, msg, e);
+            } else {
+                log.error("[EmailService] ❌ Failed to send email to {}: {}", to, msg, e);
+            }
         }
+        return false;
     }
 }

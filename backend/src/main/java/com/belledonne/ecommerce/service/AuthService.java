@@ -120,7 +120,7 @@ public class AuthService {
         }
     }
 
-    public void register(RegisterRequest request) {
+    public String register(RegisterRequest request) {
         String ip = SecurityAuditService.getClientIp(this.request);
         String ua = this.request.getHeader("User-Agent");
 
@@ -148,9 +148,13 @@ public class AuthService {
 
         pendingRegistrationService.save(request.getEmail(), pendingReg);
 
-        securityAuditService.log(null, request.getEmail(), SecurityAction.REGISTRATION_OTP_SENT, ip, ua, "SUCCESS", "OTP generated and sent");
+        securityAuditService.log(null, request.getEmail(), SecurityAction.REGISTRATION_OTP_SENT, ip, ua, "SUCCESS", "OTP generated and saved");
 
-        emailService.sendRegistrationOtpEmail(request.getEmail(), otp);
+        boolean emailSent = emailService.sendRegistrationOtpEmail(request.getEmail(), otp);
+        if (!emailSent) {
+            return "Registration initiated, but verification email could not be sent. Please resend the code.";
+        }
+        return "Verification code sent.";
     }
 
     public AuthResponse verifyRegistration(VerifyRegistrationRequest request) {
@@ -204,7 +208,7 @@ public class AuthService {
             .build();
     }
 
-    public void resendRegistrationOtp(ResendRegistrationOtpRequest request) {
+    public String resendRegistrationOtp(ResendRegistrationOtpRequest request) {
         String ip = SecurityAuditService.getClientIp(this.request);
         String ua = this.request.getHeader("User-Agent");
 
@@ -220,9 +224,13 @@ public class AuthService {
 
         pendingRegistrationService.save(request.getEmail(), pendingReg);
 
-        securityAuditService.log(null, request.getEmail(), SecurityAction.REGISTRATION_OTP_RESENT, ip, ua, "SUCCESS", "New registration OTP sent");
+        securityAuditService.log(null, request.getEmail(), SecurityAction.REGISTRATION_OTP_RESENT, ip, ua, "SUCCESS", "New registration OTP generated");
 
-        emailService.sendRegistrationOtpEmail(request.getEmail(), newOtp);
+        boolean emailSent = emailService.sendRegistrationOtpEmail(request.getEmail(), newOtp);
+        if (!emailSent) {
+            return "Registration details found, but we failed to send the new code. Please try resending.";
+        }
+        return "New verification code sent.";
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -280,7 +288,7 @@ public class AuthService {
             .build();
     }
 
-    public void forgotPassword(ForgotPasswordRequest request) {
+    public String forgotPassword(ForgotPasswordRequest request) {
         String ip = SecurityAuditService.getClientIp(this.request);
         String ua = this.request.getHeader("User-Agent");
 
@@ -291,9 +299,13 @@ public class AuthService {
         user.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
         userRepository.save(user);
         
-        securityAuditService.log(user.getId(), user.getEmail(), SecurityAction.PASSWORD_RESET_REQUESTED, ip, ua, "SUCCESS", "OTP generated and sent");
+        securityAuditService.log(user.getId(), user.getEmail(), SecurityAction.PASSWORD_RESET_REQUESTED, ip, ua, "SUCCESS", "OTP generated");
         
-        emailService.sendOtpEmail(user.getEmail(), otp);
+        boolean emailSent = emailService.sendOtpEmail(user.getEmail(), otp);
+        if (!emailSent) {
+            return "Password reset initiated, but we failed to send the OTP email. Please try again.";
+        }
+        return "OTP sent to your email address";
     }
 
     public boolean verifyOtp(VerifyOtpRequest request) {
@@ -331,6 +343,9 @@ public class AuthService {
         userRepository.save(user);
         
         securityAuditService.log(user.getId(), user.getEmail(), SecurityAction.PASSWORD_RESET_SUCCESS, ip, ua, "SUCCESS", "Password reset successfully");
+        
+        // Send password reset success email via Brevo
+        emailService.sendPasswordResetSuccessEmail(user.getEmail(), user.getName());
     }
 
     public UserResponse toUserResponse(User user) {

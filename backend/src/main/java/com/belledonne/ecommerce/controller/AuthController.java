@@ -40,8 +40,8 @@ public class AuthController {
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Verification code sent")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation or registration error")
     public ResponseEntity<ApiResponse<?>> register(@Valid @RequestBody RegisterRequest request) {
-        authService.register(request);
-        return ResponseEntity.ok(ApiResponse.success("Verification code sent."));
+        String msg = authService.register(request);
+        return ResponseEntity.ok(ApiResponse.success(msg));
     }
 
     @PostMapping("/verify-registration")
@@ -58,8 +58,8 @@ public class AuthController {
     @PostMapping("/resend-registration-otp")
     @Operation(summary = "Resend registration OTP", description = "Resend a new registration OTP code to user's email")
     public ResponseEntity<ApiResponse<?>> resendRegistrationOtp(@Valid @RequestBody ResendRegistrationOtpRequest request) {
-        authService.resendRegistrationOtp(request);
-        return ResponseEntity.ok(ApiResponse.success("New verification code sent."));
+        String msg = authService.resendRegistrationOtp(request);
+        return ResponseEntity.ok(ApiResponse.success(msg));
     }
 
     @PostMapping("/login")
@@ -112,8 +112,8 @@ public class AuthController {
     @PostMapping("/forgot-password")
     @Operation(summary = "Forgot password", description = "Send OTP to email for password reset")
     public ResponseEntity<ApiResponse<?>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        authService.forgotPassword(request);
-        return ResponseEntity.ok(ApiResponse.success("OTP sent to your email address"));
+        String msg = authService.forgotPassword(request);
+        return ResponseEntity.ok(ApiResponse.success(msg));
     }
 
     @PostMapping("/verify-otp")
