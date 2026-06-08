@@ -130,6 +130,45 @@ export default function TrackOrder() {
     return { completed: false, current: false };
   };
 
+  const getStepDate = (stepName: string) => {
+    let targetStatuses: string[] = [];
+    const name = stepName.toLowerCase();
+    if (name === 'placed') {
+      targetStatuses = ['placed', 'order_placed', 'pending'];
+    } else if (name === 'processing') {
+      targetStatuses = ['processing', 'confirmed'];
+    } else if (name === 'shipped') {
+      targetStatuses = ['shipped', 'out_for_delivery'];
+    } else if (name === 'delivered') {
+      targetStatuses = ['delivered'];
+    }
+
+    const event = trackingHistory.find(h => 
+      targetStatuses.includes(h.status.toLowerCase())
+    );
+    
+    if (event) {
+      return new Date(event.trackingTime).toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+    return null;
+  };
+
+  const getProgressPercentage = () => {
+    const currentStatus = status.toLowerCase();
+    if (currentStatus === 'delivered') return '100%';
+    if (currentStatus === 'shipped' || currentStatus === 'out for delivery') return '66.66%';
+    if (currentStatus === 'processing') return '33.33%';
+    return '0%';
+  };
+  const progressPercentage = getProgressPercentage();
+
   const getEventIcon = (eventStatus: string) => {
     const s = eventStatus.toLowerCase();
     if (s.includes('deliver')) return <CheckCircle2 className="w-4 h-4 text-white" />;
@@ -192,11 +231,7 @@ export default function TrackOrder() {
               <div className="absolute top-5 left-0 w-full h-1 bg-gray-200 -z-10 rounded-full">
                  <div 
                    className="h-full bg-green-500 rounded-full transition-all duration-1000" 
-                   style={{ 
-                     width: status === 'Delivered' ? '100%' : 
-                            status === 'Out for Delivery' ? '75%' : 
-                            status === 'Processing' ? '25%' : '0%' 
-                   }}
+                   style={{ width: progressPercentage }}
                  />
               </div>
 
@@ -231,11 +266,7 @@ export default function TrackOrder() {
               <div className="absolute top-4 bottom-4 left-6 w-0.5 bg-gray-200">
                 <div 
                    className="w-full bg-green-500 transition-all duration-1000" 
-                   style={{ 
-                     height: status === 'Delivered' ? '100%' : 
-                            status === 'Out for Delivery' ? '75%' : 
-                            status === 'Processing' ? '25%' : '0%' 
-                   }}
+                   style={{ height: progressPercentage }}
                  />
               </div>
 
@@ -257,11 +288,9 @@ export default function TrackOrder() {
                     )}
                     <div>
                       <p className={`text-sm font-bold ${completed || current ? 'text-charcoal-stone' : 'text-gray-400'}`}>{step}</p>
-                      {completed && idx === 0 && <span className="text-xs text-gray-500">12 May 2024, 2:30 PM</span>}
-                      {completed && idx === 1 && <span className="text-xs text-gray-500">12 May 2024, 4:00 PM</span>}
-                      {completed && idx === 2 && <span className="text-xs text-gray-500">13 May 2024, 10:30 AM</span>}
-                      {completed && idx === 3 && <span className="text-xs text-gray-500">15 May 2024, 9:00 AM</span>}
-                      {completed && idx === 4 && <span className="text-xs text-gray-500">15 May 2024, 2:45 PM</span>}
+                      {(completed || current) && getStepDate(step) && (
+                        <span className="text-xs text-gray-500">{getStepDate(step)}</span>
+                      )}
                     </div>
                   </div>
                 );
