@@ -208,7 +208,7 @@ export default function CheckoutPayment() {
                       prefill: {
                         name: user?.name || '',
                         email: user?.email || '',
-                        contact: user?.phone || ''
+                        contact: ''
                       },
                       theme: { color: "#333333" }
                     };
