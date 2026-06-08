@@ -75,6 +75,7 @@ public class AdminController {
     // ---- 5A: ADMIN DASHBOARD ----
     @GetMapping("/dashboard")
     @Operation(summary = "Get admin dashboard statistics")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<?>> dashboard() {
         long totalOrders = orderRepository.count();
         long totalUsers = userRepository.count();
@@ -263,6 +264,7 @@ public class AdminController {
     // ---- 5C: ORDER MANAGEMENT (Admin) ----
     @GetMapping("/orders")
     @Operation(summary = "Get filtered orders list with pagination")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<?>> getAllOrdersFiltered(
         @RequestParam(required = false) String status,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
@@ -296,6 +298,7 @@ public class AdminController {
 
     @GetMapping("/orders/{id}")
     @Operation(summary = "Get details of any order")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<?>> getOrderDetails(@PathVariable UUID id) {
         Order order = orderRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Order", "id", id));
@@ -304,6 +307,7 @@ public class AdminController {
 
     @PutMapping("/orders/{id}/status")
     @Operation(summary = "Update status of an order")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<ApiResponse<?>> updateOrderStatus(
         @PathVariable UUID id, @RequestBody Map<String, String> body) {
         Order order = orderRepository.findById(id)
