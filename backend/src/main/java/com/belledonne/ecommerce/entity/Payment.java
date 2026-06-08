@@ -4,13 +4,21 @@ import com.belledonne.ecommerce.enums.PaymentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "payments")
+@Table(
+    name = "payments",
+    indexes = {
+        @Index(name = "idx_payments_order_id",       columnList = "order_id"),
+        @Index(name = "idx_payments_rzp_order_id",   columnList = "razorpay_order_id"),
+        @Index(name = "idx_payments_rzp_payment_id", columnList = "razorpay_payment_id")
+    }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -22,7 +30,7 @@ public class Payment {
     private UUID id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
+    @JoinColumn(name = "order_id", nullable = false, unique = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Order order;
@@ -54,7 +62,16 @@ public class Payment {
     @Column(name = "failure_reason", columnDefinition = "TEXT")
     private String failureReason;
 
+    /** True when payment was confirmed via Razorpay webhook rather than the frontend callback. */
+    @Column(name = "webhook_verified", nullable = false)
+    @Builder.Default
+    private boolean webhookVerified = false;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }

@@ -31,6 +31,7 @@ export const ENDPOINTS = {
   // Payments
   CREATE_PAYMENT_ORDER: '/api/payments/create-order',
   VERIFY_PAYMENT: '/api/payments/verify',
+  REPORT_PAYMENT_FAILURE: '/api/payments/failure',
 
   // Profile
   PROFILE: '/api/user/profile',

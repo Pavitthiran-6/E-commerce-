@@ -6,6 +6,7 @@ import com.belledonne.ecommerce.dto.response.OrderResponse;
 import com.belledonne.ecommerce.entity.*;
 import com.belledonne.ecommerce.enums.OrderStatus;
 import com.belledonne.ecommerce.enums.PaymentMethod;
+import com.belledonne.ecommerce.enums.PaymentStatus;
 import com.belledonne.ecommerce.exception.BadRequestException;
 import com.belledonne.ecommerce.exception.ResourceNotFoundException;
 import com.belledonne.ecommerce.repository.*;
@@ -94,7 +95,16 @@ public class OrderService {
             .message("Your order has been placed successfully").build());
 
         orderRepository.save(saved);
-        emailService.sendOrderConfirmationEmail(user.getEmail(), saved);
+
+        // ── Email strategy ──────────────────────────────────────────────────
+        // COD orders: email immediately (no online payment step follows).
+        // Prepaid orders: email is deferred to PaymentService.verifyPayment()
+        // so the customer is only notified after the payment is confirmed.
+        if (PaymentMethod.COD.equals(order.getPaymentMethod())) {
+            emailService.sendOrderConfirmationEmail(user.getEmail(), saved);
+        }
+        // ───────────────────────────────────────────────────────────────────
+
         return toResponse(saved);
     }
 

@@ -6,7 +6,7 @@ import { CheckCircle2, Lock, ShieldCheck, ChevronDown, Check } from 'lucide-reac
 import { LoadingButton } from '../../components/LoadingButton';
 import { isFreeShippingCoupon } from '../../utils/couponLogic';
 import { placeOrder } from '../../services/orderService';
-import { createPaymentOrder, verifyPayment } from '../../services/paymentService';
+import { createPaymentOrder, verifyPayment, reportPaymentFailure } from '../../services/paymentService';
 import { getProductById } from '../../services/productService';
 
 /* ─── Custom Dropdown ─── */
@@ -399,12 +399,12 @@ export default function CheckoutPayment() {
                     const rzpOrder = await createPaymentOrder(order.id);
                     
                     const options = {
-                      key: 'rzp_test_dummy', // Replace with real key in production or from backend response
+                      key: rzpOrder.keyId,  // Loaded dynamically from backend — never hardcoded
                       amount: rzpOrder.amount,
                       currency: rzpOrder.currency,
                       name: "Belledonne",
                       description: "Order Payment",
-                      order_id: rzpOrder.id,
+                      order_id: rzpOrder.razorpayOrderId,
                       handler: async function (response: any) {
                         try {
                            await verifyPayment(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
@@ -417,7 +417,18 @@ export default function CheckoutPayment() {
                     };
 
                     const rzp1 = new (window as any).Razorpay(options);
-                    rzp1.on('payment.failed', function (response: any) {
+                    rzp1.on('payment.failed', async function (response: any) {
+                        // Report the failure to the backend so the payment record
+                        // is marked FAILED, enabling a clean retry.
+                        try {
+                          await reportPaymentFailure(
+                            response.error.metadata?.order_id || '',
+                            response.error.code,
+                            response.error.description
+                          );
+                        } catch (_) {
+                          // Non-fatal — failure is still shown to the user
+                        }
                         alert('Payment failed: ' + response.error.description);
                     });
                     rzp1.open();
