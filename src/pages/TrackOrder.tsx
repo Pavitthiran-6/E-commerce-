@@ -42,6 +42,7 @@ export default function TrackOrder() {
   }, [orderIdParam]);
 
   const status = order?.status ? (order.status.charAt(0).toUpperCase() + order.status.slice(1).toLowerCase()) : 'Unknown';
+  const showInvoice = order?.paymentStatus === 'SUCCESS';
 
   const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -273,7 +274,7 @@ export default function TrackOrder() {
           
           {/* SECTION 4: Timeline */}
           {visibleEvents.length > 0 && (
-            <div className="w-full md:w-2/3">
+            <div className="lg:col-span-2 w-full">
               <h3 className="font-headline-md text-2xl mb-8 flex items-center gap-3">
                 <Clock className="w-6 h-6 text-primary" />
                 Tracking History
@@ -314,9 +315,11 @@ export default function TrackOrder() {
           <div className="bg-white rounded-xl border border-outline-variant/30 overflow-hidden shadow-sm sticky top-24">
             <div className="bg-gray-50 border-b border-outline-variant/30 px-5 py-4 flex justify-between items-center">
               <h3 className="font-headline-md text-lg">Order Details</h3>
-              <button onClick={handlePrint} className="text-primary hover:bg-gray-200 p-1.5 rounded transition-colors" title="Download Invoice">
-                <Download className="w-4 h-4" />
-              </button>
+              {showInvoice && (
+                <button onClick={handlePrint} className="text-primary hover:bg-gray-200 p-1.5 rounded transition-colors" title="Download Invoice">
+                  <Download className="w-4 h-4" />
+                </button>
+              )}
             </div>
             
             <div className="p-5">
@@ -397,12 +400,14 @@ export default function TrackOrder() {
             >
               Buy Again
             </Link>
-            <button 
-              onClick={handlePrint}
-              className="flex-1 md:flex-none border-2 border-charcoal-stone text-charcoal-stone px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-            >
-              <Download className="w-4 h-4" /> Invoice
-            </button>
+            {showInvoice && (
+              <button 
+                onClick={handlePrint}
+                className="flex-1 md:flex-none border-2 border-charcoal-stone text-charcoal-stone px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" /> Invoice
+              </button>
+            )}
             {status !== 'Delivered' && status !== 'Cancelled' && (
               <button 
                 className="flex-1 md:flex-none border-2 border-red-500 text-red-600 px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-red-50 transition-colors text-center"
