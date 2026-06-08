@@ -1,96 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import { CheckCircle2, Lock, ShieldCheck, ChevronDown, Check } from 'lucide-react';
+import { CheckCircle2, Lock, ShieldCheck } from 'lucide-react';
 import { LoadingButton } from '../../components/LoadingButton';
 import { isFreeShippingCoupon } from '../../utils/couponLogic';
 import { placeOrder } from '../../services/orderService';
 import { createPaymentOrder, verifyPayment, reportPaymentFailure } from '../../services/paymentService';
 import { getProductById } from '../../services/productService';
-
-/* ─── Custom Dropdown ─── */
-interface CustomDropdownProps {
-  options: string[];
-  value: string;
-  onChange: (val: string) => void;
-  placeholder?: string;
-}
-
-function CustomDropdown({ options, value, onChange, placeholder = 'Select an option' }: CustomDropdownProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  // Close on outside click
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const BANK_ICONS: Record<string, string> = {
-    'State Bank of India': '🟦',
-    'HDFC Bank': '🔵',
-    'ICICI Bank': '🟠',
-    'Axis Bank': '🟣',
-    'Kotak Mahindra Bank': '🔴',
-    'Punjab National Bank': '🟤',
-    'Bank of Baroda': '🟢',
-  };
-
-  return (
-    <div ref={ref} className="relative w-full select-none">
-      {/* Trigger */}
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className={`w-full flex items-center justify-between gap-2 border px-4 py-3 text-sm transition-all duration-200 bg-white
-          ${open ? 'border-charcoal-stone shadow-sm' : 'border-gray-300 hover:border-gray-400'}
-          ${value ? 'text-charcoal-stone' : 'text-gray-400'}`}
-      >
-        <span className="flex items-center gap-2.5 truncate">
-          {value && <span className="text-base leading-none">{BANK_ICONS[value] ?? '🏦'}</span>}
-          <span className="truncate">{value || placeholder}</span>
-        </span>
-        <ChevronDown
-          className={`w-4 h-4 flex-shrink-0 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
-
-      {/* Dropdown panel */}
-      {open && (
-        <div
-          className="absolute z-50 mt-1 w-full bg-white border border-gray-200 shadow-xl overflow-hidden"
-          style={{ maxHeight: '260px', overflowY: 'auto' }}
-        >
-          {options.map((opt) => {
-            const isSelected = value === opt;
-            return (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => { onChange(opt); setOpen(false); }}
-                className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-sm text-left transition-colors duration-150
-                  ${isSelected
-                    ? 'bg-charcoal-stone text-white'
-                    : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-              >
-                <span className="flex items-center gap-3">
-                  <span className="text-base leading-none">{BANK_ICONS[opt] ?? '🏦'}</span>
-                  <span>{opt}</span>
-                </span>
-                {isSelected && <Check className="w-4 h-4 flex-shrink-0" />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
 
 const STEPS = ['Address', 'Payment', 'Confirmation'];
 
@@ -125,31 +42,13 @@ function StepBar({ current }: { current: number }) {
   );
 }
 
-type PayMethod = 'upi' | 'netbanking' | 'cod' | 'card' | 'wallet';
-
-const BANKS = ['State Bank of India', 'HDFC Bank', 'ICICI Bank', 'Axis Bank', 'Kotak Mahindra Bank', 'Punjab National Bank', 'Bank of Baroda'];
-const WALLETS = [
-  { id: 'paytm', label: 'Paytm', color: '#00BAF2' },
-  { id: 'phonepe', label: 'PhonePe', color: '#5F259F' },
-  { id: 'amazonpay', label: 'Amazon Pay', color: '#FF9900' },
-];
-
-function detectCardType(num: string) {
-  if (/^4/.test(num)) return 'VISA';
-  if (/^5[1-5]/.test(num)) return 'MASTERCARD';
-  if (/^3[47]/.test(num)) return 'AMEX';
-  return null;
-}
+type PayMethod = 'online' | 'cod';
 
 export default function CheckoutPayment() {
   const navigate = useNavigate();
   const { cartItems } = useCart();
   const { user } = useAuth();
-  const [method, setMethod] = useState<PayMethod>('upi');
-  const [upiId, setUpiId] = useState('');
-  const [bank, setBank] = useState('');
-  const [wallet, setWallet] = useState('');
-  const [card, setCard] = useState({ number: '', name: '', expiry: '', cvv: '' });
+  const [method, setMethod] = useState<PayMethod>('online');
   const [codDisabled, setCodDisabled] = useState(false);
 
   useEffect(() => {
@@ -170,7 +69,7 @@ export default function CheckoutPayment() {
 
   useEffect(() => {
     if (codDisabled && method === 'cod') {
-      setMethod('upi');
+      setMethod('online');
     }
   }, [codDisabled, method]);
 
@@ -187,20 +86,9 @@ export default function CheckoutPayment() {
   const codFee = method === 'cod' ? 49 : 0;
   const total = (subtotal - discountAmount) + shipping + tax + codFee;
 
-  const cardType = detectCardType(card.number.replace(/\s/g, ''));
-
-  const formatCardNum = (v: string) =>
-    v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
-
-  const formatExpiry = (v: string) =>
-    v.replace(/\D/g, '').slice(0, 4).replace(/(.{2})/, '$1/');
-
   const ALL_METHODS: { id: PayMethod; label: string; icon: string }[] = [
-    { id: 'upi', label: 'UPI', icon: '📱' },
-    { id: 'netbanking', label: 'Net Banking', icon: '🏦' },
-    { id: 'cod', label: 'Cash on Delivery', icon: '💰' },
-    { id: 'card', label: 'Credit / Debit Card', icon: '🃏' },
-    { id: 'wallet', label: 'Wallets', icon: '👜' },
+    { id: 'online', label: 'Pay Online (UPI, Cards, Net Banking, Wallets, EMI)', icon: '💳' },
+    { id: 'cod', label: 'Cash on Delivery (COD)', icon: '💰' },
   ];
 
   const METHODS = ALL_METHODS.filter(m => {
@@ -225,7 +113,7 @@ export default function CheckoutPayment() {
               <h2 className="font-serif text-xl text-charcoal-stone">Choose Payment Method</h2>
             </div>
 
-            {METHODS.map((m, idx) => (
+            {METHODS.map((m) => (
               <div key={m.id} className={`border-b border-gray-100 last:border-b-0 ${method === m.id ? 'bg-gray-50' : 'bg-white'}`}>
                 <button
                   onClick={() => setMethod(m.id)}
@@ -242,106 +130,17 @@ export default function CheckoutPayment() {
 
                 {method === m.id && (
                   <div className="px-14 pb-5">
-                    {m.id === 'upi' && (
-                      <div className="flex gap-3">
-                        <input
-                          type="text"
-                          placeholder="yourname@upi"
-                          value={upiId}
-                          onChange={e => setUpiId(e.target.value)}
-                          className="flex-1 border border-gray-300 focus:border-charcoal-stone outline-none px-3 py-2.5 text-sm rounded-none transition-colors"
-                        />
-                        <LoadingButton className="bg-charcoal-stone text-white text-xs font-semibold uppercase tracking-widest px-4 py-2.5 hover:bg-charcoal-stone/80 transition-colors">
-                          Verify
-                        </LoadingButton>
+                    {m.id === 'online' && (
+                      <div className="flex items-start gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-2.5 rounded">
+                        <span>🛡️</span>
+                        <span>Pay securely using Razorpay (supports UPI, Cards, Net Banking, Wallets, EMI, and Pay Later).</span>
                       </div>
-                    )}
-
-                    {m.id === 'netbanking' && (
-                      <CustomDropdown
-                        options={BANKS}
-                        value={bank}
-                        onChange={setBank}
-                        placeholder="Select your Bank"
-                      />
                     )}
 
                     {m.id === 'cod' && (
                       <div className="flex items-start gap-2 text-sm text-orange-600 bg-orange-50 border border-orange-100 px-3 py-2.5 rounded">
                         <span>⚠️</span>
                         <span>Extra ₹49 COD handling fee will be added. Cash payment on delivery.</span>
-                      </div>
-                    )}
-
-                    {m.id === 'card' && (
-                      <div className="flex flex-col gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-400 uppercase tracking-widest mb-1.5">Card Number</label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              placeholder="0000 0000 0000 0000"
-                              value={card.number}
-                              onChange={e => setCard(p => ({ ...p, number: formatCardNum(e.target.value) }))}
-                              maxLength={19}
-                              className="w-full border border-gray-300 focus:border-charcoal-stone outline-none px-3 py-2.5 text-sm rounded-none transition-colors font-mono"
-                            />
-                            {cardType && (
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                {cardType}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-400 uppercase tracking-widest mb-1.5">Name on Card</label>
-                          <input
-                            type="text"
-                            placeholder="Full name as on card"
-                            value={card.name}
-                            onChange={e => setCard(p => ({ ...p, name: e.target.value }))}
-                            className="w-full border border-gray-300 focus:border-charcoal-stone outline-none px-3 py-2.5 text-sm rounded-none transition-colors"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-400 uppercase tracking-widest mb-1.5">Expiry Date</label>
-                            <input
-                              type="text"
-                              placeholder="MM/YY"
-                              value={card.expiry}
-                              onChange={e => setCard(p => ({ ...p, expiry: formatExpiry(e.target.value) }))}
-                              maxLength={5}
-                              className="w-full border border-gray-300 focus:border-charcoal-stone outline-none px-3 py-2.5 text-sm rounded-none transition-colors"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-400 uppercase tracking-widest mb-1.5">CVV</label>
-                            <input
-                              type="password"
-                              placeholder="•••"
-                              value={card.cvv}
-                              onChange={e => setCard(p => ({ ...p, cvv: e.target.value.slice(0, 4) }))}
-                              className="w-full border border-gray-300 focus:border-charcoal-stone outline-none px-3 py-2.5 text-sm rounded-none transition-colors"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {m.id === 'wallet' && (
-                      <div className="flex flex-wrap gap-3">
-                        {WALLETS.map(w => (
-                          <button
-                            key={w.id}
-                            onClick={() => setWallet(w.id)}
-                            className={`flex items-center gap-2 px-4 py-2.5 border-2 rounded text-sm font-semibold transition-all
-                              ${wallet === w.id ? 'border-charcoal-stone shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
-                          >
-                            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: w.color }} />
-                            {w.label}
-                          </button>
-                        ))}
                       </div>
                     )}
                   </div>
@@ -354,11 +153,8 @@ export default function CheckoutPayment() {
               <LoadingButton
                 onClickAsync={async () => {
                   let paymentMethodBackend = 'UPI';
-                  if (method === 'upi') paymentMethodBackend = 'UPI';
-                  else if (method === 'card') paymentMethodBackend = 'CREDIT_CARD';
+                  if (method === 'online') paymentMethodBackend = 'UPI';
                   else if (method === 'cod') paymentMethodBackend = 'COD';
-                  else if (method === 'netbanking') paymentMethodBackend = 'NET_BANKING';
-                  else if (method === 'wallet') paymentMethodBackend = 'WALLET';
 
                   const addressId = localStorage.getItem('checkoutAddressId');
                   if (!addressId) {
@@ -366,7 +162,6 @@ export default function CheckoutPayment() {
                     navigate('/checkout/address');
                     return;
                   }
-
 
                   try {
                     // 1. Place order on backend
@@ -381,11 +176,8 @@ export default function CheckoutPayment() {
                     localStorage.setItem('lastOrderId', order.id);
 
                     let paymentDetails = '';
-                    if (method === 'upi') paymentDetails = `UPI · ${upiId || 'saved@upi'}`;
-                    else if (method === 'card') paymentDetails = `Card ending in •••• ${card.number.slice(-4) || '4242'}`;
+                    if (method === 'online') paymentDetails = 'Razorpay Secure Payment';
                     else if (method === 'cod') paymentDetails = 'Cash on Delivery';
-                    else if (method === 'netbanking') paymentDetails = `Net Banking · ${bank || 'Bank'}`;
-                    else if (method === 'wallet') paymentDetails = 'Paytm Wallet';
                     
                     localStorage.setItem('lastPaymentMethod', method);
                     localStorage.setItem('lastPaymentDetails', paymentDetails);
@@ -412,6 +204,11 @@ export default function CheckoutPayment() {
                         } catch (e) {
                            alert('Payment verification failed');
                         }
+                      },
+                      prefill: {
+                        name: user?.name || '',
+                        email: user?.email || '',
+                        contact: user?.phone || ''
                       },
                       theme: { color: "#333333" }
                     };
