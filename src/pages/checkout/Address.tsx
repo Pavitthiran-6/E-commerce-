@@ -75,6 +75,31 @@ export default function CheckoutAddress() {
   };
 
   const handleSaveAddress = async () => {
+    if (!form.fullName.trim()) {
+      alert("Full Name is required.");
+      return;
+    }
+    if (!form.phone.trim()) {
+      alert("Phone Number is required.");
+      return;
+    }
+    if (!form.pincode.trim()) {
+      alert("Pincode is required.");
+      return;
+    }
+    if (!form.addressLine1.trim()) {
+      alert("House / Flat No. is required.");
+      return;
+    }
+    if (!form.city.trim()) {
+      alert("City is required.");
+      return;
+    }
+    if (!form.state.trim()) {
+      alert("State is required.");
+      return;
+    }
+
     try {
       const newAddress = await addAddress(form);
       setAddresses([...addresses, newAddress]);
@@ -162,27 +187,30 @@ export default function CheckoutAddress() {
                 <h3 className="text-base font-bold text-gray-900 mb-5">New Delivery Address</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
-                    { label: 'Full Name', key: 'fullName', col: '' },
-                    { label: 'Phone Number', key: 'phone', col: '' },
-                    { label: 'Pincode', key: 'pincode', col: '' },
-                    { label: 'House / Flat No.', key: 'addressLine1', col: '' },
-                    { label: 'Street / Area / Locality', key: 'addressLine2', col: 'sm:col-span-2' },
-                    { label: 'City', key: 'city', col: '' },
-                    { label: 'State', key: 'state', col: '' },
+                    { label: 'Full Name', key: 'fullName', col: '', required: true },
+                    { label: 'Phone Number', key: 'phone', col: '', required: true },
+                    { label: 'Pincode', key: 'pincode', col: '', required: true },
+                    { label: 'House / Flat No.', key: 'addressLine1', col: '', required: true },
+                    { label: 'Street / Area / Locality', key: 'addressLine2', col: 'sm:col-span-2', required: false },
+                    { label: 'City', key: 'city', col: '', required: true },
+                    { label: 'State', key: 'state', col: '', required: true },
                   ].map(field => (
                     <div key={field.key} className={field.col}>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-1.5">{field.label}</label>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+                        {field.label} {field.required && <span className="text-red-500">*</span>}
+                      </label>
                       <input
                         type="text"
                         value={form[field.key as keyof typeof form]}
                         onChange={e => setForm(p => ({ ...p, [field.key]: e.target.value }))}
+                        placeholder={field.required ? 'Required' : 'Optional'}
                         className="w-full border border-[#E8E8E8] rounded-xl focus:border-[#0C831F] focus:ring-2 focus:ring-[#0C831F]/20 outline-none px-3 py-2.5 text-sm text-gray-900 transition-colors bg-white"
                       />
                     </div>
                   ))}
                 </div>
                 <LoadingButton
-                  onClick={handleSaveAddress}
+                  onClickAsync={handleSaveAddress}
                   className="mt-5 bg-[#0C831F] text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-[#0A6B19] transition-colors"
                 >
                   Save Address
