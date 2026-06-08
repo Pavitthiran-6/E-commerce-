@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useParams } from 'react-router-dom';
 import { Package, Truck, CheckCircle2, XCircle, Clock, MapPin, Download, HelpCircle, RotateCcw, AlertCircle, ShoppingBag } from 'lucide-react';
 import { getOrderById, trackOrder } from '../services/orderService';
 import type { Order, OrderTracking } from '../services/orderService';
 
 export default function TrackOrder() {
+  const { orderId } = useParams<{ orderId?: string }>();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
-  const orderIdParam = queryParams.get('orderId') || '';
+  const orderIdParam = orderId || queryParams.get('orderId') || '';
 
   const [isLoading, setIsLoading] = useState(true);
   const [order, setOrder] = useState<Order | null>(null);
