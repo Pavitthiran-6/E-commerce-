@@ -273,9 +273,10 @@ public class InventoryService {
 
         for (Product product : products) {
             String image = product.getImages() != null && product.getImages().length > 0 ? product.getImages()[0] : null;
+            int threshold = product.getLowStockThreshold() != null ? product.getLowStockThreshold() : 5;
             if (product.getVariants() != null && !product.getVariants().isEmpty()) {
                 for (ProductVariant variant : product.getVariants()) {
-                    boolean isLow = variant.getStockQuantity() <= product.getLowStockThreshold();
+                    boolean isLow = variant.getStockQuantity() <= threshold;
                     boolean isOut = variant.getStockQuantity() == 0;
 
                     if ((lowStock == null || !lowStock || isLow) && (outOfStock == null || !outOfStock || isOut)) {
@@ -288,14 +289,14 @@ public class InventoryService {
                             .size(variant.getSize())
                             .color(variant.getColor())
                             .stockQuantity(variant.getStockQuantity())
-                            .lowStockThreshold(product.getLowStockThreshold())
+                            .lowStockThreshold(threshold)
                             .isLowStock(isLow)
                             .isOutOfStock(isOut)
                             .build());
                     }
                 }
             } else {
-                boolean isLow = product.getStockQuantity() <= product.getLowStockThreshold();
+                boolean isLow = product.getStockQuantity() <= threshold;
                 boolean isOut = product.getStockQuantity() == 0;
 
                 if ((lowStock == null || !lowStock || isLow) && (outOfStock == null || !outOfStock || isOut)) {
@@ -305,7 +306,7 @@ public class InventoryService {
                         .slug(product.getSlug())
                         .productImage(image)
                         .stockQuantity(product.getStockQuantity())
-                        .lowStockThreshold(product.getLowStockThreshold())
+                        .lowStockThreshold(threshold)
                         .isLowStock(isLow)
                         .isOutOfStock(isOut)
                         .build());
@@ -353,18 +354,19 @@ public class InventoryService {
         long outOfStockCount = 0;
 
         for (Product product : productRepository.findAll()) {
+            int threshold = product.getLowStockThreshold() != null ? product.getLowStockThreshold() : 5;
             if (product.getVariants() != null && !product.getVariants().isEmpty()) {
                 for (ProductVariant variant : product.getVariants()) {
                     if (variant.getStockQuantity() == 0) {
                         outOfStockCount++;
-                    } else if (variant.getStockQuantity() <= product.getLowStockThreshold()) {
+                    } else if (variant.getStockQuantity() <= threshold) {
                         lowStockCount++;
                     }
                 }
             } else {
                 if (product.getStockQuantity() == 0) {
                     outOfStockCount++;
-                } else if (product.getStockQuantity() <= product.getLowStockThreshold()) {
+                } else if (product.getStockQuantity() <= threshold) {
                     lowStockCount++;
                 }
             }
@@ -381,6 +383,7 @@ public class InventoryService {
 
     private InventoryResponse toResponse(Product product, ProductVariant variant) {
         String image = product.getImages() != null && product.getImages().length > 0 ? product.getImages()[0] : null;
+        int threshold = product.getLowStockThreshold() != null ? product.getLowStockThreshold() : 5;
         if (variant != null) {
             return InventoryResponse.builder()
                 .productId(product.getId())
@@ -391,8 +394,8 @@ public class InventoryService {
                 .size(variant.getSize())
                 .color(variant.getColor())
                 .stockQuantity(variant.getStockQuantity())
-                .lowStockThreshold(product.getLowStockThreshold())
-                .isLowStock(variant.getStockQuantity() <= product.getLowStockThreshold())
+                .lowStockThreshold(threshold)
+                .isLowStock(variant.getStockQuantity() <= threshold)
                 .isOutOfStock(variant.getStockQuantity() == 0)
                 .build();
         } else {
@@ -402,8 +405,8 @@ public class InventoryService {
                 .slug(product.getSlug())
                 .productImage(image)
                 .stockQuantity(product.getStockQuantity())
-                .lowStockThreshold(product.getLowStockThreshold())
-                .isLowStock(product.getStockQuantity() <= product.getLowStockThreshold())
+                .lowStockThreshold(threshold)
+                .isLowStock(product.getStockQuantity() <= threshold)
                 .isOutOfStock(product.getStockQuantity() == 0)
                 .build();
         }
