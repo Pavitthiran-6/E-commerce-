@@ -239,7 +239,7 @@ export default function AdminLayout() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 min-h-0 px-3 py-5 flex flex-col gap-0.5 overflow-y-auto admin-sidebar-scroll">
+        <nav className="flex-1 min-h-0 px-3 py-5 flex flex-col gap-0.5 overflow-y-auto admin-sidebar-scroll" data-lenis-prevent>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-3">Main Menu</p>
           {navItems.map((item) => (
             <NavLink
@@ -366,7 +366,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-6 overflow-auto">
+        <main className="flex-1 p-4 sm:p-6 overflow-auto" data-lenis-prevent>
           <div className="max-w-screen-2xl mx-auto">
             {activeAlert && (
               <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-2xl flex items-center justify-between gap-3 mb-6 animate-pulse shadow-sm">
