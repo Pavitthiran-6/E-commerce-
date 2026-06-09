@@ -26,6 +26,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
     Page<Product> findByCategoryIdAndIsActiveTrue(Long categoryId, Pageable pageable);
     boolean existsByCategoryId(Long categoryId);
     long countByStockQuantityLessThan(int threshold);
+    java.util.List<Product> findByNameContainingIgnoreCase(String name);
 
     @Query(value = "SELECT p.* FROM products p " +
            "LEFT JOIN categories c ON p.category_id = c.id " +

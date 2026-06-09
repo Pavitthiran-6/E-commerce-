@@ -2,21 +2,41 @@ import React, { useEffect, useState } from 'react';
 import { getOrders } from '../../services/orderService';
 import axiosInstance from '../../api/axiosInstance';
 import type { Order } from '../../services/orderService';
+import { Loader2, Search, Truck, MapPin, X, ChevronRight, Package, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
-  pending:    { label: 'Pending',    color: 'bg-amber-50 text-amber-700 border border-amber-100',     dot: 'bg-amber-500' },
-  processing: { label: 'Processing', color: 'bg-blue-50 text-blue-700 border border-blue-100',        dot: 'bg-blue-500' },
-  shipped:    { label: 'Shipped',    color: 'bg-indigo-50 text-indigo-700 border border-indigo-100',  dot: 'bg-indigo-500' },
-  delivered:  { label: 'Delivered',  color: 'bg-emerald-50 text-emerald-700 border border-emerald-100', dot: 'bg-emerald-500' },
-  cancelled:  { label: 'Cancelled',  color: 'bg-red-50 text-red-700 border border-red-100',           dot: 'bg-red-500' },
+  // New Statuses
+  PLACED:           { label: 'Placed',           color: 'bg-yellow-50 text-yellow-700 border border-yellow-100', dot: 'bg-yellow-500' },
+  CONFIRMED:        { label: 'Confirmed',        color: 'bg-blue-50 text-blue-700 border border-blue-100',       dot: 'bg-blue-500' },
+  PACKED:           { label: 'Packed',           color: 'bg-indigo-50 text-indigo-700 border border-indigo-100', dot: 'bg-indigo-500' },
+  SHIPPED:          { label: 'Shipped',          color: 'bg-orange-50 text-orange-700 border border-orange-100', dot: 'bg-orange-500' },
+  OUT_FOR_DELIVERY: { label: 'Out for Delivery', color: 'bg-purple-50 text-purple-700 border border-purple-100', dot: 'bg-purple-500' },
+  DELIVERED:        { label: 'Delivered',        color: 'bg-emerald-50 text-emerald-700 border border-emerald-100', dot: 'bg-emerald-500' },
+  CANCELLED:        { label: 'Cancelled',        color: 'bg-red-50 text-red-700 border border-red-100',          dot: 'bg-red-500' },
+  
+  // Legacy / Lowercase Support
+  pending:          { label: 'Placed',           color: 'bg-yellow-50 text-yellow-700 border border-yellow-100', dot: 'bg-yellow-500' },
+  processing:       { label: 'Confirmed',        color: 'bg-blue-50 text-blue-700 border border-blue-100',       dot: 'bg-blue-500' },
+  shipped:          { label: 'Shipped',          color: 'bg-orange-50 text-orange-700 border border-orange-100', dot: 'bg-orange-500' },
+  delivered:        { label: 'Delivered',        color: 'bg-emerald-50 text-emerald-700 border border-emerald-100', dot: 'bg-emerald-500' },
+  cancelled:        { label: 'Cancelled',        color: 'bg-red-50 text-red-700 border border-red-100',          dot: 'bg-red-500' },
 };
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  pending:    ['processing', 'cancelled'],
-  processing: ['shipped', 'cancelled'],
-  shipped:    ['delivered'],
-  delivered:  [],
-  cancelled:  [],
+  PLACED:           ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED:        ['PACKED', 'CANCELLED'],
+  PACKED:           ['SHIPPED', 'CANCELLED'],
+  SHIPPED:          ['OUT_FOR_DELIVERY'],
+  OUT_FOR_DELIVERY: ['DELIVERED'],
+  DELIVERED:        [],
+  CANCELLED:        [],
+
+  // Legacy / Lowercase Support
+  pending:          ['CONFIRMED', 'CANCELLED'],
+  processing:       ['PACKED', 'CANCELLED'],
+  shipped:          ['OUT_FOR_DELIVERY'],
+  delivered:        [],
+  cancelled:        [],
 };
 
 const SkeletonRow = () => (
@@ -44,21 +64,30 @@ export default function ManageOrders() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
+  const [trackingSearch, setTrackingSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const load = async (p = 0) => {
+  // Fulfillment Modal Form State
+  const [showFulfillmentModal, setShowFulfillmentModal] = useState(false);
+  const [selectedOrderForFulfill, setSelectedOrderForFulfill] = useState<Order | null>(null);
+  const [nextStatus, setNextStatus] = useState('');
+  const [courierName, setCourierName] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [shipmentNotes, setShipmentNotes] = useState('');
+
+  const load = async (p = 0, status = statusFilter, tracking = trackingSearch) => {
     setIsLoading(true);
     setError('');
     try {
-      // Try admin endpoint first, fallback to regular orders
-      let data: { content: Order[]; totalPages: number };
-      try {
-        const res = await axiosInstance.get(`/api/admin/orders?page=${p}&size=10`);
-        data = res.data.data;
-      } catch {
-        data = await getOrders(p, 10);
-      }
+      let url = `/api/admin/orders?page=${p}&size=10`;
+      if (status) url += `&status=${status}`;
+      if (tracking) url += `&trackingNumber=${encodeURIComponent(tracking)}`;
+
+      const res = await axiosInstance.get(url);
+      const data = res.data.data;
       setOrders(data.content || []);
       setTotalPages(data.totalPages || 1);
     } catch {
@@ -68,15 +97,47 @@ export default function ManageOrders() {
     }
   };
 
-  useEffect(() => { load(page); }, [page]);
+  useEffect(() => {
+    load(page, statusFilter, trackingSearch);
+  }, [page, statusFilter, trackingSearch]);
 
-  const updateStatus = async (orderId: string, newStatus: string) => {
-    setUpdatingId(orderId);
+  const handleTransitionClick = (order: Order, next: string) => {
+    setSelectedOrderForFulfill(order);
+    setNextStatus(next);
+    setCourierName(order.courierName || '');
+    setTrackingNumber(order.trackingNumber || '');
+    setShipmentNotes(order.shipmentNotes || '');
+    setShowFulfillmentModal(true);
+  };
+
+  const handleFulfillOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrderForFulfill) return;
+    setUpdatingId(selectedOrderForFulfill.id);
     try {
-      await axiosInstance.put(`/api/admin/orders/${orderId}/status`, { status: newStatus });
+      await axiosInstance.put(`/api/admin/orders/${selectedOrderForFulfill.id}/status`, {
+        status: nextStatus,
+        courierName: courierName || null,
+        trackingNumber: trackingNumber || null,
+        shipmentNotes: shipmentNotes || null
+      });
+
       setOrders(prev =>
-        prev.map(o => o.id === orderId ? { ...o, status: newStatus as Order['status'] } : o)
+        prev.map(o => o.id === selectedOrderForFulfill.id ? {
+          ...o,
+          status: nextStatus,
+          courierName: courierName || undefined,
+          trackingNumber: trackingNumber || undefined,
+          shipmentNotes: shipmentNotes || undefined
+        } : o)
       );
+      setShowFulfillmentModal(false);
+      // Reset inputs
+      setSelectedOrderForFulfill(null);
+      setNextStatus('');
+      setCourierName('');
+      setTrackingNumber('');
+      setShipmentNotes('');
     } catch {
       alert('Failed to update order status.');
     } finally {
@@ -84,6 +145,7 @@ export default function ManageOrders() {
     }
   };
 
+  // Local filter for in-page search (secondary fallback filter)
   const filtered = orders.filter(o =>
     (o.orderNumber || o.id || '').toLowerCase().includes(search.toLowerCase()) ||
     (o.address?.fullName || '').toLowerCase().includes(search.toLowerCase())
@@ -95,32 +157,76 @@ export default function ManageOrders() {
       {/* ── Page Header ──────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Orders</h1>
-          <p className="text-sm text-gray-500 mt-0.5">View and manage all customer orders</p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Orders & Fulfillment</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Manage shipments, assign tracking numbers, and fulfill orders</p>
         </div>
         {/* Status Legend */}
         <div className="flex flex-wrap gap-1.5">
-          {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-            <span key={key} className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full ${cfg.color}`}>
-              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
-              {cfg.label}
-            </span>
-          ))}
+          {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+            // Only show uppercase status legend
+            if (key !== key.toUpperCase()) return null;
+            return (
+              <span key={key} className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full ${cfg.color}`}>
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
+                {cfg.label}
+              </span>
+            );
+          })}
         </div>
       </div>
 
-      {/* ── Search ───────────────────────────────────────────────────────── */}
-      <div className="relative max-w-sm">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-        </svg>
-        <input
-          type="text"
-          placeholder="Search by order # or customer…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all"
-        />
+      {/* ── Search & Filter Controls ─────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          {/* Order Search */}
+          <div className="relative max-w-sm flex-1 sm:flex-initial">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search by order # or customer…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all"
+            />
+          </div>
+
+          {/* Tracking Number Search */}
+          <div className="relative max-w-sm flex-1 sm:flex-initial">
+            <Truck className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search by tracking #…"
+              value={trackingSearch}
+              onChange={e => {
+                setTrackingSearch(e.target.value);
+                setPage(0);
+              }}
+              className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all"
+            />
+          </div>
+        </div>
+
+        {/* Shipping Status Filter */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Status Filter:</label>
+          <select
+            value={statusFilter}
+            onChange={e => {
+              setStatusFilter(e.target.value);
+              setPage(0);
+            }}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-400 bg-white"
+          >
+            <option value="">All Statuses</option>
+            <option value="PLACED">Placed</option>
+            <option value="CONFIRMED">Confirmed</option>
+            <option value="PACKED">Packed</option>
+            <option value="SHIPPED">Shipped</option>
+            <option value="OUT_FOR_DELIVERY">Out for Delivery</option>
+            <option value="DELIVERED">Delivered</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </div>
       </div>
 
       {/* ── Table ────────────────────────────────────────────────────────── */}
@@ -158,7 +264,7 @@ export default function ManageOrders() {
                         </svg>
                       </div>
                       <p className="text-sm font-semibold text-gray-700">No orders found</p>
-                      <p className="text-xs text-gray-400 mt-1">{search ? `No results for "${search}"` : 'No orders have been placed yet.'}</p>
+                      <p className="text-xs text-gray-400 mt-1">{search || trackingSearch || statusFilter ? 'No results match search filters' : 'No orders have been placed yet.'}</p>
                     </td>
                   </tr>
                 ) : (
@@ -207,11 +313,13 @@ export default function ManageOrders() {
                           {/* Payment */}
                           <td className="px-5 py-4">
                             <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              order.paymentStatus === 'PAID'
+                              order.paymentStatus === 'SUCCESS' || order.paymentStatus === 'PAID'
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                : order.paymentStatus === 'FAILED'
+                                ? 'bg-red-50 text-red-700 border border-red-100'
                                 : 'bg-amber-50 text-amber-700 border border-amber-100'
                             }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${order.paymentStatus === 'PAID' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${order.paymentStatus === 'SUCCESS' || order.paymentStatus === 'PAID' ? 'bg-emerald-500' : order.paymentStatus === 'FAILED' ? 'bg-red-500' : 'bg-amber-500'}`} />
                               {order.paymentStatus || '—'}
                             </span>
                           </td>
@@ -239,7 +347,7 @@ export default function ManageOrders() {
                                     <button
                                       key={next}
                                       disabled={updatingId === order.id}
-                                      onClick={() => updateStatus(order.id, next)}
+                                      onClick={() => handleTransitionClick(order, next)}
                                       className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all disabled:opacity-50 whitespace-nowrap ${nextCfg?.color || 'bg-gray-100 text-gray-600 border-gray-200'} hover:shadow-sm`}
                                     >
                                       {updatingId === order.id ? '…' : `→ ${nextCfg?.label || next}`}
@@ -258,40 +366,76 @@ export default function ManageOrders() {
                           <tr>
                             <td colSpan={8} className="px-0 py-0">
                               <div className="bg-gray-50 border-t border-b border-gray-100 px-8 py-4">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Order Items</p>
-                                <div className="space-y-2">
-                                  {order.items?.map((item, idx) => (
-                                    <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-4 py-3 shadow-sm">
-                                      <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0 bg-gray-50">
-                                        <img
-                                          src={item.productImage || 'https://via.placeholder.com/40'}
-                                          alt={item.productName}
-                                          className="w-full h-full object-cover"
-                                        />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold text-gray-900 truncate">{item.productName}</p>
-                                        <p className="text-xs text-gray-400 mt-0.5">
-                                          Qty: {item.quantity}
-                                          {item.size ? ` · Size: ${item.size}` : ''}
-                                          {item.color ? ` · ${item.color}` : ''}
-                                        </p>
-                                      </div>
-                                      <p className="text-sm font-bold text-gray-900 flex-shrink-0">
-                                        ₹{item.totalPrice?.toLocaleString('en-IN')}
-                                      </p>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                  {/* Left: Items details */}
+                                  <div>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Order Items</p>
+                                    <div className="space-y-2">
+                                      {order.items?.map((item, idx) => (
+                                        <div key={idx} className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-4 py-3 shadow-sm">
+                                          <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0 bg-gray-50">
+                                            <img
+                                              src={item.productImage || 'https://via.placeholder.com/40'}
+                                              alt={item.productName}
+                                              className="w-full h-full object-cover mix-blend-multiply"
+                                            />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-gray-900 truncate">{item.productName}</p>
+                                            <p className="text-xs text-gray-400 mt-0.5">
+                                              Qty: {item.quantity}
+                                              {item.size ? ` · Size: ${item.size}` : ''}
+                                              {item.color ? ` · ${item.color}` : ''}
+                                            </p>
+                                          </div>
+                                          <p className="text-sm font-bold text-gray-900 flex-shrink-0">
+                                            ₹{item.totalPrice?.toLocaleString('en-IN')}
+                                          </p>
+                                        </div>
+                                      ))}
                                     </div>
-                                  ))}
-                                </div>
-                                <div className="mt-3 flex items-start gap-1.5 text-xs text-gray-500 bg-white rounded-lg border border-gray-100 px-4 py-2.5">
-                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 flex-shrink-0 text-gray-400 mt-0.5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                                  </svg>
-                                  <span>
-                                    <span className="font-semibold text-gray-700">Deliver to: </span>
-                                    {order.address?.addressLine1}, {order.address?.city}, {order.address?.state} — {order.address?.postalCode}
-                                  </span>
+                                  </div>
+
+                                  {/* Right: Courier / Shipping Info details */}
+                                  <div>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Delivery & Tracking Status</p>
+                                    <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm space-y-3 text-xs">
+                                      <div className="flex items-start gap-1.5 text-gray-500">
+                                        <MapPin className="w-4 h-4 flex-shrink-0 text-gray-400 mt-0.5" />
+                                        <span>
+                                          <span className="font-semibold text-gray-700">Address: </span>
+                                          {order.address?.fullName} — {order.address?.addressLine1}, {order.address?.city}, {order.address?.state} — {order.address?.postalCode}
+                                        </span>
+                                      </div>
+
+                                      {(order.courierName || order.trackingNumber || order.shipmentNotes) ? (
+                                        <div className="border-t border-gray-100 pt-3 space-y-2">
+                                          {order.courierName && (
+                                            <div>
+                                              <span className="font-semibold text-gray-400 uppercase tracking-wider text-[10px]">Courier Name: </span>
+                                              <span className="font-medium text-gray-800">{order.courierName}</span>
+                                            </div>
+                                          )}
+                                          {order.trackingNumber && (
+                                            <div>
+                                              <span className="font-semibold text-gray-400 uppercase tracking-wider text-[10px]">Tracking Number: </span>
+                                              <span className="font-mono font-bold text-primary">{order.trackingNumber}</span>
+                                            </div>
+                                          )}
+                                          {order.shipmentNotes && (
+                                            <div>
+                                              <span className="font-semibold text-gray-400 uppercase tracking-wider text-[10px]">Fulfillment Notes: </span>
+                                              <span className="text-gray-700 italic">"{order.shipmentNotes}"</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="border-t border-gray-100 pt-3 text-gray-400 italic">
+                                          No shipment tracking coordinates assigned yet.
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -333,6 +477,88 @@ export default function ManageOrders() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
             </svg>
           </button>
+        </div>
+      )}
+
+      {/* ── Fulfillment Status Update Modal ── */}
+      {showFulfillmentModal && selectedOrderForFulfill && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-2xl border border-gray-100 shadow-2xl p-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gray-950"></div>
+            
+            <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+              <Package className="w-5 h-5 text-gray-800" />
+              Update Fulfillment Status
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Updating Order <span className="font-mono font-bold text-gray-850">#{selectedOrderForFulfill.orderNumber || selectedOrderForFulfill.id.slice(0, 8)}</span> to <span className="font-bold text-gray-950">{(STATUS_CONFIG[nextStatus]?.label || nextStatus)}</span>.
+            </p>
+
+            <form onSubmit={handleFulfillOrder} className="space-y-4">
+              {/* Courier Name */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                  Courier Name
+                </label>
+                <input
+                  type="text"
+                  value={courierName}
+                  onChange={e => setCourierName(e.target.value)}
+                  placeholder="e.g., Blue Dart, Delhivery, DHL..."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gray-450 transition-colors"
+                />
+              </div>
+
+              {/* Tracking Number */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                  Tracking Number
+                </label>
+                <input
+                  type="text"
+                  value={trackingNumber}
+                  onChange={e => setTrackingNumber(e.target.value)}
+                  placeholder="e.g., AW827361849..."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gray-450 transition-colors"
+                />
+              </div>
+
+              {/* Shipment Notes */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                  Shipment Notes / Status message (Customer sees this)
+                </label>
+                <textarea
+                  value={shipmentNotes}
+                  onChange={e => setShipmentNotes(e.target.value)}
+                  placeholder="e.g., Your package is ready for shipment and will be picked up today..."
+                  rows={3}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gray-450 transition-colors resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowFulfillmentModal(false);
+                    setSelectedOrderForFulfill(null);
+                  }}
+                  className="flex-1 border-2 border-gray-200 text-gray-600 rounded-xl py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingId === selectedOrderForFulfill.id}
+                  className="flex-1 bg-gray-950 text-white rounded-xl py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-black transition-colors flex items-center justify-center gap-2 shadow-md disabled:opacity-60"
+                >
+                  {updatingId === selectedOrderForFulfill.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {updatingId === selectedOrderForFulfill.id ? 'Saving...' : 'Confirm Update'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

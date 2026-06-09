@@ -3,6 +3,7 @@ import {
   getRefundRequestsAdmin, 
   approveRefundAdmin, 
   rejectRefundAdmin, 
+  retryRefundAdmin,
   type RefundRequest 
 } from '../../services/refundService';
 import { 
@@ -29,6 +30,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string 
   REFUND_INITIATED: { label: 'Initiated',      color: 'bg-indigo-50 text-indigo-700 border border-indigo-100', dot: 'bg-indigo-500' },
   REFUNDED:         { label: 'Refunded',       color: 'bg-emerald-50 text-emerald-700 border border-emerald-100', dot: 'bg-emerald-500' },
   REFUND_REJECTED:  { label: 'Rejected',       color: 'bg-red-50 text-red-700 border border-red-100',          dot: 'bg-red-500' },
+  REFUND_FAILED:    { label: 'Refund Failed',  color: 'bg-red-100 text-red-800 border border-red-200',         dot: 'bg-red-600' },
 };
 
 const SkeletonRow = () => (
@@ -393,6 +395,7 @@ export default function ManageRefunds() {
               </div>
 
               {/* Action Trail / Verification logs */}
+              {/* Action Trail / Verification logs */}
               {selectedRequest.refundStatus !== 'REFUND_REQUESTED' && (
                 <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl space-y-2.5 text-xs text-blue-950">
                   <h4 className="text-[10px] font-bold text-blue-900 uppercase tracking-widest">Review Audit Log</h4>
@@ -408,6 +411,12 @@ export default function ManageRefunds() {
                     <div className="flex justify-between">
                       <span>Razorpay Refund ID:</span>
                       <span className="font-mono bg-blue-100 px-1 py-0.5 rounded text-blue-900 font-bold">{selectedRequest.razorpayRefundId}</span>
+                    </div>
+                  )}
+                  {selectedRequest.razorpayRefundFailureReason && (
+                    <div className="mt-2 border-t border-red-100 pt-2 text-red-950">
+                      <p className="font-bold text-[10px] uppercase text-red-900 mb-0.5">Refund failure reason:</p>
+                      <p className="italic font-mono text-red-700">"{selectedRequest.razorpayRefundFailureReason}"</p>
                     </div>
                   )}
                   {selectedRequest.adminNotes && (
@@ -426,20 +435,54 @@ export default function ManageRefunds() {
               )}
 
               {/* Review Forms */}
-              {selectedRequest.refundStatus === 'REFUND_REQUESTED' && !actionType && (
+              {(selectedRequest.refundStatus === 'REFUND_REQUESTED' || selectedRequest.refundStatus === 'REFUND_FAILED') && !actionType && (
                 <div className="flex gap-4 pt-4 border-t border-gray-100">
-                  <button
-                    onClick={() => setActionType('reject')}
-                    className="flex-1 border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors text-center inline-block"
-                  >
-                    Reject Request
-                  </button>
-                  <button
-                    onClick={() => setActionType('approve')}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors text-center inline-block shadow-sm"
-                  >
-                    Approve & Payout
-                  </button>
+                  {selectedRequest.refundStatus === 'REFUND_REQUESTED' ? (
+                    <>
+                      <button
+                        onClick={() => setActionType('reject')}
+                        className="flex-1 border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors text-center inline-block"
+                      >
+                        Reject Request
+                      </button>
+                      <button
+                        onClick={() => setActionType('approve')}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors text-center inline-block shadow-sm"
+                      >
+                        Approve & Payout
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setActionType('reject')}
+                        className="flex-1 border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors text-center inline-block"
+                      >
+                        Reject Request
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setIsActionSubmitting(true);
+                          setActionError('');
+                          try {
+                            const updated = await retryRefundAdmin(selectedRequest.id);
+                            setRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+                            setSelectedRequest(updated);
+                            alert('Refund retry successfully initiated.');
+                          } catch (err: any) {
+                            setActionError(err.response?.data?.message || 'Failed to retry refund.');
+                          } finally {
+                            setIsActionSubmitting(false);
+                          }
+                        }}
+                        disabled={isActionSubmitting}
+                        className="flex-1 bg-amber-600 hover:bg-amber-700 text-white rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors text-center inline-block shadow-sm flex items-center justify-center gap-2"
+                      >
+                        {isActionSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                        Retry Refund
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
 

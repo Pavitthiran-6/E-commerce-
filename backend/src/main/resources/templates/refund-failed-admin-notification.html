@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>ALERT: Refund Payment Failed</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f8f7f4; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e0dcd3; }
+        .header { background-color: #8c1d1d; padding: 30px 20px; text-align: center; }
+        .header h1 { color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 2px; font-weight: normal; }
+        .content { padding: 40px; color: #333333; line-height: 1.6; }
+        .content h2 { color: #8c1d1d; margin-top: 0; font-size: 20px; font-weight: normal; }
+        .details-box { background-color: #fcf8f8; border: 1px solid #f5c6cb; border-radius: 4px; padding: 20px; margin: 25px 0; font-size: 14px; }
+        .btn-container { text-align: center; margin: 30px 0; }
+        .btn { background-color: #8c1d1d; color: #ffffff !important; padding: 15px 30px; text-decoration: none; border-radius: 4px; font-size: 14px; letter-spacing: 1px; display: inline-block; font-weight: bold; }
+        .footer { background-color: #1a1a2e; color: #a5a5b5; padding: 20px 20px; text-align: center; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>BELLEDONNE SYSTEM ALERT</h1>
+        </div>
+        <div class="content">
+            <h2>Razorpay Refund Process Failed</h2>
+            <p>An automated Razorpay refund payout failed to initiate for an approved order cancellation request. Manual review or retry is required.</p>
+            
+            <div class="details-box">
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="color: #666; padding: 5px 0; width: 40%;">Order Number:</td>
+                        <td style="font-weight: bold;" th:text="${orderNumber}">ORD-0000</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #666; padding: 5px 0;">Refund Amount:</td>
+                        <td style="font-weight: bold; color: #8c1d1d;" th:text="${'₹' + refundAmount}">₹0.00</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #666; padding: 5px 0;">Failure Reason:</td>
+                        <td style="font-family: monospace; color: #555;" th:text="${failureReason}">Error message</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="btn-container">
+                <a href="http://localhost:5173/admin/refunds" class="btn">View Refund Requests Dashboard</a>
+            </div>
+            
+            <p style="color: #666; font-size: 13px;">This is an automated system alert. Please check Razorpay dashboard if logs are not visible.</p>
+        </div>
+        <div class="footer">
+            <p>Belledonne Paris E-Commerce Administration Engine</p>
+        </div>
+    </div>
+</body>
+</html>

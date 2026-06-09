@@ -49,6 +49,7 @@ public class RefundRequestService {
     private final PaymentService paymentService;
     private final EmailService emailService;
     private final SecurityAuditService securityAuditService;
+    private final InventoryService inventoryService;
 
     /**
      * Submit a new refund request for a cancelled order.
@@ -89,6 +90,9 @@ public class RefundRequestService {
                 .message("Order cancelled by customer. Refund request submitted.")
                 .build());
         orderRepository.save(order);
+
+        // Restore stock
+        inventoryService.restoreStock(order, "ORDER_CANCELLED", principal.getEmail());
 
         // Update Payment status to REFUND_REQUESTED
         Payment payment = paymentRepository.findByOrderId(orderId)
@@ -151,52 +155,127 @@ public class RefundRequestService {
         RefundRequest refundRequest = refundRequestRepository.findById(refundRequestId)
                 .orElseThrow(() -> new ResourceNotFoundException("RefundRequest", "id", refundRequestId));
 
-        if (refundRequest.getRefundStatus() != RefundStatus.REFUND_REQUESTED) {
-            throw new BadRequestException("Refund request is not in REQUESTED status. Current status: " + refundRequest.getRefundStatus());
+        if (refundRequest.getRefundStatus() != RefundStatus.REFUND_REQUESTED && refundRequest.getRefundStatus() != RefundStatus.REFUND_FAILED) {
+            throw new BadRequestException("Refund request is not in REQUESTED or FAILED status. Current status: " + refundRequest.getRefundStatus());
         }
 
-        // Trigger Razorpay Refund
-        String razorpayRefundId = paymentService.initiateRazorpayRefund(
-                refundRequest.getOrder().getId(),
-                refundRequest.getRefundAmount()
-        );
+        // Restore stock immediately if not already restored
+        inventoryService.restoreStock(refundRequest.getOrder(), "REFUND_APPROVED", adminPrincipal.getEmail());
 
-        // Update RefundRequest entity
-        refundRequest.setRefundStatus(RefundStatus.REFUND_INITIATED);
-        refundRequest.setRazorpayRefundId(razorpayRefundId);
-        refundRequest.setAdminNotes(request.getAdminNotes());
-        refundRequest.setReviewedByAdminId(adminPrincipal.getId());
-        refundRequest.setReviewedByAdminEmail(adminPrincipal.getEmail());
-        refundRequest.setReviewedAt(LocalDateTime.now());
-        
-        RefundRequest saved = refundRequestRepository.save(refundRequest);
-
-        // Audit log
-        securityAuditService.log(
-                adminPrincipal.getId(),
-                adminPrincipal.getEmail(),
-                SecurityAction.REFUND_APPROVED,
-                ipAddress,
-                userAgent,
-                "SUCCESS",
-                "Refund approved for Order " + refundRequest.getOrder().getOrderNumber() + " | Razorpay Refund ID: " + razorpayRefundId
-        );
-
-        // Send Email to Customer
         try {
-            emailService.sendRefundApprovedEmail(
-                    refundRequest.getUser().getEmail(),
-                    refundRequest.getUser().getName(),
-                    refundRequest.getOrder().getOrderNumber(),
-                    refundRequest.getRefundAmount(),
-                    request.getAdminNotes(),
-                    razorpayRefundId
+            // Trigger Razorpay Refund
+            String razorpayRefundId = paymentService.initiateRazorpayRefund(
+                    refundRequest.getOrder().getId(),
+                    refundRequest.getRefundAmount()
             );
-        } catch (Exception e) {
-            log.error("Failed to send refund approved email for refundRequestId={}: {}", refundRequestId, e.getMessage());
-        }
 
-        return toResponse(saved);
+            // Update RefundRequest entity
+            refundRequest.setRefundStatus(RefundStatus.REFUND_INITIATED);
+            refundRequest.setRazorpayRefundId(razorpayRefundId);
+            refundRequest.setRazorpayRefundFailureReason(null);
+            refundRequest.setAdminNotes(request.getAdminNotes());
+            refundRequest.setReviewedByAdminId(adminPrincipal.getId());
+            refundRequest.setReviewedByAdminEmail(adminPrincipal.getEmail());
+            refundRequest.setReviewedAt(LocalDateTime.now());
+            
+            RefundRequest saved = refundRequestRepository.save(refundRequest);
+
+            // Audit log
+            securityAuditService.log(
+                    adminPrincipal.getId(),
+                    adminPrincipal.getEmail(),
+                    SecurityAction.REFUND_APPROVED,
+                    ipAddress,
+                    userAgent,
+                    "SUCCESS",
+                    "Refund approved for Order " + refundRequest.getOrder().getOrderNumber() + " | Razorpay Refund ID: " + razorpayRefundId
+            );
+
+            // Send Email to Customer
+            try {
+                emailService.sendRefundApprovedEmail(
+                        refundRequest.getUser().getEmail(),
+                        refundRequest.getUser().getName(),
+                        refundRequest.getOrder().getOrderNumber(),
+                        refundRequest.getRefundAmount(),
+                        request.getAdminNotes(),
+                        razorpayRefundId
+                );
+            } catch (Exception e) {
+                log.error("Failed to send refund approved email for refundRequestId={}: {}", refundRequestId, e.getMessage());
+            }
+
+            return toResponse(saved);
+
+        } catch (Exception e) {
+            log.error("Razorpay refund API call failed for refundRequestId={}: {}", refundRequestId, e.getMessage());
+
+            refundRequest.setRefundStatus(RefundStatus.REFUND_FAILED);
+            refundRequest.setRazorpayRefundFailureReason(e.getMessage());
+            refundRequest.setReviewedByAdminId(adminPrincipal.getId());
+            refundRequest.setReviewedByAdminEmail(adminPrincipal.getEmail());
+            refundRequest.setReviewedAt(LocalDateTime.now());
+            
+            // Mirror failure state to Order payment status
+            Order order = refundRequest.getOrder();
+            order.setPaymentStatus(PaymentStatus.REFUND_FAILED);
+            orderRepository.save(order);
+            
+            // Mirror failure state to Payment entity
+            Payment payment = paymentRepository.findByOrderId(order.getId()).orElse(null);
+            if (payment != null) {
+                payment.setStatus(PaymentStatus.REFUND_FAILED);
+                payment.setFailureReason(e.getMessage());
+                paymentRepository.save(payment);
+            }
+
+            RefundRequest saved = refundRequestRepository.save(refundRequest);
+
+            // Log REFUND_FAILED in security logs
+            securityAuditService.log(
+                    adminPrincipal.getId(),
+                    adminPrincipal.getEmail(),
+                    SecurityAction.REFUND_FAILED,
+                    ipAddress,
+                    userAgent,
+                    "FAILED",
+                    "Razorpay refund failed for Order " + refundRequest.getOrder().getOrderNumber() + " | Error: " + e.getMessage()
+            );
+
+            // Send failure notification email to admin
+            try {
+                emailService.sendRefundFailedAdminNotification(
+                        refundRequest.getOrder().getOrderNumber(),
+                        refundRequest.getRefundAmount(),
+                        e.getMessage()
+                );
+            } catch (Exception ex) {
+                log.error("Failed to send refund failure admin notification for refundRequestId={}: {}", refundRequestId, ex.getMessage());
+            }
+
+            return toResponse(saved);
+        }
+    }
+
+    /**
+     * Retry a failed refund request.
+     */
+    public RefundRequestResponse retryRefund(UUID refundRequestId, UserPrincipal adminPrincipal, String ipAddress, String userAgent) {
+        RefundRequest refundRequest = refundRequestRepository.findById(refundRequestId)
+                .orElseThrow(() -> new ResourceNotFoundException("RefundRequest", "id", refundRequestId));
+                
+        if (refundRequest.getRefundStatus() != RefundStatus.REFUND_FAILED) {
+            throw new BadRequestException("Only failed refunds can be retried. Current status: " + refundRequest.getRefundStatus());
+        }
+        
+        RefundApprovalRequest approvalReq = new RefundApprovalRequest();
+        approvalReq.setAdminNotes(refundRequest.getAdminNotes());
+        
+        // Temporarily reset status so approveRefund passes validation
+        refundRequest.setRefundStatus(RefundStatus.REFUND_REQUESTED);
+        refundRequestRepository.save(refundRequest);
+        
+        return approveRefund(refundRequestId, adminPrincipal, approvalReq, ipAddress, userAgent);
     }
 
     /**
@@ -345,6 +424,7 @@ public class RefundRequestService {
                 .reviewedByAdminEmail(request.getReviewedByAdminEmail())
                 .reviewedAt(request.getReviewedAt())
                 .razorpayRefundId(request.getRazorpayRefundId())
+                .razorpayRefundFailureReason(request.getRazorpayRefundFailureReason())
                 .requestedAt(request.getRequestedAt())
                 .updatedAt(request.getUpdatedAt())
                 .orderTotalAmount(request.getOrder().getTotalAmount())

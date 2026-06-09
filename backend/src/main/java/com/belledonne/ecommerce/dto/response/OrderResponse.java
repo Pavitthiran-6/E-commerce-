@@ -27,6 +27,9 @@ public class OrderResponse {
     private LocalDate estimatedDelivery;
     private LocalDateTime deliveredAt;
     private String trackingNumber;
+    private String courierName;
+    private String shipmentNotes;
+    private boolean stockRestored;
     private AddressResponse address;
     private List<OrderItemResponse> items;
     private List<TrackingResponse> trackingHistory;
@@ -39,6 +42,7 @@ public class OrderResponse {
     private String refundNotes;
     private String rejectionReason;
     private String razorpayRefundId;
+    private String razorpayRefundFailureReason;
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class OrderItemResponse {

@@ -275,6 +275,40 @@ public class EmailService {
         sendEmail(toEmail, "Refund Request Update — " + orderNumber, htmlContent);
     }
 
+    @Async
+    public void sendRefundFailedAdminNotification(String orderNumber, java.math.BigDecimal refundAmount, String failureReason) {
+        log.info("[EmailService] Email request started: Refund Failure Admin Notification for Order {}", orderNumber);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("orderNumber", orderNumber);
+            context.setVariable("refundAmount", refundAmount);
+            context.setVariable("failureReason", failureReason);
+            htmlContent = templateEngine.process("refund-failed-admin-notification", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for refund-failed-admin-notification: {}", e.getMessage(), e);
+            return;
+        }
+        sendEmail("admin@belledonne.in", "ALERT: Refund Failed for Order " + orderNumber, htmlContent);
+    }
+
+    @Async
+    public void sendOrderStatusUpdateEmail(Order order, String statusLabel, String messageText) {
+        log.info("[EmailService] Email request started: Order Status Update to {}", order.getUser().getEmail());
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("order", order);
+            context.setVariable("statusLabel", statusLabel);
+            context.setVariable("messageText", messageText);
+            htmlContent = templateEngine.process("order-status-update-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for order-status-update-email: {}", e.getMessage(), e);
+            return;
+        }
+        sendEmail(order.getUser().getEmail(), "Order Update: #" + order.getOrderNumber() + " is " + statusLabel, htmlContent);
+    }
+
     private boolean sendEmail(String to, String subject, String htmlContent) {
         log.info("[EmailService] Attempting to send email to {} with subject: '{}'...", to, subject);
         try {

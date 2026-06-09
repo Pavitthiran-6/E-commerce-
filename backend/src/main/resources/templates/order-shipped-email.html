@@ -37,7 +37,7 @@
                 <table style="width: 100%;">
                     <tr>
                         <td style="color: #666; padding: 4px 0;">Courier Partner:</td>
-                        <td style="text-align: right; font-weight: bold;">Delhivery</td>
+                        <td style="text-align: right; font-weight: bold;" th:text="${order.courierName != null ? order.courierName : 'Delhivery'}">Delhivery</td>
                     </tr>
                     <tr>
                         <td style="color: #666; padding: 4px 0;">Tracking Number:</td>

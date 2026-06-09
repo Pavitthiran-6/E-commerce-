@@ -59,6 +59,10 @@ public class Product {
     @Builder.Default
     private Integer stockQuantity = 0;
 
+    @Column(name = "low_stock_threshold")
+    @Builder.Default
+    private Integer lowStockThreshold = 5;
+
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;

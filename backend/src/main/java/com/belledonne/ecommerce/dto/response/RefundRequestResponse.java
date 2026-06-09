@@ -30,6 +30,7 @@ public class RefundRequestResponse {
     private String reviewedByAdminEmail;
     private LocalDateTime reviewedAt;
     private String razorpayRefundId;
+    private String razorpayRefundFailureReason;
     private LocalDateTime requestedAt;
     private LocalDateTime updatedAt;
     

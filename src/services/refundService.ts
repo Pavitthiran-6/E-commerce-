@@ -9,7 +9,7 @@ export interface RefundRequest {
   customerName: string;
   customerEmail: string;
   cancellationReason: string;
-  refundStatus: 'REFUND_REQUESTED' | 'REFUND_APPROVED' | 'REFUND_INITIATED' | 'REFUNDED' | 'REFUND_REJECTED';
+  refundStatus: 'REFUND_REQUESTED' | 'REFUND_APPROVED' | 'REFUND_INITIATED' | 'REFUNDED' | 'REFUND_REJECTED' | 'REFUND_FAILED';
   refundAmount: number;
   adminNotes?: string;
   rejectionReason?: string;
@@ -17,6 +17,7 @@ export interface RefundRequest {
   reviewedByAdminEmail?: string;
   reviewedAt?: string;
   razorpayRefundId?: string;
+  razorpayRefundFailureReason?: string;
   requestedAt: string;
   updatedAt: string;
   orderTotalAmount: number;
@@ -119,6 +120,16 @@ export const rejectRefundAdmin = async (id: string, rejectionReason: string): Pr
     return response.data.data;
   } catch (error) {
     console.error(`Error rejecting refund request ${id}`, error);
+    throw error;
+  }
+};
+
+export const retryRefundAdmin = async (id: string): Promise<RefundRequest> => {
+  try {
+    const response = await axiosInstance.post(ENDPOINTS.ADMIN_RETRY_REFUND(id));
+    return response.data.data;
+  } catch (error) {
+    console.error(`Error retrying failed refund ${id}`, error);
     throw error;
   }
 };

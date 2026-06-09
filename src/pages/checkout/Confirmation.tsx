@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
-import { CheckCircle2, MapPin, Package, Truck } from 'lucide-react';
+import { CheckCircle2, MapPin, Package, Truck, Download, Loader2 } from 'lucide-react';
 import { isFreeShippingCoupon } from '../../utils/couponLogic';
+import { downloadInvoice } from '../../services/paymentService';
 
 const STEPS = ['Address', 'Payment', 'Confirmation'];
 
@@ -99,6 +100,24 @@ export default function CheckoutConfirmation() {
   const orderId = useRef(genOrderId()).current;
   const deliveryDate = useRef(getDeliveryDate()).current;
   const [cleared, setCleared] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  const realOrderId = localStorage.getItem('lastOrderId');
+
+  const handleDownloadInvoice = async () => {
+    if (!realOrderId) {
+      alert("Order details not found.");
+      return;
+    }
+    setDownloading(true);
+    try {
+      await downloadInvoice(realOrderId, orderId);
+    } catch (e) {
+      alert('Failed to download invoice. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const paymentMethod = localStorage.getItem('lastPaymentMethod') || 'card';
   const paymentDetails = localStorage.getItem('lastPaymentDetails') || 'Card ending in •••• 4242';
@@ -237,6 +256,16 @@ export default function CheckoutConfirmation() {
             <Truck className="w-4 h-4" />
             Track My Order
           </Link>
+          {realOrderId && (
+            <button
+              onClick={handleDownloadInvoice}
+              disabled={downloading}
+              className="flex-1 border-2 border-charcoal-stone text-charcoal-stone font-semibold uppercase tracking-widest py-4 text-sm hover:bg-charcoal-stone hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              Download Invoice
+            </button>
+          )}
           <Link
             to="/collection"
             className="flex-1 border-2 border-charcoal-stone text-charcoal-stone font-semibold uppercase tracking-widest py-4 text-sm hover:bg-charcoal-stone hover:text-white transition-all text-center"

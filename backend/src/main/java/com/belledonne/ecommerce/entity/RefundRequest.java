@@ -96,6 +96,10 @@ public class RefundRequest {
     @Column(name = "razorpay_refund_id", length = 100)
     private String razorpayRefundId;
 
+    /** Recorded if Razorpay Refund API call fails. */
+    @Column(name = "razorpay_refund_failure_reason", columnDefinition = "TEXT")
+    private String razorpayRefundFailureReason;
+
     // ── Timestamps ────────────────────────────────────────────────────────────
 
     @CreationTimestamp

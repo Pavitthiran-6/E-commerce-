@@ -88,7 +88,11 @@ public class OrderController {
         @AuthenticationPrincipal UserPrincipal principal,
         @PathVariable UUID orderId) {
 
-        byte[] pdf = invoiceService.generateInvoicePdf(orderId, principal.getId());
+        String userRole = principal.getAuthorities().stream()
+            .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+            .findFirst().orElse("ROLE_USER");
+
+        byte[] pdf = invoiceService.generateInvoicePdf(orderId, principal.getId(), userRole);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);

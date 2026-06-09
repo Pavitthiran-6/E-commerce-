@@ -274,6 +274,7 @@ public class AdminController {
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
         @RequestParam(required = false) String paymentMethod,
+        @RequestParam(required = false) String trackingNumber,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "20") int size) {
 
@@ -290,6 +291,9 @@ public class AdminController {
             }
             if (paymentMethod != null && !paymentMethod.isBlank()) {
                 predicates.add(cb.equal(root.get("paymentMethod"), PaymentMethod.valueOf(paymentMethod.toUpperCase())));
+            }
+            if (trackingNumber != null && !trackingNumber.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("trackingNumber")), "%" + trackingNumber.toLowerCase().trim() + "%"));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
@@ -313,16 +317,32 @@ public class AdminController {
     @Operation(summary = "Update status of an order")
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<ApiResponse<?>> updateOrderStatus(
-        @PathVariable UUID id, @RequestBody Map<String, String> body) {
+        @PathVariable UUID id, @Valid @RequestBody OrderStatusUpdateRequest body, HttpServletRequest httpServletRequest) {
         Order order = orderRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Order", "id", id));
-        OrderStatus newStatus = OrderStatus.valueOf(body.get("status").toUpperCase());
+        
+        OrderStatus oldStatus = order.getStatus();
+        OrderStatus newStatus = OrderStatus.valueOf(body.getStatus().toUpperCase());
         order.setStatus(newStatus);
+
+        if (body.getTrackingNumber() != null) {
+            order.setTrackingNumber(body.getTrackingNumber());
+        }
+        if (body.getCourierName() != null) {
+            order.setCourierName(body.getCourierName());
+        }
+        if (body.getShipmentNotes() != null) {
+            order.setShipmentNotes(body.getShipmentNotes());
+        }
+
+        String trackingMsg = body.getShipmentNotes() != null && !body.getShipmentNotes().isBlank()
+            ? body.getShipmentNotes()
+            : "Order status updated to " + newStatus.name();
 
         OrderTracking tracking = OrderTracking.builder()
             .order(order)
             .status(newStatus.name())
-            .message(body.getOrDefault("note", "Order status updated to " + newStatus.name()))
+            .message(trackingMsg)
             .build();
         order.getTrackingHistory().add(tracking);
 
@@ -331,6 +351,40 @@ public class AdminController {
         }
 
         Order saved = orderRepository.save(order);
+
+        // Audit Log
+        User admin = getLoggedInUser();
+        String ip = SecurityAuditService.getClientIp(httpServletRequest);
+        String ua = httpServletRequest.getHeader("User-Agent");
+        securityAuditService.log(
+            admin != null ? admin.getId() : null,
+            admin != null ? admin.getEmail() : "admin@belledonne.in",
+            SecurityAction.ADMIN_ACTION,
+            ip,
+            ua,
+            "SUCCESS",
+            "Updated status of order " + order.getOrderNumber() + " from " + oldStatus + " to " + newStatus
+        );
+
+        // Send Email notifications on major status changes
+        try {
+            if (newStatus == OrderStatus.CONFIRMED) {
+                emailService.sendOrderStatusUpdateEmail(saved, "Confirmed", "Your order has been confirmed and is being prepared.");
+            } else if (newStatus == OrderStatus.PACKED) {
+                emailService.sendOrderStatusUpdateEmail(saved, "Packed", "Your order has been packed and is ready for shipment.");
+            } else if (newStatus == OrderStatus.SHIPPED) {
+                emailService.sendOrderShippedEmail(saved.getUser().getEmail(), saved, saved.getTrackingNumber());
+            } else if (newStatus == OrderStatus.OUT_FOR_DELIVERY) {
+                emailService.sendOrderStatusUpdateEmail(saved, "Out for Delivery", "Your order is out for delivery with our courier partner.");
+            } else if (newStatus == OrderStatus.DELIVERED) {
+                emailService.sendOrderDeliveredEmail(saved.getUser().getEmail(), saved);
+            } else if (newStatus == OrderStatus.CANCELLED) {
+                emailService.sendOrderStatusUpdateEmail(saved, "Cancelled", "Your order has been cancelled.");
+            }
+        } catch (Exception e) {
+            log.error("Failed to send order status change email for orderId={}: {}", id, e.getMessage());
+        }
+
         return ResponseEntity.ok(ApiResponse.success("Order status updated", orderService.toResponse(saved)));
     }
 
@@ -894,6 +948,19 @@ public class AdminController {
         String userAgent = httpServletRequest.getHeader("User-Agent");
         RefundRequestResponse response = refundRequestService.rejectRefund(id, adminPrincipal, request, ipAddress, userAgent);
         return ResponseEntity.ok(ApiResponse.success("Refund request rejected successfully", response));
+    }
+
+    @PostMapping("/refund-requests/{id}/retry")
+    @Operation(summary = "Retry a failed refund request")
+    public ResponseEntity<ApiResponse<RefundRequestResponse>> retryRefund(
+            @AuthenticationPrincipal UserPrincipal adminPrincipal,
+            @PathVariable UUID id,
+            HttpServletRequest httpServletRequest) {
+        
+        String ipAddress = SecurityAuditService.getClientIp(httpServletRequest);
+        String userAgent = httpServletRequest.getHeader("User-Agent");
+        RefundRequestResponse response = refundRequestService.retryRefund(id, adminPrincipal, ipAddress, userAgent);
+        return ResponseEntity.ok(ApiResponse.success("Refund retried successfully", response));
     }
 
     private User getLoggedInUser() {

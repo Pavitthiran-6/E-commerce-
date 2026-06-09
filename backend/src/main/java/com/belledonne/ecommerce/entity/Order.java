@@ -95,6 +95,16 @@ public class Order {
     @Column(name = "tracking_number", length = 100)
     private String trackingNumber;
 
+    @Column(name = "courier_name", length = 100)
+    private String courierName;
+
+    @Column(name = "shipment_notes", columnDefinition = "TEXT")
+    private String shipmentNotes;
+
+    @Column(name = "stock_restored", nullable = false)
+    @Builder.Default
+    private boolean stockRestored = false;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

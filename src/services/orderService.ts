@@ -35,7 +35,7 @@ export interface OrderTracking {
 export interface Order {
   id: string; // Backend returns UUID
   orderNumber: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'PLACED' | 'CONFIRMED' | 'PACKED' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED' | 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | string;
   subtotal: number;
   shippingCharge: number;
   taxAmount: number;
@@ -47,6 +47,9 @@ export interface Order {
   estimatedDelivery?: string;
   deliveredAt?: string;
   trackingNumber?: string;
+  courierName?: string;
+  shipmentNotes?: string;
+  stockRestored?: boolean;
   address: Address;
   items: OrderItem[];
   trackingHistory?: OrderTracking[];
@@ -58,6 +61,7 @@ export interface Order {
   refundNotes?: string;
   rejectionReason?: string;
   razorpayRefundId?: string;
+  razorpayRefundFailureReason?: string;
 }
 
 export const placeOrder = async (orderData: { addressId: number; paymentMethod: string; couponCode?: string; items?: { productId: string; variantId?: number; quantity: number }[] }): Promise<Order> => {

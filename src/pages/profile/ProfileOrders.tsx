@@ -123,8 +123,10 @@ export default function ProfileOrders() {
       s !== 'cancelled';
   };
 
-  // Show Invoice button: payment successful (online orders) OR COD order marked SUCCESS
-  const canDownloadInvoice = (order: Order) => order.paymentStatus === 'SUCCESS';
+  const canDownloadInvoice = (order: Order) => {
+    const s = order.status?.toLowerCase();
+    return s !== 'cancelled';
+  };
 
   if (isLoading) {
     return (

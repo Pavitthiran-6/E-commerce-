@@ -49,8 +49,8 @@ export default function TrackOrder() {
       });
   }, [orderIdParam]);
 
-  const status = order?.status ? (order.status.charAt(0).toUpperCase() + order.status.slice(1).toLowerCase()) : 'Unknown';
-  const showInvoice = order?.paymentStatus === 'SUCCESS';
+  const status = order?.status ? (order.status.replace(/_/g, ' ').charAt(0).toUpperCase() + order.status.replace(/_/g, ' ').slice(1).toLowerCase()) : 'Unknown';
+  const showInvoice = order && order.status !== 'cancelled' && order.status !== 'CANCELLED';
 
   const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -169,11 +169,16 @@ export default function TrackOrder() {
       case 'pending':
       case 'placed':
         return { color: 'bg-yellow-50 text-yellow-800 border-yellow-200', icon: <Package className="w-6 h-6 text-yellow-600" />, title: 'Order Placed', desc: 'We have received your order and are currently verifying it.' };
+      case 'confirmed':
+        return { color: 'bg-blue-50 text-blue-800 border-blue-200', icon: <CheckCircle2 className="w-6 h-6 text-blue-600" />, title: 'Confirmed', desc: 'Your order has been confirmed and is being prepared.' };
+      case 'packed':
+        return { color: 'bg-indigo-50 text-indigo-800 border-indigo-200', icon: <Package className="w-6 h-6 text-indigo-600" />, title: 'Packed', desc: 'Your order has been packed and is ready for shipment.' };
       case 'processing':
         return { color: 'bg-blue-50 text-blue-800 border-blue-200', icon: <Clock className="w-6 h-6 text-blue-600" />, title: 'Processing', desc: 'We are preparing your order. It will be shipped soon!' };
       case 'shipped':
+        return { color: 'bg-orange-50 text-orange-800 border-orange-200', icon: <Truck className="w-6 h-6 text-orange-600" />, title: 'Shipped', desc: 'Your order has been shipped and is in transit.' };
       case 'out for delivery':
-        return { color: 'bg-orange-50 text-orange-800 border-orange-200', icon: <Truck className="w-6 h-6 text-orange-600" />, title: 'Shipped', desc: 'Your order is on its way!' };
+        return { color: 'bg-orange-50 text-orange-800 border-orange-200', icon: <Truck className="w-6 h-6 text-orange-600" />, title: 'Out For Delivery', desc: 'Your order is out for delivery today!' };
       case 'delivered':
         return { color: 'bg-green-50 text-green-800 border-green-200', icon: <CheckCircle2 className="w-6 h-6 text-green-600" />, title: 'Delivered', desc: 'Your order was delivered successfully. We hope you love it!' };
       case 'cancelled': {
@@ -188,6 +193,8 @@ export default function TrackOrder() {
           desc = `Order cancelled. Refund of ₹${order.totalAmount.toLocaleString()} has been successfully credited.`;
         } else if (order?.paymentStatus === 'REFUND_REJECTED') {
           desc = `Order cancelled. Refund request was rejected. Reason: ${order.rejectionReason || 'Contact support.'}`;
+        } else if (order?.paymentStatus === 'REFUND_FAILED' || order?.refundStatus === 'REFUND_FAILED') {
+          desc = `Order cancelled. Refund of ₹${order.totalAmount.toLocaleString()} failed. Our admin team will retry processing shortly.`;
         }
         return { color: 'bg-red-50 text-red-800 border-red-200', icon: <XCircle className="w-6 h-6 text-red-600" />, title: 'Cancelled', desc };
       }
@@ -197,16 +204,18 @@ export default function TrackOrder() {
   };
   const banner = getBannerData();
 
-  const steps = ['Placed', 'Processing', 'Shipped', 'Delivered'];
+  const steps = ['Placed', 'Confirmed', 'Packed', 'Shipped', 'Out for Delivery', 'Delivered'];
   const getStepStatus = (stepName: string, index: number) => {
     if (status.toLowerCase() === 'cancelled') return { completed: false, current: false };
     
     let currentIndex = 0;
     const currentStatus = status.toLowerCase();
     if (currentStatus === 'pending' || currentStatus === 'placed') currentIndex = 0;
-    if (currentStatus === 'processing') currentIndex = 1;
-    if (currentStatus === 'shipped') currentIndex = 2;
-    if (currentStatus === 'delivered') currentIndex = 3;
+    if (currentStatus === 'confirmed' || currentStatus === 'processing') currentIndex = 1;
+    if (currentStatus === 'packed') currentIndex = 2;
+    if (currentStatus === 'shipped') currentIndex = 3;
+    if (currentStatus === 'out_for_delivery' || currentStatus === 'out for delivery') currentIndex = 4;
+    if (currentStatus === 'delivered') currentIndex = 5;
 
     if (index < currentIndex) return { completed: true, current: false };
     if (index === currentIndex) return { completed: false, current: true };
@@ -218,10 +227,14 @@ export default function TrackOrder() {
     const name = stepName.toLowerCase();
     if (name === 'placed') {
       targetStatuses = ['placed', 'order_placed', 'pending'];
-    } else if (name === 'processing') {
-      targetStatuses = ['processing', 'confirmed'];
+    } else if (name === 'confirmed') {
+      targetStatuses = ['confirmed', 'processing'];
+    } else if (name === 'packed') {
+      targetStatuses = ['packed'];
     } else if (name === 'shipped') {
-      targetStatuses = ['shipped', 'out_for_delivery'];
+      targetStatuses = ['shipped'];
+    } else if (name === 'out for delivery' || name === 'out_for_delivery') {
+      targetStatuses = ['out_for_delivery', 'out for delivery'];
     } else if (name === 'delivered') {
       targetStatuses = ['delivered'];
     }
@@ -246,8 +259,10 @@ export default function TrackOrder() {
   const getProgressPercentage = () => {
     const currentStatus = status.toLowerCase();
     if (currentStatus === 'delivered') return '100%';
-    if (currentStatus === 'shipped' || currentStatus === 'out for delivery') return '66.66%';
-    if (currentStatus === 'processing') return '33.33%';
+    if (currentStatus === 'out_for_delivery' || currentStatus === 'out for delivery') return '80%';
+    if (currentStatus === 'shipped') return '60%';
+    if (currentStatus === 'packed') return '40%';
+    if (currentStatus === 'confirmed' || currentStatus === 'processing') return '20%';
     return '0%';
   };
   const progressPercentage = getProgressPercentage();
@@ -303,6 +318,36 @@ export default function TrackOrder() {
           </div>
         </div>
 
+        {/* SECTION 2.5: Shipping & Tracking Details */}
+        {(order.trackingNumber || order.courierName || order.shipmentNotes) && (
+          <div className="bg-white rounded-xl border border-outline-variant/30 p-6 md:p-8 mb-8 shadow-sm">
+            <h3 className="font-headline-md text-lg font-bold text-gray-900 mb-4 flex items-center gap-3">
+              <Truck className="w-5 h-5 text-primary" />
+              Shipment Tracking Details
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+              {order.courierName && (
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Courier Partner</p>
+                  <p className="font-semibold text-gray-900">{order.courierName}</p>
+                </div>
+              )}
+              {order.trackingNumber && (
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Tracking Number</p>
+                  <p className="font-mono font-bold text-primary select-all">{order.trackingNumber}</p>
+                </div>
+              )}
+              {order.shipmentNotes && (
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 md:col-span-3">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Shipment Notes</p>
+                  <p className="text-gray-700 italic font-medium">{order.shipmentNotes}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* SECTION 3: Visual Progress Tracker */}
         {status !== 'Cancelled' && (
           <div className="bg-white rounded-xl border border-outline-variant/30 p-6 md:p-10 mb-8 shadow-sm overflow-hidden">
@@ -321,7 +366,7 @@ export default function TrackOrder() {
               {steps.map((step, idx) => {
                 const { completed, current } = getStepStatus(step, idx);
                 return (
-                  <div key={idx} className="flex flex-col items-center w-1/4 relative bg-white px-2">
+                  <div key={idx} className="flex flex-col items-center w-1/6 relative bg-white px-2">
                     {completed ? (
                       <div className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center shadow-md z-10 mb-3 border-4 border-white">
                         <CheckCircle2 className="w-5 h-5" />

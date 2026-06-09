@@ -39,8 +39,11 @@ public class OrderService {
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
     private final ProductRepository productRepository;
+    private final ProductVariantRepository productVariantRepository;
     private final CouponService couponService;
     private final EmailService emailService;
+    private final InventoryService inventoryService;
+    private final InvoiceService invoiceService;
 
     @Autowired @Lazy
     private PaymentService paymentService;
@@ -59,12 +62,36 @@ public class OrderService {
         for (OrderRequest.OrderItemRequest itemReq : request.getItems()) {
             Product product = productRepository.findById(itemReq.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "id", itemReq.getProductId()));
-            BigDecimal itemTotal = product.getPrice().multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+            
+            ProductVariant variant = null;
+            String size = null;
+            String color = null;
+            BigDecimal unitPrice = product.getPrice();
+            
+            if (itemReq.getVariantId() != null) {
+                variant = productVariantRepository.findById(itemReq.getVariantId())
+                    .orElseThrow(() -> new ResourceNotFoundException("ProductVariant", "id", itemReq.getVariantId()));
+                size = variant.getSize();
+                color = variant.getColor();
+                if (variant.getAdditionalPrice() != null) {
+                    unitPrice = unitPrice.add(variant.getAdditionalPrice());
+                }
+            }
+            
+            BigDecimal itemTotal = unitPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
             subtotal = subtotal.add(itemTotal);
             String image = product.getImages() != null && product.getImages().length > 0 ? product.getImages()[0] : null;
+            
             orderItems.add(OrderItem.builder()
-                .product(product).productName(product.getName()).productImage(image)
-                .quantity(itemReq.getQuantity()).unitPrice(product.getPrice()).totalPrice(itemTotal)
+                .product(product)
+                .variant(variant)
+                .productName(product.getName())
+                .productImage(image)
+                .size(size)
+                .color(color)
+                .quantity(itemReq.getQuantity())
+                .unitPrice(unitPrice)
+                .totalPrice(itemTotal)
                 .build());
         }
 
@@ -96,9 +123,12 @@ public class OrderService {
         Order saved = orderRepository.save(order);
         orderItems.forEach(item -> { item.setOrder(saved); saved.getItems().add(item); });
 
+        // Deduct inventory
+        inventoryService.deductStock(saved);
+
         // Add first tracking event
         saved.getTrackingHistory().add(OrderTracking.builder()
-            .order(saved).status("ORDER_PLACED")
+            .order(saved).status("PLACED")
             .message("Your order has been placed successfully").build());
 
         orderRepository.save(saved);
@@ -108,7 +138,13 @@ public class OrderService {
         // Prepaid orders: email is deferred to PaymentService.verifyPayment()
         // so the customer is only notified after the payment is confirmed.
         if (PaymentMethod.COD.equals(order.getPaymentMethod())) {
-            emailService.sendOrderConfirmationEmail(user.getEmail(), saved);
+            try {
+                byte[] invoicePdf = invoiceService.generateInvoicePdf(saved);
+                emailService.sendOrderConfirmationEmail(user.getEmail(), saved, invoicePdf);
+            } catch (Exception e) {
+                log.error("Failed to generate/send invoice for COD order: {}", e.getMessage());
+                emailService.sendOrderConfirmationEmail(user.getEmail(), saved);
+            }
         }
         // ───────────────────────────────────────────────────────────────────
 
@@ -146,6 +182,10 @@ public class OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         order.getTrackingHistory().add(OrderTracking.builder()
             .order(order).status("CANCELLED").message("Order cancelled by customer").build());
+        
+        // Restore stock
+        inventoryService.restoreStock(order, "ORDER_CANCELLED", principal.getEmail());
+
         Order saved = orderRepository.save(order);
 
         return toResponse(saved);
@@ -188,6 +228,9 @@ public class OrderService {
             .paymentStatus(o.getPaymentStatus().name())
             .estimatedDelivery(o.getEstimatedDelivery()).deliveredAt(o.getDeliveredAt())
             .trackingNumber(o.getTrackingNumber())
+            .courierName(o.getCourierName())
+            .shipmentNotes(o.getShipmentNotes())
+            .stockRestored(o.isStockRestored())
             .address(addressResponse).items(items).trackingHistory(tracking)
             .createdAt(o.getCreatedAt())
             .cancellationReason(o.getRefundRequest() != null ? o.getRefundRequest().getCancellationReason() : null)
@@ -196,6 +239,7 @@ public class OrderService {
             .refundNotes(o.getRefundRequest() != null ? o.getRefundRequest().getAdminNotes() : null)
             .rejectionReason(o.getRefundRequest() != null ? o.getRefundRequest().getRejectionReason() : null)
             .razorpayRefundId(o.getRefundRequest() != null ? o.getRefundRequest().getRazorpayRefundId() : null)
+            .razorpayRefundFailureReason(o.getRefundRequest() != null ? o.getRefundRequest().getRazorpayRefundFailureReason() : null)
             .build();
     }
 }
