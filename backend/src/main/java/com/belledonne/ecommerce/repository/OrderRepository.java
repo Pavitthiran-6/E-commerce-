@@ -49,7 +49,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
     BigDecimal getAverageOrderValue();
 
     // Returns [date_string, order_count, revenue] per day for last N days (native)
-    @Query(value = "SELECT TO_CHAR(o.created_at::date, 'YYYY-MM-DD') as day, " +
+    @Query(value = "SELECT TO_CHAR(CAST(o.created_at AS date), 'YYYY-MM-DD') as day, " +
                    "COUNT(o.id) as orders, " +
                    "COALESCE(SUM(o.total_amount), 0) as revenue " +
                    "FROM orders o " +
