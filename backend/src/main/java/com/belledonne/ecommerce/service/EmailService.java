@@ -4,6 +4,7 @@ import com.belledonne.ecommerce.entity.Order;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
@@ -109,6 +110,11 @@ public class EmailService {
 
     @Async
     public void sendOrderConfirmationEmail(String toEmail, Order order) {
+        sendOrderConfirmationEmail(toEmail, order, null);
+    }
+
+    @Async
+    public void sendOrderConfirmationEmail(String toEmail, Order order, byte[] invoicePdf) {
         log.info("[EmailService] Email request started: Order Confirmation to {}", toEmail);
         String htmlContent;
         try {
@@ -119,7 +125,12 @@ public class EmailService {
             log.error("[EmailService] ❌ Template rendering failure for order-confirmation-email to {}: {}", toEmail, e.getMessage(), e);
             return;
         }
-        sendEmail(toEmail, "Order Confirmed — " + order.getOrderNumber(), htmlContent);
+        if (invoicePdf != null && invoicePdf.length > 0) {
+            sendEmailWithAttachment(toEmail, "Order Confirmed — " + order.getOrderNumber(), htmlContent,
+                invoicePdf, "invoice-" + order.getOrderNumber() + ".pdf");
+        } else {
+            sendEmail(toEmail, "Order Confirmed — " + order.getOrderNumber(), htmlContent);
+        }
     }
 
     @Async
@@ -151,6 +162,22 @@ public class EmailService {
             return;
         }
         sendEmail(toEmail, "Your Order Has Been Delivered! 📦 — " + order.getOrderNumber(), htmlContent);
+    }
+
+    @Async
+    public void sendRefundInitiatedEmail(String toEmail, Order order, String refundId) {
+        log.info("[EmailService] Email request started: Refund Initiated to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("order", order);
+            context.setVariable("refundId", refundId);
+            htmlContent = templateEngine.process("refund-initiated-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for refund-initiated-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
+        sendEmail(toEmail, "Refund Initiated — " + order.getOrderNumber(), htmlContent);
     }
 
     @Value("${app.security.alert-email:admin@belledonne.in}")
@@ -210,5 +237,25 @@ public class EmailService {
             }
         }
         return false;
+    }
+
+    private boolean sendEmailWithAttachment(String to, String subject, String htmlContent,
+                                             byte[] attachment, String filename) {
+        log.info("[EmailService] Attempting to send email with attachment to {} — subject: '{}'", to, subject);
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlContent, true);
+            helper.addAttachment(filename, new ByteArrayResource(attachment));
+            mailSender.send(message);
+            log.info("[EmailService] ✅ Email with attachment sent successfully to {}", to);
+            return true;
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Failed to send email with attachment to {}: {}", to, e.getMessage(), e);
+            return false;
+        }
     }
 }

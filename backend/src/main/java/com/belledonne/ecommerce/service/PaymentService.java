@@ -6,7 +6,9 @@ import com.belledonne.ecommerce.dto.response.PaymentResponse;
 import com.belledonne.ecommerce.entity.Order;
 import com.belledonne.ecommerce.entity.Payment;
 import com.belledonne.ecommerce.enums.OrderStatus;
+import com.belledonne.ecommerce.enums.PaymentMethod;
 import com.belledonne.ecommerce.enums.PaymentStatus;
+import com.belledonne.ecommerce.exception.BadRequestException;
 import com.belledonne.ecommerce.exception.PaymentException;
 import com.belledonne.ecommerce.exception.ResourceNotFoundException;
 import com.belledonne.ecommerce.exception.UnauthorizedException;
@@ -18,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,7 +48,6 @@ import java.util.UUID;
  *  - processWebhookEvent() is idempotent via the razorpayPaymentId uniqueness check.
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 @Transactional
 public class PaymentService {
@@ -54,6 +56,17 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final EmailService emailService;
+    private final InvoiceService invoiceService;
+
+    public PaymentService(RazorpayClient razorpayClient, PaymentRepository paymentRepository,
+                          OrderRepository orderRepository, EmailService emailService,
+                          @Lazy InvoiceService invoiceService) {
+        this.razorpayClient = razorpayClient;
+        this.paymentRepository = paymentRepository;
+        this.orderRepository = orderRepository;
+        this.emailService = emailService;
+        this.invoiceService = invoiceService;
+    }
 
     @Value("${razorpay.key.id}")
     private String razorpayKeyId;
@@ -217,9 +230,10 @@ public class PaymentService {
         log.info("Payment verified via frontend callback — orderId={}, razorpayPaymentId={}",
             order.getId(), request.getRazorpayPaymentId());
 
-        // ── Send confirmation email after payment — NOT before ──
+        // ── Generate PDF invoice and send confirmation email after payment — NOT before ──
         try {
-            emailService.sendOrderConfirmationEmail(order.getUser().getEmail(), order);
+            byte[] invoicePdf = invoiceService.generateInvoicePdf(order);
+            emailService.sendOrderConfirmationEmail(order.getUser().getEmail(), order, invoicePdf);
         } catch (Exception e) {
             // Non-fatal: log and continue — order is already confirmed
             log.error("Failed to send order confirmation email for orderId={}: {}", order.getId(), e.getMessage());
@@ -344,9 +358,10 @@ public class PaymentService {
 
         log.info("Webhook: payment {} confirmed for orderId={}", rzpPaymentId, order.getId());
 
-        // Send email — this handles cases where the frontend callback was missed
+        // Send email with PDF invoice — handles cases where the frontend callback was missed
         try {
-            emailService.sendOrderConfirmationEmail(order.getUser().getEmail(), order);
+            byte[] invoicePdf = invoiceService.generateInvoicePdf(order);
+            emailService.sendOrderConfirmationEmail(order.getUser().getEmail(), order, invoicePdf);
         } catch (Exception e) {
             log.error("Webhook: failed to send confirmation email for orderId={}: {}", order.getId(), e.getMessage());
         }
@@ -406,6 +421,81 @@ public class PaymentService {
 
         enforceOrderOwnership(payment.getOrder(), userId);
         return toPaymentResponse(payment);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 6. REFUND
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Initiates a full refund for a successfully-paid online order via Razorpay.
+     * Called automatically on order cancellation and can also be called by admin.
+     *
+     * Safety checks:
+     *  - Payment must be SUCCESS
+     *  - Order must NOT be COD (nothing to refund)
+     *  - Already-REFUNDED orders are skipped (idempotent)
+     */
+    public void initiateRefund(UUID orderId, UUID userId) {
+        Payment payment = paymentRepository.findByOrderId(orderId)
+            .orElseThrow(() -> new ResourceNotFoundException("Payment", "orderId", orderId));
+
+        enforceOrderOwnership(payment.getOrder(), userId);
+
+        if (payment.getOrder().getPaymentMethod() == PaymentMethod.COD) {
+            throw new BadRequestException("COD orders cannot be refunded via Razorpay.");
+        }
+        if (payment.getStatus() != PaymentStatus.SUCCESS) {
+            throw new BadRequestException("Only successfully paid orders can be refunded. Current status: " + payment.getStatus());
+        }
+        if (payment.getStatus() == PaymentStatus.REFUNDED) {
+            log.info("Order {} already refunded — skipping", orderId);
+            return;
+        }
+
+        try {
+            // Amount must be in paise for Razorpay
+            int amountInPaise = payment.getAmount().multiply(BigDecimal.valueOf(100)).intValue();
+            JSONObject refundRequest = new JSONObject();
+            refundRequest.put("amount", amountInPaise);
+            refundRequest.put("speed", "normal"); // 5-7 business days; use "optimum" for instant at higher cost
+
+            com.razorpay.Refund refund = razorpayClient.payments.refund(
+                payment.getRazorpayPaymentId(), refundRequest);
+            String refundId = refund.get("id");
+
+            payment.setStatus(PaymentStatus.REFUNDED);
+            payment.getOrder().setPaymentStatus(PaymentStatus.REFUNDED);
+            paymentRepository.save(payment);
+
+            log.info("Refund initiated — razorpayRefundId={}, orderId={}, amount=₹{}",
+                refundId, orderId, payment.getAmount());
+
+            // Send refund confirmation email
+            try {
+                emailService.sendRefundInitiatedEmail(
+                    payment.getOrder().getUser().getEmail(),
+                    payment.getOrder(),
+                    refundId
+                );
+            } catch (Exception e) {
+                log.error("Failed to send refund email for orderId={}: {}", orderId, e.getMessage());
+            }
+
+        } catch (RazorpayException e) {
+            log.error("Razorpay refund failed for orderId={}: {}", orderId, e.getMessage());
+            throw new PaymentException("Failed to initiate refund: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Admin-initiated refund — bypasses ownership check (admin can refund any order).
+     */
+    public void initiateRefundAdmin(UUID orderId) {
+        Payment payment = paymentRepository.findByOrderId(orderId)
+            .orElseThrow(() -> new ResourceNotFoundException("Payment", "orderId", orderId));
+        // Delegate to core method using the order owner's ID (no IDOR risk since this is admin-only)
+        initiateRefund(orderId, payment.getOrder().getUser().getId());
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -13,6 +13,9 @@ import com.belledonne.ecommerce.repository.*;
 import com.belledonne.ecommerce.security.UserPrincipal;
 import com.belledonne.ecommerce.util.PriceUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -28,6 +31,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional
 public class OrderService {
 
@@ -37,6 +41,9 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final CouponService couponService;
     private final EmailService emailService;
+
+    @Autowired @Lazy
+    private PaymentService paymentService;
 
     private static final AtomicInteger orderCounter = new AtomicInteger(1);
 
@@ -131,7 +138,21 @@ public class OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         order.getTrackingHistory().add(OrderTracking.builder()
             .order(order).status("CANCELLED").message("Order cancelled by customer").build());
-        return toResponse(orderRepository.save(order));
+        Order saved = orderRepository.save(order);
+
+        // Auto-refund for successfully paid online orders
+        if (order.getPaymentMethod() != null
+                && order.getPaymentMethod() != PaymentMethod.COD
+                && order.getPaymentStatus() == PaymentStatus.SUCCESS) {
+            try {
+                paymentService.initiateRefund(orderId, principal.getId());
+            } catch (Exception e) {
+                // Non-fatal: log but don't block the cancellation
+                log.error("Auto-refund failed for orderId={}: {}", orderId, e.getMessage());
+            }
+        }
+
+        return toResponse(saved);
     }
 
     private String generateOrderNumber() {

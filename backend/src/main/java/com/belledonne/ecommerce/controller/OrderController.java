@@ -3,6 +3,7 @@ package com.belledonne.ecommerce.controller;
 import com.belledonne.ecommerce.dto.request.OrderRequest;
 import com.belledonne.ecommerce.dto.response.ApiResponse;
 import com.belledonne.ecommerce.security.UserPrincipal;
+import com.belledonne.ecommerce.service.InvoiceService;
 import com.belledonne.ecommerce.service.OrderService;
 import com.belledonne.ecommerce.service.OrderTrackingService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,7 +11,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +29,7 @@ public class OrderController {
 
     private final OrderService orderService;
     private final OrderTrackingService orderTrackingService;
+    private final InvoiceService invoiceService;
 
     @GetMapping
     @Operation(summary = "Get all orders for logged-in user")
@@ -69,5 +74,29 @@ public class OrderController {
         // Enforce ownership
         orderService.getOrder(principal, orderId);
         return ResponseEntity.ok(ApiResponse.success("Tracking timeline fetched", orderTrackingService.getTrackingTimeline(orderId)));
+    }
+
+    /**
+     * Downloads the invoice PDF for an order.
+     * Ownership is enforced: only the order's customer can download their own invoice.
+     * The invoice is only meaningful for paid orders (paymentStatus === SUCCESS),
+     * but the endpoint itself does not gate on payment status — the frontend controls visibility.
+     */
+    @GetMapping(value = "/{orderId}/invoice", produces = MediaType.APPLICATION_PDF_VALUE)
+    @Operation(summary = "Download PDF invoice for an order")
+    public ResponseEntity<byte[]> downloadInvoice(
+        @AuthenticationPrincipal UserPrincipal principal,
+        @PathVariable UUID orderId) {
+
+        byte[] pdf = invoiceService.generateInvoicePdf(orderId, principal.getId());
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(
+            ContentDisposition.attachment()
+                .filename("invoice-" + orderId + ".pdf")
+                .build());
+
+        return new ResponseEntity<>(pdf, headers, HttpStatus.OK);
     }
 }

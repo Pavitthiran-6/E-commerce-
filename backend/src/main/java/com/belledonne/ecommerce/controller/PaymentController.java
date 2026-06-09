@@ -113,4 +113,19 @@ public class PaymentController {
         paymentService.processWebhookEvent(payload, razorpaySignature);
         return ResponseEntity.ok("OK");
     }
+
+    /**
+     * User-initiated refund endpoint.
+     * Safe to call only when paymentStatus is SUCCESS and order is not COD.
+     * Ownership is enforced inside PaymentService.initiateRefund().
+     */
+    @PostMapping("/{orderId}/refund")
+    @Operation(summary = "Initiate a refund for a cancelled paid order")
+    public ResponseEntity<ApiResponse<?>> refundPayment(
+        @AuthenticationPrincipal UserPrincipal principal,
+        @PathVariable UUID orderId) {
+
+        paymentService.initiateRefund(orderId, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("Refund initiated successfully. Expect 5-7 business days."));
+    }
 }

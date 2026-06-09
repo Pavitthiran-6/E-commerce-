@@ -68,3 +68,107 @@ export const reportPaymentFailure = async (
     console.error('Error reporting payment failure to backend', error);
   }
 };
+
+/**
+ * Calls POST /api/payments/{orderId}/refund
+ * Initiates a Razorpay refund for a successfully paid cancelled order.
+ */
+export const requestRefund = async (orderId: string): Promise<void> => {
+  try {
+    await axiosInstance.post(ENDPOINTS.REFUND_PAYMENT(orderId));
+  } catch (error) {
+    console.error('Error requesting refund', error);
+    throw error;
+  }
+};
+
+/**
+ * Opens the Razorpay modal for an existing failed/pending order without creating a new order.
+ * Idempotent — calls createPaymentOrder which reuses existing Razorpay order for FAILED status.
+ *
+ * @param orderId     Internal order UUID
+ * @param userName    Prefill name in Razorpay modal
+ * @param userEmail   Prefill email in Razorpay modal
+ * @param onSuccess   Called after successful payment verification
+ * @param onFailure   Called if payment fails
+ */
+export const retryPayment = async (
+  orderId: string,
+  userName: string,
+  userEmail: string,
+  onSuccess: () => void,
+  onFailure: (description: string) => void
+): Promise<void> => {
+  // Step 1: Get or re-initiate the Razorpay order (backend handles FAILED → re-initiate)
+  const rzpOrder = await createPaymentOrder(orderId);
+
+  const options = {
+    key: rzpOrder.keyId,
+    amount: rzpOrder.amount,
+    currency: rzpOrder.currency,
+    name: 'Belledonne',
+    description: 'Order Payment',
+    order_id: rzpOrder.razorpayOrderId,
+    handler: async function (response: any) {
+      try {
+        await verifyPayment(
+          response.razorpay_order_id,
+          response.razorpay_payment_id,
+          response.razorpay_signature
+        );
+        onSuccess();
+      } catch (e) {
+        onFailure('Payment verification failed. Please contact support.');
+      }
+    },
+    prefill: {
+      name: userName,
+      email: userEmail,
+      contact: '',
+    },
+    theme: { color: '#333333' },
+    modal: {
+      ondismiss: function () {
+        // User closed the modal without paying — no-op (order stays FAILED, retry is still possible)
+      },
+    },
+  };
+
+  const rzp = new (window as any).Razorpay(options);
+  rzp.on('payment.failed', async function (response: any) {
+    try {
+      await reportPaymentFailure(
+        response.error.metadata?.order_id || '',
+        response.error.code,
+        response.error.description
+      );
+    } catch (_) {
+      // Non-fatal
+    }
+    onFailure(response.error.description);
+  });
+  rzp.open();
+};
+
+/**
+ * Downloads the PDF invoice for an order by calling GET /api/orders/{orderId}/invoice
+ * and triggering a browser file download.
+ */
+export const downloadInvoice = async (orderId: string, orderNumber: string): Promise<void> => {
+  try {
+    const response = await axiosInstance.get(ENDPOINTS.ORDER_INVOICE(orderId), {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `invoice-${orderNumber}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error downloading invoice', error);
+    throw error;
+  }
+};

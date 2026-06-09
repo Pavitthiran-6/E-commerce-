@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, Link, useParams } from 'react-router-dom';
-import { Package, Truck, CheckCircle2, XCircle, Clock, MapPin, Download, HelpCircle, RotateCcw, AlertCircle, ShoppingBag } from 'lucide-react';
-import { getOrderById, trackOrder } from '../services/orderService';
+import { Package, Truck, CheckCircle2, XCircle, Clock, MapPin, Download, HelpCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { getOrderById, trackOrder, cancelOrder } from '../services/orderService';
 import type { Order, OrderTracking } from '../services/orderService';
+import { downloadInvoice } from '../services/paymentService';
 
 export default function TrackOrder() {
   const { orderId } = useParams<{ orderId?: string }>();
@@ -14,6 +15,8 @@ export default function TrackOrder() {
   const [order, setOrder] = useState<Order | null>(null);
   const [trackingHistory, setTrackingHistory] = useState<OrderTracking[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -68,8 +71,30 @@ export default function TrackOrder() {
     return () => observer.disconnect();
   }, [isLoading]);
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadInvoice = async () => {
+    if (!order) return;
+    setIsDownloadingInvoice(true);
+    try {
+      await downloadInvoice(order.id, order.orderNumber);
+    } catch (e) {
+      alert('Failed to download invoice. Please try again.');
+    } finally {
+      setIsDownloadingInvoice(false);
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    if (!order) return;
+    if (!window.confirm('Are you sure you want to cancel this order?')) return;
+    setIsCancelling(true);
+    try {
+      const updated = await cancelOrder(order.id);
+      setOrder(updated);
+    } catch (e) {
+      alert('Failed to cancel order. Please try again.');
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   if (isLoading) {
@@ -345,8 +370,10 @@ export default function TrackOrder() {
             <div className="bg-gray-50 border-b border-outline-variant/30 px-5 py-4 flex justify-between items-center">
               <h3 className="font-headline-md text-lg">Order Details</h3>
               {showInvoice && (
-                <button onClick={handlePrint} className="text-primary hover:bg-gray-200 p-1.5 rounded transition-colors" title="Download Invoice">
-                  <Download className="w-4 h-4" />
+                <button onClick={handleDownloadInvoice} disabled={isDownloadingInvoice} className="text-primary hover:bg-gray-200 p-1.5 rounded transition-colors disabled:opacity-50" title="Download Invoice">
+                  {isDownloadingInvoice
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Download className="w-4 h-4" />}
                 </button>
               )}
             </div>
@@ -431,17 +458,24 @@ export default function TrackOrder() {
             </Link>
             {showInvoice && (
               <button 
-                onClick={handlePrint}
-                className="flex-1 md:flex-none border-2 border-charcoal-stone text-charcoal-stone px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                onClick={handleDownloadInvoice}
+                disabled={isDownloadingInvoice}
+                className="flex-1 md:flex-none border-2 border-charcoal-stone text-charcoal-stone px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
               >
-                <Download className="w-4 h-4" /> Invoice
+                {isDownloadingInvoice
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <Download className="w-4 h-4" />}
+                Invoice
               </button>
             )}
             {status !== 'Delivered' && status !== 'Cancelled' && (
               <button 
-                className="flex-1 md:flex-none border-2 border-red-500 text-red-600 px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-red-50 transition-colors text-center"
+                onClick={handleCancelOrder}
+                disabled={isCancelling}
+                className="flex-1 md:flex-none border-2 border-red-500 text-red-600 px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-red-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
               >
-                Cancel Order
+                {isCancelling && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isCancelling ? 'Cancelling...' : 'Cancel Order'}
               </button>
             )}
           </div>
