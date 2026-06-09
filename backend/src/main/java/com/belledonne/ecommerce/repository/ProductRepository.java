@@ -26,7 +26,14 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
     Page<Product> findByCategoryIdAndIsActiveTrue(Long categoryId, Pageable pageable);
     boolean existsByCategoryId(Long categoryId);
     long countByStockQuantityLessThan(int threshold);
+    long countByStockQuantityEquals(int qty);
     java.util.List<Product> findByNameContainingIgnoreCase(String name);
+
+    @Query("SELECT p FROM Product p WHERE p.isActive = true AND p.stockQuantity <= p.lowStockThreshold AND p.stockQuantity > 0 ORDER BY p.stockQuantity ASC")
+    java.util.List<Product> findLowStockProducts(org.springframework.data.domain.Pageable pageable);
+
+    @Query("SELECT p FROM Product p WHERE p.isActive = true AND p.stockQuantity = 0")
+    java.util.List<Product> findOutOfStockProducts(org.springframework.data.domain.Pageable pageable);
 
     @Query(value = "SELECT p.* FROM products p " +
            "LEFT JOIN categories c ON p.category_id = c.id " +

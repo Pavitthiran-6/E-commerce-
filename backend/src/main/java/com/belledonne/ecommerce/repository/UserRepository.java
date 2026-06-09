@@ -43,4 +43,7 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     long countByRole(com.belledonne.ecommerce.enums.Role role);
     long countByIsBlockedFalseAndRole(com.belledonne.ecommerce.enums.Role role);
     long countByIsBlockedTrueAndRole(com.belledonne.ecommerce.enums.Role role);
+
+    java.util.List<User> findByRole(com.belledonne.ecommerce.enums.Role role);
 }
+

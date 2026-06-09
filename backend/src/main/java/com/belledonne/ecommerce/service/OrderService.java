@@ -44,6 +44,7 @@ public class OrderService {
     private final EmailService emailService;
     private final InventoryService inventoryService;
     private final InvoiceService invoiceService;
+    private final NotificationService notificationService;
 
     @Autowired @Lazy
     private PaymentService paymentService;
@@ -145,8 +146,16 @@ public class OrderService {
                 log.error("Failed to generate/send invoice for COD order: {}", e.getMessage());
                 emailService.sendOrderConfirmationEmail(user.getEmail(), saved);
             }
+            // In-app notification for COD order placed
+            notificationService.createNotification(
+                user.getId(),
+                "Order Placed ✓",
+                "Your order " + saved.getOrderNumber() + " has been placed successfully.",
+                com.belledonne.ecommerce.enums.NotificationType.ORDER_CONFIRMED,
+                "/profile/orders"
+            );
         }
-        // ───────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────────
 
         return toResponse(saved);
     }
@@ -187,6 +196,15 @@ public class OrderService {
         inventoryService.restoreStock(order, "ORDER_CANCELLED", principal.getEmail());
 
         Order saved = orderRepository.save(order);
+
+        // In-app notification for cancellation
+        notificationService.createNotification(
+            order.getUser().getId(),
+            "Order Cancelled",
+            "Your order " + order.getOrderNumber() + " has been cancelled.",
+            com.belledonne.ecommerce.enums.NotificationType.ORDER_CANCELLED,
+            "/profile/orders"
+        );
 
         return toResponse(saved);
     }

@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { LoadingButton } from '../components/LoadingButton';
 import { getProductById } from '../services/productService';
-import { getProductReviews, addReview } from '../services/reviewService';
+import { getProductReviews, addReview, checkCanReview } from '../services/reviewService';
 import { compressMultipleToBase64 } from '../utils/imageCompress';
 import type { Review } from '../services/reviewService';
 import type { Product as ProductType } from '../types/product';
@@ -113,14 +113,24 @@ export default function Product() {
     }
   };
 
-  const handleWriteReviewClick = () => {
+  const handleWriteReviewClick = async () => {
+    if (!product) return;
     if (!isLoggedIn) {
       localStorage.setItem('redirectAfterLogin', window.location.pathname);
       showToast('Please login to write a review.', 'info');
       navigate('/login');
       return;
     }
-    setIsWriteReviewOpen(true);
+    try {
+      const eligibility = await checkCanReview(product.id);
+      if (!eligibility.canReview) {
+        showToast(eligibility.reason || 'Only customers who have received this product can review it.', 'error');
+        return;
+      }
+      setIsWriteReviewOpen(true);
+    } catch (err) {
+      showToast('Failed to check review eligibility.', 'error');
+    }
   };
 
   const fetchProduct = useCallback(async (silent = false) => {
@@ -494,7 +504,19 @@ export default function Product() {
               {reviews.slice(0, 3).map((review) => (
                 <div key={review.id} className="border-b border-[#E8E8E8] pb-4 last:border-0">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-bold text-gray-900">{review.userName || 'Anonymous'}</span>
+                    <div className="flex items-center flex-wrap gap-2">
+                      <span className="text-sm font-bold text-gray-900">{review.userName || 'Anonymous'}</span>
+                      {review.isVerifiedPurchase && (
+                        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full">
+                          <ShieldCheck className="w-3 h-3 text-emerald-600" /> Verified Purchase
+                        </span>
+                      )}
+                      {review.isApproved === false && (
+                        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
+                          Awaiting Moderation
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-gray-400">{new Date(review.createdAt).toLocaleDateString()}</span>
                   </div>
                   <div className="flex gap-0.5 mb-2">
@@ -590,7 +612,19 @@ export default function Product() {
               {reviews.map((review) => (
                 <div key={review.id} className="border-b border-[#E8E8E8] pb-4 last:border-0">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-bold text-gray-900">{review.userName || 'Anonymous'}</span>
+                    <div className="flex items-center flex-wrap gap-2">
+                      <span className="text-sm font-bold text-gray-900">{review.userName || 'Anonymous'}</span>
+                      {review.isVerifiedPurchase && (
+                        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full">
+                          <ShieldCheck className="w-3 h-3 text-emerald-600" /> Verified Purchase
+                        </span>
+                      )}
+                      {review.isApproved === false && (
+                        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
+                          Awaiting Moderation
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-gray-400">{new Date(review.createdAt).toLocaleDateString()}</span>
                   </div>
                   <div className="flex gap-0.5 mb-2">

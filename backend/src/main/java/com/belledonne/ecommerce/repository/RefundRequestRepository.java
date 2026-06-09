@@ -16,4 +16,15 @@ public interface RefundRequestRepository extends JpaRepository<RefundRequest, UU
     Optional<RefundRequest> findByOrderId(UUID orderId);
     Page<RefundRequest> findByUserId(UUID userId, Pageable pageable);
     long countByRefundStatus(RefundStatus refundStatus);
+
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT COALESCE(SUM(r.refundAmount), 0) FROM RefundRequest r WHERE r.refundStatus = :status")
+    java.math.BigDecimal sumRefundAmountByStatus(
+        @org.springframework.data.repository.query.Param("status") RefundStatus status);
+
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT COALESCE(SUM(r.refundAmount), 0) FROM RefundRequest r " +
+        "WHERE r.refundStatus IN ('REFUNDED', 'REFUND_INITIATED', 'REFUND_APPROVED')")
+    java.math.BigDecimal getTotalRefundAmount();
 }
+

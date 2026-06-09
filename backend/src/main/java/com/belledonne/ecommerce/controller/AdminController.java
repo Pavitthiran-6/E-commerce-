@@ -75,6 +75,9 @@ public class AdminController {
     private final SecurityAuditService securityAuditService;
     private final SecurityLogsExportService securityLogsExportService;
     private final RefundRequestService refundRequestService;
+    private final RefundRequestRepository refundRequestRepository;
+    private final NotificationService notificationService;
+    private final ReportsExportService reportsExportService;
     private final HttpServletRequest request;
 
     // ---- 5A: ADMIN DASHBOARD ----
@@ -87,63 +90,112 @@ public class AdminController {
         long totalProducts = productRepository.count();
         BigDecimal totalRevenue = orderRepository.getTotalRevenue();
 
-        long pendingOrders = orderRepository.countByStatus(OrderStatus.PLACED);
         LocalDateTime midnight = LocalDateTime.now().with(LocalTime.MIN);
-        long ordersToday = orderRepository.countOrdersFrom(midnight);
-        BigDecimal revenueToday = orderRepository.getRevenueSince(midnight);
-        long lowStockProducts = productRepository.countByStockQuantityLessThan(10);
+        LocalDateTime weekStart = LocalDateTime.now().minusDays(6).with(LocalTime.MIN);
+        LocalDateTime monthStart = LocalDateTime.now().withDayOfMonth(1).with(LocalTime.MIN);
 
+        long pendingOrders      = orderRepository.countByStatus(OrderStatus.PLACED);
+        long ordersToday        = orderRepository.countOrdersFrom(midnight);
+        long ordersThisMonth    = orderRepository.countOrdersBetween(monthStart, LocalDateTime.now());
+        BigDecimal revenueToday   = orderRepository.getRevenueSince(midnight);
+        BigDecimal revenueWeekly  = orderRepository.getRevenueSince(weekStart);
+        BigDecimal revenueMonthly = orderRepository.getRevenueSince(monthStart);
+        BigDecimal avgOrderValue  = orderRepository.getAverageOrderValue();
+
+        // Refund analytics
+        long refundCount  = refundRequestRepository.countByRefundStatus(com.belledonne.ecommerce.enums.RefundStatus.REFUND_REQUESTED)
+                         + refundRequestRepository.countByRefundStatus(com.belledonne.ecommerce.enums.RefundStatus.REFUND_APPROVED)
+                         + refundRequestRepository.countByRefundStatus(com.belledonne.ecommerce.enums.RefundStatus.REFUND_INITIATED)
+                         + refundRequestRepository.countByRefundStatus(com.belledonne.ecommerce.enums.RefundStatus.REFUNDED);
+        long pendingRefunds = refundRequestRepository.countByRefundStatus(com.belledonne.ecommerce.enums.RefundStatus.REFUND_REQUESTED);
+        BigDecimal totalRefundAmount = refundRequestRepository.getTotalRefundAmount();
+
+        // Inventory
+        long lowStockProducts  = productRepository.countByStockQuantityLessThan(10);
+        long outOfStockCount   = productRepository.countByStockQuantityEquals(0);
+
+        // Pending reviews
+        long pendingReviews = reviewService.getPendingReviews(PageRequest.of(0, 1)).getTotalElements();
+
+        // Recent orders
         List<OrderResponse> recentOrders = orderRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 5))
-            .getContent()
-            .stream()
-            .map(orderService::toResponse)
-            .collect(Collectors.toList());
+            .getContent().stream().map(orderService::toResponse).collect(Collectors.toList());
 
+        // Top selling products
         List<Object[]> topSelling = orderItemRepository.getTopSellingProducts(PageRequest.of(0, 5));
         List<Map<String, Object>> topProducts = topSelling.stream().map(row -> Map.of(
-            "productId", row[0] != null ? row[0].toString() : "",
+            "productId",  row[0] != null ? row[0].toString() : "",
             "productName", row[1] != null ? row[1].toString() : "",
-            "totalSold", row[2] != null ? row[2] : 0
+            "totalSold",  row[2] != null ? row[2] : 0
         )).collect(Collectors.toList());
 
+        // Top categories
+        List<Object[]> topCats = orderItemRepository.getTopCategoriesByRevenue();
+        List<Map<String, Object>> topCategories = topCats.stream().map(row -> Map.of(
+            "category", row[0] != null ? row[0].toString() : "Uncategorized",
+            "revenue",  row[1] != null ? row[1] : 0
+        )).collect(Collectors.toList());
+
+        // Order status breakdown
         Map<String, Long> orderStatusBreakdown = new HashMap<>();
         for (OrderStatus status : OrderStatus.values()) {
             orderStatusBreakdown.put(status.name(), orderRepository.countByStatus(status));
         }
 
+        // Daily trend — last 30 days
+        LocalDateTime trendFrom = LocalDateTime.now().minusDays(29).with(LocalTime.MIN);
+        List<Object[]> rawTrend = orderRepository.getDailyTrend(trendFrom);
+        List<Map<String, Object>> dailyTrend = rawTrend.stream().map(row -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("date",    row[0] != null ? row[0].toString() : "");
+            m.put("orders",  row[1] != null ? row[1] : 0);
+            m.put("revenue", row[2] != null ? row[2] : 0);
+            return m;
+        }).collect(Collectors.toList());
+
+        // Monthly revenue (current year) — replaces heavy in-memory load
         LocalDateTime startOfYear = LocalDateTime.now().withDayOfYear(1).with(LocalTime.MIN);
         List<Order> ordersThisYear = orderRepository.findAll((root, query, cb) -> cb.and(
             cb.greaterThanOrEqualTo(root.get("createdAt"), startOfYear),
             cb.equal(root.get("status"), OrderStatus.DELIVERED)
         ));
-
         Map<java.time.Month, BigDecimal> monthlySums = ordersThisYear.stream()
             .collect(Collectors.groupingBy(
                 o -> o.getCreatedAt().getMonth(),
                 Collectors.reducing(BigDecimal.ZERO, Order::getTotalAmount, BigDecimal::add)
             ));
-
         List<Map<String, Object>> monthlyRevenueList = new ArrayList<>();
         for (java.time.Month m : java.time.Month.values()) {
             monthlyRevenueList.add(Map.of(
-                "month", m.getDisplayName(java.time.format.TextStyle.FULL, Locale.ENGLISH),
+                "month",   m.getDisplayName(java.time.format.TextStyle.FULL, Locale.ENGLISH),
                 "revenue", monthlySums.getOrDefault(m, BigDecimal.ZERO)
             ));
         }
 
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("totalRevenue", totalRevenue);
-        stats.put("totalOrders", totalOrders);
-        stats.put("totalUsers", totalUsers);
-        stats.put("totalProducts", totalProducts);
-        stats.put("pendingOrders", pendingOrders);
-        stats.put("ordersToday", ordersToday);
-        stats.put("revenueToday", revenueToday);
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("totalRevenue",    totalRevenue);
+        stats.put("revenueToday",    revenueToday);
+        stats.put("revenueWeekly",   revenueWeekly);
+        stats.put("revenueMonthly",  revenueMonthly);
+        stats.put("avgOrderValue",   avgOrderValue);
+        stats.put("totalOrders",     totalOrders);
+        stats.put("ordersToday",     ordersToday);
+        stats.put("ordersThisMonth", ordersThisMonth);
+        stats.put("pendingOrders",   pendingOrders);
+        stats.put("totalUsers",      totalUsers);
+        stats.put("totalProducts",   totalProducts);
         stats.put("lowStockProducts", lowStockProducts);
-        stats.put("recentOrders", recentOrders);
-        stats.put("topProducts", topProducts);
+        stats.put("outOfStockCount",  outOfStockCount);
+        stats.put("refundCount",      refundCount);
+        stats.put("pendingRefunds",   pendingRefunds);
+        stats.put("totalRefundAmount", totalRefundAmount);
+        stats.put("pendingReviews",   pendingReviews);
+        stats.put("recentOrders",    recentOrders);
+        stats.put("topProducts",     topProducts);
+        stats.put("topCategories",   topCategories);
         stats.put("orderStatusBreakdown", orderStatusBreakdown);
-        stats.put("monthlyRevenue", monthlyRevenueList);
+        stats.put("monthlyRevenue",  monthlyRevenueList);
+        stats.put("dailyTrend",      dailyTrend);
 
         return ResponseEntity.ok(ApiResponse.success("Dashboard stats fetched successfully", stats));
     }
@@ -371,16 +423,31 @@ public class AdminController {
         try {
             if (newStatus == OrderStatus.CONFIRMED) {
                 emailService.sendOrderStatusUpdateEmail(saved, "Confirmed", "Your order has been confirmed and is being prepared.");
+                notificationService.createNotification(saved.getUser().getId(), "Order Confirmed ✓",
+                    "Your order " + saved.getOrderNumber() + " has been confirmed.",
+                    com.belledonne.ecommerce.enums.NotificationType.ORDER_CONFIRMED, "/profile/orders");
             } else if (newStatus == OrderStatus.PACKED) {
                 emailService.sendOrderStatusUpdateEmail(saved, "Packed", "Your order has been packed and is ready for shipment.");
             } else if (newStatus == OrderStatus.SHIPPED) {
                 emailService.sendOrderShippedEmail(saved.getUser().getEmail(), saved, saved.getTrackingNumber());
+                notificationService.createNotification(saved.getUser().getId(), "Order Shipped 🚚",
+                    "Your order " + saved.getOrderNumber() + " is on its way!",
+                    com.belledonne.ecommerce.enums.NotificationType.ORDER_SHIPPED, "/profile/orders");
             } else if (newStatus == OrderStatus.OUT_FOR_DELIVERY) {
                 emailService.sendOrderStatusUpdateEmail(saved, "Out for Delivery", "Your order is out for delivery with our courier partner.");
+                notificationService.createNotification(saved.getUser().getId(), "Out for Delivery 📦",
+                    "Your order " + saved.getOrderNumber() + " is out for delivery.",
+                    com.belledonne.ecommerce.enums.NotificationType.ORDER_OUT_FOR_DELIVERY, "/profile/orders");
             } else if (newStatus == OrderStatus.DELIVERED) {
                 emailService.sendOrderDeliveredEmail(saved.getUser().getEmail(), saved);
+                notificationService.createNotification(saved.getUser().getId(), "Order Delivered 🎉",
+                    "Your order " + saved.getOrderNumber() + " has been delivered. Enjoy!",
+                    com.belledonne.ecommerce.enums.NotificationType.ORDER_DELIVERED, "/profile/orders");
             } else if (newStatus == OrderStatus.CANCELLED) {
                 emailService.sendOrderStatusUpdateEmail(saved, "Cancelled", "Your order has been cancelled.");
+                notificationService.createNotification(saved.getUser().getId(), "Order Cancelled",
+                    "Your order " + saved.getOrderNumber() + " has been cancelled.",
+                    com.belledonne.ecommerce.enums.NotificationType.ORDER_CANCELLED, "/profile/orders");
             }
         } catch (Exception e) {
             log.error("Failed to send order status change email for orderId={}: {}", id, e.getMessage());
@@ -686,12 +753,16 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("Pending reviews fetched", reviewService.getPendingReviews(PageRequest.of(page, size))));
     }
 
-    @PutMapping("/reviews/{id}/approve")
-    @Operation(summary = "Approve or reject a review")
-    public ResponseEntity<ApiResponse<?>> approveReview(
-        @PathVariable Long id, @RequestBody Map<String, Boolean> body) {
-        boolean approve = body.getOrDefault("approved", true);
-        return ResponseEntity.ok(ApiResponse.success("Review status updated", reviewService.approveReview(id, approve)));
+    @PatchMapping("/reviews/{id}/approve")
+    @Operation(summary = "Approve a review")
+    public ResponseEntity<ApiResponse<?>> approveReview(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success("Review approved", reviewService.approveReview(id, true)));
+    }
+
+    @PatchMapping("/reviews/{id}/reject")
+    @Operation(summary = "Reject a review")
+    public ResponseEntity<ApiResponse<?>> rejectReview(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success("Review rejected", reviewService.approveReview(id, false)));
     }
 
     @DeleteMapping("/reviews/{id}")
@@ -971,5 +1042,99 @@ public class AdminController {
             return userRepository.findById(principal.getId()).orElse(null);
         }
         return null;
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ---- REPORTS EXPORT ----
+    // ══════════════════════════════════════════════════════════════════════════
+
+    @GetMapping("/reports/orders/export")
+    @Operation(summary = "Export orders as CSV or Excel")
+    public void exportOrders(
+        @RequestParam(defaultValue = "csv") String format,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+        @RequestParam(required = false) String status,
+        jakarta.servlet.http.HttpServletResponse httpResponse) throws Exception {
+
+        LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
+        LocalDateTime toDt   = to   != null ? to.atTime(LocalTime.MAX) : null;
+        OrderStatus statusFilter = status != null && !status.isBlank()
+            ? OrderStatus.valueOf(status.toUpperCase()) : null;
+
+        if ("xlsx".equalsIgnoreCase(format)) {
+            httpResponse.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            httpResponse.setHeader("Content-Disposition", "attachment; filename=\"orders.xlsx\"");
+            reportsExportService.exportOrdersToExcel(httpResponse.getOutputStream(), fromDt, toDt, statusFilter);
+        } else {
+            httpResponse.setContentType("text/csv");
+            httpResponse.setHeader("Content-Disposition", "attachment; filename=\"orders.csv\"");
+            reportsExportService.exportOrdersToCsv(httpResponse.getOutputStream(), fromDt, toDt, statusFilter);
+        }
+    }
+
+    @GetMapping("/reports/refunds/export")
+    @Operation(summary = "Export refund requests as CSV or Excel")
+    public void exportRefunds(
+        @RequestParam(defaultValue = "csv") String format,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+        @RequestParam(required = false) String status,
+        jakarta.servlet.http.HttpServletResponse httpResponse) throws Exception {
+
+        LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
+        LocalDateTime toDt   = to   != null ? to.atTime(LocalTime.MAX) : null;
+        RefundStatus statusFilter = status != null && !status.isBlank()
+            ? RefundStatus.valueOf(status.toUpperCase()) : null;
+
+        if ("xlsx".equalsIgnoreCase(format)) {
+            httpResponse.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            httpResponse.setHeader("Content-Disposition", "attachment; filename=\"refunds.xlsx\"");
+            reportsExportService.exportRefundsToExcel(httpResponse.getOutputStream(), fromDt, toDt, statusFilter);
+        } else {
+            httpResponse.setContentType("text/csv");
+            httpResponse.setHeader("Content-Disposition", "attachment; filename=\"refunds.csv\"");
+            reportsExportService.exportRefundsToCsv(httpResponse.getOutputStream(), fromDt, toDt, statusFilter);
+        }
+    }
+
+    @GetMapping("/reports/inventory/export")
+    @Operation(summary = "Export inventory snapshot as CSV or Excel")
+    public void exportInventory(
+        @RequestParam(defaultValue = "csv") String format,
+        jakarta.servlet.http.HttpServletResponse httpResponse) throws Exception {
+
+        if ("xlsx".equalsIgnoreCase(format)) {
+            httpResponse.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            httpResponse.setHeader("Content-Disposition", "attachment; filename=\"inventory.xlsx\"");
+            reportsExportService.exportInventoryToExcel(httpResponse.getOutputStream());
+        } else {
+            httpResponse.setContentType("text/csv");
+            httpResponse.setHeader("Content-Disposition", "attachment; filename=\"inventory.csv\"");
+            reportsExportService.exportInventoryToCsv(httpResponse.getOutputStream());
+        }
+    }
+
+    @GetMapping("/reports/customers/export")
+    @Operation(summary = "Export customers as CSV or Excel")
+    public void exportCustomers(
+        @RequestParam(defaultValue = "csv") String format,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+        jakarta.servlet.http.HttpServletResponse httpResponse) throws Exception {
+
+        LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
+        LocalDateTime toDt   = to   != null ? to.atTime(LocalTime.MAX) : null;
+
+        if ("xlsx".equalsIgnoreCase(format)) {
+            httpResponse.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            httpResponse.setHeader("Content-Disposition", "attachment; filename=\"customers.xlsx\"");
+            reportsExportService.exportCustomersToExcel(httpResponse.getOutputStream(), fromDt, toDt);
+        } else {
+            httpResponse.setContentType("text/csv");
+            httpResponse.setHeader("Content-Disposition", "attachment; filename=\"customers.csv\"");
+            reportsExportService.exportCustomersToCsv(httpResponse.getOutputStream(), fromDt, toDt);
+        }
     }
 }

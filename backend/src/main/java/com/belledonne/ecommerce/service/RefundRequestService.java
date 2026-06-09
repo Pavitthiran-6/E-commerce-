@@ -50,6 +50,7 @@ public class RefundRequestService {
     private final EmailService emailService;
     private final SecurityAuditService securityAuditService;
     private final InventoryService inventoryService;
+    private final NotificationService notificationService;
 
     /**
      * Submit a new refund request for a cancelled order.
@@ -145,6 +146,21 @@ public class RefundRequestService {
             log.error("Failed to send refund request emails for orderId={}: {}", orderId, e.getMessage());
         }
 
+        // In-app notifications
+        notificationService.createNotification(
+            order.getUser().getId(),
+            "Refund Request Submitted",
+            "Your refund request for order " + order.getOrderNumber() + " is being reviewed.",
+            com.belledonne.ecommerce.enums.NotificationType.REFUND_REQUESTED,
+            "/profile/orders"
+        );
+        notificationService.createAdminNotification(
+            "New Refund Request 💰",
+            "Customer " + order.getUser().getName() + " requested a refund of ₹" + order.getTotalAmount() + " for order " + order.getOrderNumber(),
+            com.belledonne.ecommerce.enums.NotificationType.NEW_REFUND_REQUEST,
+            "/admin/refunds"
+        );
+
         return toResponse(saved);
     }
 
@@ -205,6 +221,15 @@ public class RefundRequestService {
                 log.error("Failed to send refund approved email for refundRequestId={}: {}", refundRequestId, e.getMessage());
             }
 
+            // In-app notification
+            notificationService.createNotification(
+                refundRequest.getUser().getId(),
+                "Refund Approved ✓",
+                "Your refund of ₹" + refundRequest.getRefundAmount() + " for order " + refundRequest.getOrder().getOrderNumber() + " has been approved and initiated.",
+                com.belledonne.ecommerce.enums.NotificationType.REFUND_APPROVED,
+                "/profile/orders"
+            );
+
             return toResponse(saved);
 
         } catch (Exception e) {
@@ -252,6 +277,21 @@ public class RefundRequestService {
             } catch (Exception ex) {
                 log.error("Failed to send refund failure admin notification for refundRequestId={}: {}", refundRequestId, ex.getMessage());
             }
+
+            // In-app notifications for failure
+            notificationService.createNotification(
+                refundRequest.getUser().getId(),
+                "Refund Failed",
+                "Your refund for order " + refundRequest.getOrder().getOrderNumber() + " could not be processed. Our team will retry shortly.",
+                com.belledonne.ecommerce.enums.NotificationType.REFUND_FAILED,
+                "/profile/orders"
+            );
+            notificationService.createAdminNotification(
+                "Refund Failed ⚠️",
+                "Razorpay refund failed for order " + refundRequest.getOrder().getOrderNumber() + ". Reason: " + e.getMessage(),
+                com.belledonne.ecommerce.enums.NotificationType.FAILED_REFUND_ALERT,
+                "/admin/refunds"
+            );
 
             return toResponse(saved);
         }

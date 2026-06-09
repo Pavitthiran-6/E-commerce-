@@ -103,6 +103,7 @@ const ProfileOrders = lazyWithRetry(() => import('../pages/profile/ProfileOrders
 const ProfileAddresses = lazyWithRetry(() => import('../pages/profile/ProfileAddresses'));
 const ProfileWishlist = lazyWithRetry(() => import('../pages/profile/ProfileWishlist'));
 const ProfilePassword = lazyWithRetry(() => import('../pages/profile/ProfilePassword'));
+const NotificationsPage = lazyWithRetry(() => import('../pages/profile/NotificationsPage'));
 const TrackOrder = lazyWithRetry(() => import('../pages/TrackOrder'));
 
 // Policy Pages
@@ -130,6 +131,8 @@ const SecurityLogs = lazyWithRetry(() => import('../pages/admin/SecurityLogs'));
 const SecurityOverview = lazyWithRetry(() => import('../pages/admin/SecurityOverview'));
 const ManageRefunds = lazyWithRetry(() => import('../pages/admin/ManageRefunds'));
 const ManageInventory = lazyWithRetry(() => import('../pages/admin/ManageInventory'));
+const ManageReviews = lazyWithRetry(() => import('../pages/admin/ManageReviews'));
+const ManageReports = lazyWithRetry(() => import('../pages/admin/ManageReports'));
 
 // ----------------------------------------------------------------------
 
@@ -211,6 +214,7 @@ export default function AppRouter() {
                 <Route path="details" element={<ProfileDetails />} />
                 <Route path="orders" element={<ProfileOrders />} />
                 <Route path="addresses" element={<ProfileAddresses />} />
+                <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="wishlist" element={<ProfileWishlist />} />
                 <Route path="password" element={<ProfilePassword />} />
               </Route>
@@ -237,6 +241,8 @@ export default function AppRouter() {
               <Route path="/admin/hero" element={<HeroManagement />} />
               <Route path="/admin/refunds" element={<ManageRefunds />} />
               <Route path="/admin/inventory" element={<ManageInventory />} />
+              <Route path="/admin/reviews" element={<ManageReviews />} />
+              <Route path="/admin/reports" element={<ManageReports />} />
             </Route>
           </Route>
 

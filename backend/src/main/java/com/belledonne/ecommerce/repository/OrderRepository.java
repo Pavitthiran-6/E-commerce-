@@ -38,4 +38,24 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
 
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.createdAt >= :from AND o.status <> 'CANCELLED'")
     BigDecimal getRevenueSince(LocalDateTime from);
+
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.createdAt BETWEEN :from AND :to AND o.status <> 'CANCELLED'")
+    BigDecimal getRevenueBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.createdAt BETWEEN :from AND :to")
+    long countOrdersBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("SELECT COALESCE(AVG(o.totalAmount), 0) FROM Order o WHERE o.status <> 'CANCELLED'")
+    BigDecimal getAverageOrderValue();
+
+    // Returns [date_string, order_count, revenue] per day for last N days (native)
+    @Query(value = "SELECT TO_CHAR(o.created_at::date, 'YYYY-MM-DD') as day, " +
+                   "COUNT(o.id) as orders, " +
+                   "COALESCE(SUM(o.total_amount), 0) as revenue " +
+                   "FROM orders o " +
+                   "WHERE o.created_at >= :from AND o.status <> 'CANCELLED' " +
+                   "GROUP BY day ORDER BY day ASC",
+           nativeQuery = true)
+    java.util.List<Object[]> getDailyTrend(@Param("from") LocalDateTime from);
 }
+

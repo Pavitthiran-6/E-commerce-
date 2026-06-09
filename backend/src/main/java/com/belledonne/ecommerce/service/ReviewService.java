@@ -2,6 +2,7 @@ package com.belledonne.ecommerce.service;
 
 import com.belledonne.ecommerce.dto.request.ReviewRequest;
 import com.belledonne.ecommerce.dto.response.ReviewResponse;
+import com.belledonne.ecommerce.entity.OrderItem;
 import com.belledonne.ecommerce.entity.Product;
 import com.belledonne.ecommerce.entity.Review;
 import com.belledonne.ecommerce.entity.User;
@@ -42,8 +43,16 @@ public class ReviewService {
         if (reviewRepository.existsByProductIdAndUserId(request.getProductId(), principal.getId())) {
             throw new BadRequestException("You have already reviewed this product");
         }
-        boolean hasPurchased = !orderItemRepository
-            .findDeliveredByUserAndProduct(principal.getId(), request.getProductId()).isEmpty();
+
+        // Strict enforcement: only DELIVERED orders that are NOT refunded/returned
+        List<OrderItem> eligibleItems = orderItemRepository
+            .findDeliveredByUserAndProduct(principal.getId(), request.getProductId());
+
+        if (eligibleItems.isEmpty()) {
+            throw new BadRequestException(
+                "You can only review products you have purchased and received. " +
+                "Please ensure your order has been delivered.");
+        }
 
         User user = userRepository.findById(principal.getId())
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getId()));
@@ -54,7 +63,8 @@ public class ReviewService {
             .product(product).user(user)
             .rating(request.getRating()).title(request.getTitle()).comment(request.getComment())
             .images(request.getImages())
-            .isVerifiedPurchase(hasPurchased).isApproved(true) // Auto-approved for instant visibility
+            .isVerifiedPurchase(true)   // always true — enforced above
+            .isApproved(false)          // pending admin moderation
             .build();
         Review saved = reviewRepository.save(review);
         updateProductRating(request.getProductId());
@@ -137,12 +147,27 @@ public class ReviewService {
     public ReviewResponse toResponse(Review r) {
         return ReviewResponse.builder()
             .id(r.getId()).productId(r.getProduct().getId())
-            .userName(r.getUser().getName()).rating(r.getRating())
+            .userName(r.getUser().getName())
+            .userId(r.getUser().getId())
+            .userEmail(r.getUser().getEmail())
+            .rating(r.getRating())
             .title(r.getTitle()).comment(r.getComment())
             .isVerifiedPurchase(r.getIsVerifiedPurchase())
             .isApproved(r.getIsApproved())
             .images(r.getImages())
             .createdAt(r.getCreatedAt())
             .build();
+    }
+
+    /** Check if a user is eligible to review a product (delivered, non-refunded purchase). */
+    @Transactional(readOnly = true)
+    public boolean canReviewProduct(UUID userId, UUID productId) {
+        if (reviewRepository.existsByProductIdAndUserId(productId, userId)) return false;
+        return !orderItemRepository.findDeliveredByUserAndProduct(userId, productId).isEmpty();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean existsByProductIdAndUserId(UUID productId, UUID userId) {
+        return reviewRepository.existsByProductIdAndUserId(productId, userId);
     }
 }

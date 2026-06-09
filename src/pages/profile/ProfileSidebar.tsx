@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { User, Package, MapPin, Heart, KeyRound, LogOut } from 'lucide-react';
+import { User, Package, MapPin, Heart, KeyRound, LogOut, Bell } from 'lucide-react';
 
 interface ProfileSidebarProps {
   setShowLogout: (show: boolean) => void;
@@ -11,6 +11,7 @@ export default function ProfileSidebar({ setShowLogout }: ProfileSidebarProps) {
     { id: 'details', label: 'My Profile', icon: User },
     { id: 'orders', label: 'My Orders', icon: Package },
     { id: 'addresses', label: 'Saved Addresses', icon: MapPin },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'wishlist', label: 'Wishlist', icon: Heart },
     { id: 'password', label: 'Change Password', icon: KeyRound },
   ];

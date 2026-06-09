@@ -7,6 +7,7 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
 import MiniCartDrawer from './MiniCartDrawer';
+import NotificationBell from './common/NotificationBell';
 
 export default function Navbar() {
   const location = useLocation();
@@ -331,6 +332,8 @@ export default function Navbar() {
               )}
             </div>
 
+            {isLoggedIn && <NotificationBell />}
+
             {/* Wishlist (desktop) */}
             <Link to="/wishlist" className="relative hidden md:flex p-2 text-gray-600 hover:text-[#E53935] transition-colors" aria-label="Wishlist">
               <Heart className="w-5 h-5" />
@@ -541,6 +544,9 @@ export default function Navbar() {
                   </Link>
                   <Link to="/profile/orders" className="flex items-center gap-3 px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50" onClick={() => setMobileMenuOpen(false)}>
                     📦 My Orders
+                  </Link>
+                  <Link to="/profile/notifications" className="flex items-center gap-3 px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50" onClick={() => setMobileMenuOpen(false)}>
+                    🔔 Notifications
                   </Link>
                   <Link to="/wishlist" className="flex items-center gap-3 px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-50" onClick={() => setMobileMenuOpen(false)}>
                     ❤️ Wishlist {wishlistCount > 0 && `(${wishlistCount})`}

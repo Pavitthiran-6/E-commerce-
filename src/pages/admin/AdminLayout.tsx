@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import axiosInstance from '../../api/axiosInstance';
+import NotificationBell from '../../components/common/NotificationBell';
 
 const navItems = [
   {
@@ -135,13 +136,33 @@ const navItems = [
       </svg>
     ),
   },
-  {
+   {
     to: '/admin/refunds',
     label: 'Refund Requests',
     end: false,
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-1.958-.559-1.171-.88-1.171-2.303 0-3.182 1.172-.879 3.07-.879 4.242 0 .546.41.879.99.879 1.62M12 3v3m0 12v3" />
+      </svg>
+    ),
+  },
+  {
+    to: '/admin/reviews',
+    label: 'Reviews',
+    end: false,
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499c.173-.44.83-.44 1.002 0l2.17 5.424 5.86 1.096c.477.089.667.674.321 1.025l-4.242 4.318 1.002 6.002c.081.487-.417.848-.838.566L12 18.824l-5.373 3.106c-.421.282-.919-.08-.838-.566l1.002-6.002L2.55 11.044c-.346-.35-.156-.936.321-1.025l5.86-1.096 2.17-5.424z" />
+      </svg>
+    ),
+  },
+  {
+    to: '/admin/reports',
+    label: 'Reports',
+    end: false,
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
       </svg>
     ),
   },
@@ -357,6 +378,7 @@ export default function AdminLayout() {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 ADMIN
               </span>
+              <NotificationBell />
               {/* Avatar (desktop) */}
               <div className="hidden lg:flex w-8 h-8 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 items-center justify-center text-[11px] font-bold text-white flex-shrink-0 ring-2 ring-white shadow-sm">
                 {initials}

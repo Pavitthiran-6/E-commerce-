@@ -55,4 +55,17 @@ public class ReviewController {
         reviewService.deleteReview(principal, id);
         return ResponseEntity.ok(ApiResponse.success("Review deleted"));
     }
+
+    @GetMapping("/can-review/{productId}")
+    public ResponseEntity<ApiResponse<?>> canReview(
+        @AuthenticationPrincipal UserPrincipal principal,
+        @PathVariable UUID productId) {
+        boolean eligible = reviewService.canReviewProduct(principal.getId(), productId);
+        String reason = eligible ? null
+            : reviewService.existsByProductIdAndUserId(productId, principal.getId())
+                ? "You have already reviewed this product."
+                : "Only customers who have received this product can leave a review.";
+        return ResponseEntity.ok(ApiResponse.success("Eligibility checked",
+            java.util.Map.of("canReview", eligible, "reason", reason != null ? reason : "")));
+    }
 }
