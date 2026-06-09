@@ -312,6 +312,8 @@ public class PaymentService {
             handlePaymentCaptured(event);
         } else if ("payment.failed".equals(eventType)) {
             handleWebhookPaymentFailed(event);
+        } else if ("refund.processed".equals(eventType)) {
+            handleRefundProcessed(event);
         } else {
             log.debug("Webhook event {} not handled — ignoring", eventType);
         }
@@ -364,6 +366,37 @@ public class PaymentService {
             emailService.sendOrderConfirmationEmail(order.getUser().getEmail(), order, invoicePdf);
         } catch (Exception e) {
             log.error("Webhook: failed to send confirmation email for orderId={}: {}", order.getId(), e.getMessage());
+        }
+    }
+
+    private void handleRefundProcessed(JSONObject event) {
+        try {
+            JSONObject refundEntity = event.getJSONObject("payload")
+                                           .getJSONObject("refund")
+                                           .getJSONObject("entity");
+            String refundId = refundEntity.optString("id", "");
+            String paymentId = refundEntity.optString("payment_id", "");
+
+            if (refundId.isBlank() || paymentId.isBlank()) {
+                log.error("refund.processed event missing id or payment_id");
+                return;
+            }
+
+            Optional<Payment> byPaymentId = paymentRepository.findByRazorpayPaymentId(paymentId);
+            if (byPaymentId.isPresent()) {
+                Payment payment = byPaymentId.get();
+                payment.setStatus(PaymentStatus.REFUNDED);
+                payment.getOrder().setPaymentStatus(PaymentStatus.REFUNDED);
+
+                // If there is an associated RefundRequest, update its status too!
+                if (payment.getOrder().getRefundRequest() != null) {
+                    payment.getOrder().getRefundRequest().setRefundStatus(com.belledonne.ecommerce.enums.RefundStatus.REFUNDED);
+                }
+                paymentRepository.save(payment);
+                log.info("Webhook: refund {} processed for paymentId={}", refundId, paymentId);
+            }
+        } catch (Exception e) {
+            log.error("Webhook: failed to process refund.processed: {}", e.getMessage());
         }
     }
 
@@ -496,6 +529,44 @@ public class PaymentService {
             .orElseThrow(() -> new ResourceNotFoundException("Payment", "orderId", orderId));
         // Delegate to core method using the order owner's ID (no IDOR risk since this is admin-only)
         initiateRefund(orderId, payment.getOrder().getUser().getId());
+    }
+
+    /**
+     * Initiates a refund via Razorpay for the admin-approved refund request workflow.
+     * Updates payment status to REFUND_INITIATED.
+     */
+    public String initiateRazorpayRefund(UUID orderId, BigDecimal amount) {
+        Payment payment = paymentRepository.findByOrderId(orderId)
+            .orElseThrow(() -> new ResourceNotFoundException("Payment", "orderId", orderId));
+
+        if (payment.getOrder().getPaymentMethod() == PaymentMethod.COD) {
+            throw new BadRequestException("COD orders cannot be refunded via Razorpay.");
+        }
+        if (payment.getStatus() != PaymentStatus.SUCCESS && payment.getStatus() != PaymentStatus.REFUND_REQUESTED && payment.getStatus() != PaymentStatus.REFUND_APPROVED) {
+            throw new BadRequestException("Only successfully paid payments can be refunded. Current status: " + payment.getStatus());
+        }
+
+        try {
+            int amountInPaise = amount.multiply(BigDecimal.valueOf(100)).intValue();
+            JSONObject refundReqJson = new JSONObject();
+            refundReqJson.put("amount", amountInPaise);
+            refundReqJson.put("speed", "normal");
+
+            com.razorpay.Refund refund = razorpayClient.payments.refund(
+                payment.getRazorpayPaymentId(), refundReqJson);
+            String refundId = refund.get("id");
+
+            // Update payment and order payment status to REFUND_INITIATED
+            payment.setStatus(PaymentStatus.REFUND_INITIATED);
+            payment.getOrder().setPaymentStatus(PaymentStatus.REFUND_INITIATED);
+            paymentRepository.save(payment);
+
+            log.info("Razorpay Refund initiated for orderId={} — refundId={}", orderId, refundId);
+            return refundId;
+        } catch (RazorpayException e) {
+            log.error("Razorpay refund failed for orderId={}: {}", orderId, e.getMessage());
+            throw new PaymentException("Failed to initiate refund via Razorpay: " + e.getMessage());
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

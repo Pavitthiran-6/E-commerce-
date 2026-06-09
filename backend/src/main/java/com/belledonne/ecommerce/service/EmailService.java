@@ -201,6 +201,80 @@ public class EmailService {
         sendEmail(adminAlertEmail, "🚨 Security Alert Detected - " + triggerType, htmlContent);
     }
 
+    @Async
+    public void sendRefundRequestReceivedEmail(String toEmail, String name, String orderNumber, java.math.BigDecimal refundAmount, String cancellationReason) {
+        log.info("[EmailService] Email request started: Refund Request Received to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("name", name);
+            context.setVariable("orderNumber", orderNumber);
+            context.setVariable("refundAmount", refundAmount);
+            context.setVariable("cancellationReason", cancellationReason);
+            htmlContent = templateEngine.process("refund-request-received-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for refund-request-received-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
+        sendEmail(toEmail, "Refund Request Received — " + orderNumber, htmlContent);
+    }
+
+    @Async
+    public void sendRefundRequestAdminNotification(String orderNumber, String customerName, String customerEmail, java.math.BigDecimal refundAmount, String cancellationReason) {
+        log.info("[EmailService] Email request started: Admin Refund Request Notification for {}", orderNumber);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("orderNumber", orderNumber);
+            context.setVariable("customerName", customerName);
+            context.setVariable("customerEmail", customerEmail);
+            context.setVariable("refundAmount", refundAmount);
+            context.setVariable("cancellationReason", cancellationReason);
+            htmlContent = templateEngine.process("refund-request-admin-notification", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for refund-request-admin-notification: {}", e.getMessage(), e);
+            return;
+        }
+        sendEmail(adminAlertEmail, "🚨 Action Required: Refund Request Pending — " + orderNumber, htmlContent);
+    }
+
+    @Async
+    public void sendRefundApprovedEmail(String toEmail, String name, String orderNumber, java.math.BigDecimal refundAmount, String adminNotes, String razorpayRefundId) {
+        log.info("[EmailService] Email request started: Refund Approved to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("name", name);
+            context.setVariable("orderNumber", orderNumber);
+            context.setVariable("refundAmount", refundAmount);
+            context.setVariable("adminNotes", adminNotes);
+            context.setVariable("razorpayRefundId", razorpayRefundId);
+            htmlContent = templateEngine.process("refund-approved-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for refund-approved-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
+        sendEmail(toEmail, "Refund Request Approved — " + orderNumber, htmlContent);
+    }
+
+    @Async
+    public void sendRefundRejectedEmail(String toEmail, String name, String orderNumber, java.math.BigDecimal refundAmount, String rejectionReason) {
+        log.info("[EmailService] Email request started: Refund Rejected to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("name", name);
+            context.setVariable("orderNumber", orderNumber);
+            context.setVariable("refundAmount", refundAmount);
+            context.setVariable("rejectionReason", rejectionReason);
+            htmlContent = templateEngine.process("refund-rejected-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for refund-rejected-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
+        sendEmail(toEmail, "Refund Request Update — " + orderNumber, htmlContent);
+    }
+
     private boolean sendEmail(String to, String subject, String htmlContent) {
         log.info("[EmailService] Attempting to send email to {} with subject: '{}'...", to, subject);
         try {

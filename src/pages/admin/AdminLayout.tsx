@@ -125,6 +125,16 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    to: '/admin/refunds',
+    label: 'Refund Requests',
+    end: false,
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-1.958-.559-1.171-.88-1.171-2.303 0-3.182 1.172-.879 3.07-.879 4.242 0 .546.41.879.99.879 1.62M12 3v3m0 12v3" />
+      </svg>
+    ),
+  },
 ];
 
 export default function AdminLayout() {
@@ -134,6 +144,7 @@ export default function AdminLayout() {
   
   const [activeAlert, setActiveAlert] = useState(false);
   const [alertDetails, setAlertDetails] = useState('');
+  const [pendingRefundsCount, setPendingRefundsCount] = useState(0);
 
   const checkAlerts = async () => {
     try {
@@ -149,9 +160,24 @@ export default function AdminLayout() {
     }
   };
 
+  const checkPendingRefunds = async () => {
+    try {
+      const res = await axiosInstance.get('/api/admin/refund-requests?status=REFUND_REQUESTED&size=1');
+      if (res.data.data) {
+        setPendingRefundsCount(res.data.data.totalElements || 0);
+      }
+    } catch (e) {
+      console.error('Failed to fetch pending refund requests count:', e);
+    }
+  };
+
   useEffect(() => {
     checkAlerts();
-    const interval = setInterval(checkAlerts, 30000); // Check every 30 seconds
+    checkPendingRefunds();
+    const interval = setInterval(() => {
+      checkAlerts();
+      checkPendingRefunds();
+    }, 30000); // Check every 30 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -225,6 +251,13 @@ export default function AdminLayout() {
                     {item.icon}
                   </span>
                   <span className="truncate">{item.label}</span>
+                  {item.label === 'Refund Requests' && pendingRefundsCount > 0 && (
+                    <span className={`ml-auto inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-bold leading-none rounded-full transition-colors ${
+                      isActive ? 'bg-white text-gray-900' : 'bg-red-500 text-white'
+                    }`}>
+                      {pendingRefundsCount}
+                    </span>
+                  )}
                 </>
               )}
             </NavLink>

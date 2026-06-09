@@ -27,6 +27,8 @@ export const ENDPOINTS = {
   ORDER_BY_ID: (id: string) => `/api/orders/${id}`,
   CANCEL_ORDER: (id: string) => `/api/orders/${id}/cancel`,
   TRACK_ORDER: (id: string) => `/api/orders/${id}/track`,
+  CANCEL_WITH_REFUND: (id: string) => `/api/orders/${id}/cancel-with-refund`,
+  REFUND_STATUS: (id: string) => `/api/orders/${id}/refund-status`,
 
   // Payments
   CREATE_PAYMENT_ORDER: '/api/payments/create-order',
@@ -72,4 +74,10 @@ export const ENDPOINTS = {
   SYNONYMS: '/api/synonyms',
   ADMIN_SYNONYMS: '/api/admin/synonyms',
   ADMIN_SYNONYM_BY_ID: (id: number | string) => `/api/admin/synonyms/${id}`,
+
+  // Admin Refunds
+  ADMIN_REFUND_REQUESTS: '/api/admin/refund-requests',
+  ADMIN_REFUND_REQUEST_BY_ID: (id: string) => `/api/admin/refund-requests/${id}`,
+  ADMIN_APPROVE_REFUND: (id: string) => `/api/admin/refund-requests/${id}/approve`,
+  ADMIN_REJECT_REFUND: (id: string) => `/api/admin/refund-requests/${id}/reject`,
 };

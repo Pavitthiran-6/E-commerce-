@@ -32,6 +32,14 @@ public class OrderResponse {
     private List<TrackingResponse> trackingHistory;
     private LocalDateTime createdAt;
 
+    // Refund fields
+    private String cancellationReason;
+    private String refundStatus;
+    private LocalDateTime refundRequestedAt;
+    private String refundNotes;
+    private String rejectionReason;
+    private String razorpayRefundId;
+
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class OrderItemResponse {
         private Long id;

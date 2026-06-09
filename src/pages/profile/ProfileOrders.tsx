@@ -96,6 +96,18 @@ export default function ProfileOrders() {
     if (paymentStatus === 'REFUNDED') {
       return <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded">↩ Refunded</span>;
     }
+    if (paymentStatus === 'REFUND_REQUESTED') {
+      return <span className="text-xs text-yellow-600 font-medium bg-yellow-50 px-2 py-0.5 rounded">↩ Refund Requested</span>;
+    }
+    if (paymentStatus === 'REFUND_APPROVED') {
+      return <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded">↩ Refund Approved</span>;
+    }
+    if (paymentStatus === 'REFUND_INITIATED') {
+      return <span className="text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-0.5 rounded">↩ Refund Initiated</span>;
+    }
+    if (paymentStatus === 'REFUND_REJECTED') {
+      return <span className="text-xs text-red-600 font-medium bg-red-50 px-2 py-0.5 rounded">✗ Refund Rejected</span>;
+    }
     if (paymentMethod === 'COD') {
       return <span className="text-xs text-orange-600 font-medium bg-orange-50 px-2 py-0.5 rounded">💰 Pay on Delivery</span>;
     }

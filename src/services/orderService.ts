@@ -51,6 +51,13 @@ export interface Order {
   items: OrderItem[];
   trackingHistory?: OrderTracking[];
   createdAt: string;
+
+  cancellationReason?: string;
+  refundStatus?: string;
+  refundRequestedAt?: string;
+  refundNotes?: string;
+  rejectionReason?: string;
+  razorpayRefundId?: string;
 }
 
 export const placeOrder = async (orderData: { addressId: number; paymentMethod: string; couponCode?: string; items?: { productId: string; variantId?: number; quantity: number }[] }): Promise<Order> => {

@@ -135,22 +135,18 @@ public class OrderService {
             throw new ResourceNotFoundException("Order", "id", orderId);
         if (order.getStatus() != OrderStatus.PLACED && order.getStatus() != OrderStatus.CONFIRMED)
             throw new BadRequestException("Order cannot be cancelled at this stage");
+            
+        // Block direct cancellation for paid online orders — they must submit a refund request
+        if (order.getPaymentMethod() != null
+                && order.getPaymentMethod() != PaymentMethod.COD
+                && order.getPaymentStatus() == PaymentStatus.SUCCESS) {
+            throw new BadRequestException("Prepaid orders must be cancelled via the refund request workflow.");
+        }
+
         order.setStatus(OrderStatus.CANCELLED);
         order.getTrackingHistory().add(OrderTracking.builder()
             .order(order).status("CANCELLED").message("Order cancelled by customer").build());
         Order saved = orderRepository.save(order);
-
-        // Auto-refund for successfully paid online orders
-        if (order.getPaymentMethod() != null
-                && order.getPaymentMethod() != PaymentMethod.COD
-                && order.getPaymentStatus() == PaymentStatus.SUCCESS) {
-            try {
-                paymentService.initiateRefund(orderId, principal.getId());
-            } catch (Exception e) {
-                // Non-fatal: log but don't block the cancellation
-                log.error("Auto-refund failed for orderId={}: {}", orderId, e.getMessage());
-            }
-        }
 
         return toResponse(saved);
     }
@@ -194,6 +190,12 @@ public class OrderService {
             .trackingNumber(o.getTrackingNumber())
             .address(addressResponse).items(items).trackingHistory(tracking)
             .createdAt(o.getCreatedAt())
+            .cancellationReason(o.getRefundRequest() != null ? o.getRefundRequest().getCancellationReason() : null)
+            .refundStatus(o.getRefundRequest() != null ? o.getRefundRequest().getRefundStatus().name() : null)
+            .refundRequestedAt(o.getRefundRequest() != null ? o.getRefundRequest().getRequestedAt() : null)
+            .refundNotes(o.getRefundRequest() != null ? o.getRefundRequest().getAdminNotes() : null)
+            .rejectionReason(o.getRefundRequest() != null ? o.getRefundRequest().getRejectionReason() : null)
+            .razorpayRefundId(o.getRefundRequest() != null ? o.getRefundRequest().getRazorpayRefundId() : null)
             .build();
     }
 }

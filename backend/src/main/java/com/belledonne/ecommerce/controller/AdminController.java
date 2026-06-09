@@ -4,12 +4,14 @@ import com.belledonne.ecommerce.dto.request.*;
 import com.belledonne.ecommerce.dto.response.ApiResponse;
 import com.belledonne.ecommerce.dto.response.OrderResponse;
 import com.belledonne.ecommerce.dto.response.ProductResponse;
+import com.belledonne.ecommerce.dto.response.RefundRequestResponse;
 import com.belledonne.ecommerce.dto.response.SaleSettingsResponse;
 import com.belledonne.ecommerce.dto.response.UserAdminResponse;
 import com.belledonne.ecommerce.dto.response.UserDetailsAdminResponse;
 import com.belledonne.ecommerce.entity.*;
 import com.belledonne.ecommerce.enums.OrderStatus;
 import com.belledonne.ecommerce.enums.PaymentMethod;
+import com.belledonne.ecommerce.enums.RefundStatus;
 import com.belledonne.ecommerce.enums.Role;
 import com.belledonne.ecommerce.exception.BadRequestException;
 import com.belledonne.ecommerce.exception.ResourceNotFoundException;
@@ -30,6 +32,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.belledonne.ecommerce.enums.SecurityAction;
@@ -70,6 +73,7 @@ public class AdminController {
     private final LoginLockoutService loginLockoutService;
     private final SecurityAuditService securityAuditService;
     private final SecurityLogsExportService securityLogsExportService;
+    private final RefundRequestService refundRequestService;
     private final HttpServletRequest request;
 
     // ---- 5A: ADMIN DASHBOARD ----
@@ -842,6 +846,54 @@ public class AdminController {
     @Operation(summary = "Get aggregated security analytics for trend overview charts")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getSecurityOverview() {
         return ResponseEntity.ok(ApiResponse.success("Security overview analytics fetched successfully", securityAuditService.getCachedSecurityOverview()));
+    }
+
+    @GetMapping("/refund-requests")
+    @Operation(summary = "Get all refund requests with search and status filters")
+    public ResponseEntity<ApiResponse<Page<RefundRequestResponse>>> getRefundRequests(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) RefundStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+        Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "requestedAt"));
+        Page<RefundRequestResponse> responses = refundRequestService.getRefundRequestsAdmin(search, status, pageable);
+        return ResponseEntity.ok(ApiResponse.success("Refund requests fetched successfully", responses));
+    }
+
+    @GetMapping("/refund-requests/{id}")
+    @Operation(summary = "Get detailed information for a single refund request")
+    public ResponseEntity<ApiResponse<RefundRequestResponse>> getRefundRequest(@PathVariable UUID id) {
+        RefundRequestResponse response = refundRequestService.getRefundRequest(id);
+        return ResponseEntity.ok(ApiResponse.success("Refund request details fetched successfully", response));
+    }
+
+    @PostMapping("/refund-requests/{id}/approve")
+    @Operation(summary = "Approve a refund request and trigger Razorpay Refund API")
+    public ResponseEntity<ApiResponse<RefundRequestResponse>> approveRefund(
+            @AuthenticationPrincipal UserPrincipal adminPrincipal,
+            @PathVariable UUID id,
+            @Valid @RequestBody RefundApprovalRequest request,
+            HttpServletRequest httpServletRequest) {
+        
+        String ipAddress = SecurityAuditService.getClientIp(httpServletRequest);
+        String userAgent = httpServletRequest.getHeader("User-Agent");
+        RefundRequestResponse response = refundRequestService.approveRefund(id, adminPrincipal, request, ipAddress, userAgent);
+        return ResponseEntity.ok(ApiResponse.success("Refund approved and initiated successfully", response));
+    }
+
+    @PostMapping("/refund-requests/{id}/reject")
+    @Operation(summary = "Reject a refund request and notify the customer")
+    public ResponseEntity<ApiResponse<RefundRequestResponse>> rejectRefund(
+            @AuthenticationPrincipal UserPrincipal adminPrincipal,
+            @PathVariable UUID id,
+            @Valid @RequestBody RefundRejectionRequest request,
+            HttpServletRequest httpServletRequest) {
+        
+        String ipAddress = SecurityAuditService.getClientIp(httpServletRequest);
+        String userAgent = httpServletRequest.getHeader("User-Agent");
+        RefundRequestResponse response = refundRequestService.rejectRefund(id, adminPrincipal, request, ipAddress, userAgent);
+        return ResponseEntity.ok(ApiResponse.success("Refund request rejected successfully", response));
     }
 
     private User getLoggedInUser() {

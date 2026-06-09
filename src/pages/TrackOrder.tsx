@@ -4,6 +4,8 @@ import { Package, Truck, CheckCircle2, XCircle, Clock, MapPin, Download, HelpCir
 import { getOrderById, trackOrder, cancelOrder } from '../services/orderService';
 import type { Order, OrderTracking } from '../services/orderService';
 import { downloadInvoice } from '../services/paymentService';
+import { cancelWithRefund } from '../services/refundService';
+import { HelpCircle, AlertCircle, Loader2, DollarSign, ArrowLeftRight } from 'lucide-react';
 
 export default function TrackOrder() {
   const { orderId } = useParams<{ orderId?: string }>();
@@ -17,6 +19,10 @@ export default function TrackOrder() {
   const [error, setError] = useState<string | null>(null);
   const [isDownloadingInvoice, setIsDownloadingInvoice] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('');
+  const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -97,6 +103,46 @@ export default function TrackOrder() {
     }
   };
 
+  const handleCancelWithRefund = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+    if (!cancellationReason || cancellationReason.trim().length < 10) {
+      setRefundError('Please provide a detailed reason (at least 10 characters).');
+      return;
+    }
+
+    setIsSubmittingRefund(true);
+    setRefundError(null);
+    try {
+      const refundRequest = await cancelWithRefund(order.id, cancellationReason);
+      
+      // Update local order state with the cancellation and refund fields
+      setOrder(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          status: 'cancelled',
+          paymentStatus: 'REFUND_REQUESTED',
+          cancellationReason: refundRequest.cancellationReason,
+          refundStatus: refundRequest.refundStatus,
+          refundRequestedAt: refundRequest.requestedAt,
+          refundNotes: refundRequest.adminNotes,
+          rejectionReason: refundRequest.rejectionReason,
+          razorpayRefundId: refundRequest.razorpayRefundId
+        };
+      });
+      
+      setShowRefundModal(false);
+      setCancellationReason('');
+      alert('Order cancelled and refund request submitted successfully.');
+    } catch (err: any) {
+      console.error(err);
+      setRefundError(err.response?.data?.message || 'Failed to submit refund request. Please try again.');
+    } finally {
+      setIsSubmittingRefund(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center">
@@ -131,8 +177,21 @@ export default function TrackOrder() {
         return { color: 'bg-orange-50 text-orange-800 border-orange-200', icon: <Truck className="w-6 h-6 text-orange-600" />, title: 'Shipped', desc: 'Your order is on its way!' };
       case 'delivered':
         return { color: 'bg-green-50 text-green-800 border-green-200', icon: <CheckCircle2 className="w-6 h-6 text-green-600" />, title: 'Delivered', desc: 'Your order was delivered successfully. We hope you love it!' };
-      case 'cancelled':
-        return { color: 'bg-red-50 text-red-800 border-red-200', icon: <XCircle className="w-6 h-6 text-red-600" />, title: 'Cancelled', desc: 'This order has been cancelled.' };
+      case 'cancelled': {
+        let desc = 'This order has been cancelled.';
+        if (order?.paymentStatus === 'REFUND_REQUESTED') {
+          desc = `Order cancelled. Refund request of ₹${order.totalAmount.toLocaleString()} is pending admin review.`;
+        } else if (order?.paymentStatus === 'REFUND_APPROVED') {
+          desc = 'Order cancelled. Refund request has been approved and is being processed.';
+        } else if (order?.paymentStatus === 'REFUND_INITIATED') {
+          desc = `Order cancelled. Refund of ₹${order.totalAmount.toLocaleString()} has been initiated via Razorpay.`;
+        } else if (order?.paymentStatus === 'REFUNDED') {
+          desc = `Order cancelled. Refund of ₹${order.totalAmount.toLocaleString()} has been successfully credited.`;
+        } else if (order?.paymentStatus === 'REFUND_REJECTED') {
+          desc = `Order cancelled. Refund request was rejected. Reason: ${order.rejectionReason || 'Contact support.'}`;
+        }
+        return { color: 'bg-red-50 text-red-800 border-red-200', icon: <XCircle className="w-6 h-6 text-red-600" />, title: 'Cancelled', desc };
+      }
       default:
         return { color: 'bg-gray-50 text-gray-800 border-gray-200', icon: <AlertCircle className="w-6 h-6" />, title: 'Unknown', desc: 'Status unknown.' };
     }
@@ -324,6 +383,130 @@ export default function TrackOrder() {
           </div>
         )}
 
+        {/* SECTION: Refund Status Tracker */}
+        {order.refundStatus && (
+          <div className="bg-white rounded-xl border border-outline-variant/30 p-6 md:p-8 mb-8 shadow-sm">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-red-50 rounded-xl text-red-600">
+                  <DollarSign className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-headline-md text-xl font-bold text-gray-900">Refund Request Information</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Timeline and processing updates</p>
+                </div>
+              </div>
+              <div>
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                  order.refundStatus === 'REFUNDED' 
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : order.refundStatus === 'REFUND_REJECTED'
+                    ? 'bg-red-50 text-red-700 border border-red-200'
+                    : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    order.refundStatus === 'REFUNDED' ? 'bg-green-500' : order.refundStatus === 'REFUND_REJECTED' ? 'bg-red-500' : 'bg-yellow-500 animate-pulse'
+                  }`} />
+                  {order.refundStatus.replace(/_/g, ' ')}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Left Column: Details */}
+              <div className="space-y-4 text-sm text-gray-600">
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Cancellation Reason</p>
+                  <p className="mt-1.5 text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-100 font-medium italic">
+                    "{order.cancellationReason || 'No reason specified'}"
+                  </p>
+                </div>
+                {order.refundRequestedAt && (
+                  <div>
+                    <span className="font-semibold text-gray-700">Requested On: </span>
+                    <span>{new Date(order.refundRequestedAt).toLocaleString()}</span>
+                  </div>
+                )}
+                <div>
+                  <span className="font-semibold text-gray-700">Refund Amount: </span>
+                  <span className="font-bold text-gray-900">₹{order.totalAmount.toLocaleString()}</span>
+                </div>
+                {order.razorpayRefundId && (
+                  <div>
+                    <span className="font-semibold text-gray-700">Razorpay Refund ID: </span>
+                    <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-800 text-xs font-bold">
+                      {order.razorpayRefundId}
+                    </span>
+                  </div>
+                )}
+                {order.refundNotes && (
+                  <div className="mt-4 bg-blue-50 border border-blue-100 text-blue-800 p-4 rounded-xl">
+                    <p className="text-xs font-bold uppercase tracking-wider mb-1 text-blue-900">Admin Response Notes</p>
+                    <p className="text-sm font-medium">{order.refundNotes}</p>
+                  </div>
+                )}
+                {order.rejectionReason && (
+                  <div className="mt-4 bg-red-50 border border-red-100 text-red-800 p-4 rounded-xl">
+                    <p className="text-xs font-bold uppercase tracking-wider mb-1 text-red-900">Rejection Reason</p>
+                    <p className="text-sm font-medium">{order.rejectionReason}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Refund Lifecycle Steps */}
+              <div className="relative border-l-2 border-gray-100 pl-6 ml-2 space-y-6">
+                {/* Step 1: Request Submitted */}
+                <div className="relative">
+                  <div className="absolute -left-[31px] top-1 w-4.5 h-4.5 rounded-full bg-green-500 border-4 border-white shadow-sm flex items-center justify-center"></div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">Refund Request Submitted</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Awaiting admin review</p>
+                  </div>
+                </div>
+
+                {/* Step 2: Review Result */}
+                {order.refundStatus !== 'REFUND_REQUESTED' && (
+                  <div className="relative">
+                    <div className={`absolute -left-[31px] top-1.5 w-4.5 h-4.5 rounded-full border-4 border-white shadow-sm ${
+                      order.refundStatus === 'REFUND_REJECTED' ? 'bg-red-500' : 'bg-green-500'
+                    }`}></div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-800">
+                        {order.refundStatus === 'REFUND_REJECTED' ? 'Refund Rejected' : 'Refund Approved'}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {order.refundStatus === 'REFUND_REJECTED' ? 'Admin rejected the request' : 'Review completed by admin'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Refund Initiated (Online payout) */}
+                {(order.refundStatus === 'REFUND_INITIATED' || order.refundStatus === 'REFUNDED') && (
+                  <div className="relative">
+                    <div className="absolute -left-[31px] top-1.5 w-4.5 h-4.5 rounded-full bg-green-500 border-4 border-white shadow-sm"></div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-800">Refund Initiated</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Payout initiated via Razorpay</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4: Refund Completed */}
+                {order.refundStatus === 'REFUNDED' && (
+                  <div className="relative">
+                    <div className="absolute -left-[31px] top-1.5 w-4.5 h-4.5 rounded-full bg-green-500 border-4 border-white shadow-sm"></div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-800">Refund Credited</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Money returned to your account</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           
           {/* SECTION 4: Timeline */}
@@ -469,14 +652,23 @@ export default function TrackOrder() {
               </button>
             )}
             {status !== 'Delivered' && status !== 'Cancelled' && (
-              <button 
-                onClick={handleCancelOrder}
-                disabled={isCancelling}
-                className="flex-1 md:flex-none border-2 border-red-500 text-red-600 px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-red-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {isCancelling && <Loader2 className="w-4 h-4 animate-spin" />}
-                {isCancelling ? 'Cancelling...' : 'Cancel Order'}
-              </button>
+              order.paymentMethod !== 'COD' && order.paymentStatus === 'SUCCESS' ? (
+                <button 
+                  onClick={() => setShowRefundModal(true)}
+                  className="flex-1 md:flex-none border-2 border-red-500 text-red-600 px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  Cancel & Request Refund
+                </button>
+              ) : (
+                <button 
+                  onClick={handleCancelOrder}
+                  disabled={isCancelling}
+                  className="flex-1 md:flex-none border-2 border-red-500 text-red-600 px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-red-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {isCancelling && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {isCancelling ? 'Cancelling...' : 'Cancel Order'}
+                </button>
+              )
             )}
           </div>
           
@@ -486,6 +678,71 @@ export default function TrackOrder() {
         </div>
 
       </div>
+
+      {/* Cancellation & Refund Request Modal */}
+      {showRefundModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-2xl border border-gray-100 shadow-2xl p-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-500 to-orange-500"></div>
+            
+            <h3 className="font-headline-md text-2xl font-bold text-gray-900 mb-2">Cancel Order & Request Refund</h3>
+            <p className="text-sm text-gray-500 mb-6 font-medium">
+              You are cancelling order <span className="font-semibold text-gray-800">#{order.orderNumber}</span>. Since this order was paid online, your cancellation request will be submitted to our admin team for verification and refund processing.
+            </p>
+
+            <form onSubmit={handleCancelWithRefund} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                  Why are you cancelling?
+                </label>
+                <textarea
+                  value={cancellationReason}
+                  onChange={(e) => setCancellationReason(e.target.value)}
+                  placeholder="Please specify a cancellation reason (e.g., changed my mind, wrong address, wrong size)..."
+                  rows={4}
+                  required
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 transition-colors resize-none"
+                />
+                <div className="text-[10px] text-gray-400 mt-1.5 flex justify-between">
+                  <span>Minimum 10 characters required</span>
+                  <span className={cancellationReason.trim().length >= 10 ? 'text-green-500 font-bold' : 'text-gray-400'}>
+                    {cancellationReason.trim().length} chars
+                  </span>
+                </div>
+              </div>
+
+              {refundError && (
+                <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{refundError}</span>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRefundModal(false);
+                    setCancellationReason('');
+                    setRefundError(null);
+                  }}
+                  className="flex-1 border-2 border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingRefund || cancellationReason.trim().length < 10}
+                  className="flex-1 bg-red-600 text-white rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-md text-center"
+                >
+                  {isSubmittingRefund && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {isSubmittingRefund ? 'Submitting...' : 'Confirm Cancel'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

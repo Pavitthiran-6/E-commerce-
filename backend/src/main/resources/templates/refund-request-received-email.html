@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cancellation & Refund Request Received</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f8f7f4; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e0dcd3; }
+        .header { background-color: #1a1a2e; padding: 40px 20px; text-align: center; }
+        .header h1 { color: #c9a96e; margin: 0; font-size: 28px; letter-spacing: 4px; font-weight: normal; }
+        .header p { color: #ffffff; margin: 5px 0 0 0; font-size: 11px; letter-spacing: 2px; }
+        .content { padding: 40px; color: #333333; line-height: 1.6; }
+        .content h2 { color: #1a1a2e; margin-top: 0; font-size: 22px; font-weight: normal; }
+        .info-box { background-color: #f8f7f4; border: 1px solid #e0dcd3; border-radius: 4px; padding: 20px; margin: 20px 0; font-size: 14px; }
+        .footer { background-color: #1a1a2e; color: #a5a5b5; padding: 30px 20px; text-align: center; font-size: 12px; }
+        .footer a { color: #c9a96e; text-decoration: none; }
+        .footer p { margin: 8px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>BELLEDONNE</h1>
+            <p>PARIS</p>
+        </div>
+        <div class="content">
+            <h2>Refund Request Received 📩</h2>
+            <p>Dear <span th:text="${name}">Customer</span>,</p>
+            <p>We have received your request to cancel order <strong th:text="${orderNumber}">ORD-000</strong> and issue a refund. Our team is currently reviewing your request.</p>
+
+            <div class="info-box">
+                <div style="font-weight: bold; margin-bottom: 12px; color: #1a1a2e; border-bottom: 1px solid #e0dcd3; padding-bottom: 8px;">Request Summary</div>
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="color: #666;">Order Number:</td>
+                        <td style="text-align: right; font-weight: bold;" th:text="${orderNumber}">ORD-000</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #666;">Order Status:</td>
+                        <td style="text-align: right; color: #dc3545; font-weight: bold;">Cancelled</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #666;">Refund Amount:</td>
+                        <td style="text-align: right; font-weight: bold; color: #28a745;" th:text="${'₹' + refundAmount}">₹0.00</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #666;">Cancellation Reason:</td>
+                        <td style="text-align: right; font-style: italic;" th:text="${cancellationReason}">No reason provided</td>
+                    </tr>
+                </table>
+            </div>
+
+            <p style="font-size: 14px; color: #555;">Refund review requests are typically processed within 24-48 business hours. You will receive an email as soon as our team updates the status of your refund.</p>
+        </div>
+        <div class="footer">
+            <p>Visit our store at <a href="http://belledonne.in">belledonne.in</a></p>
+            <p>Support team: <a href="mailto:support@belledonne.in">support@belledonne.in</a></p>
+            <p style="margin-top: 20px; font-size: 10px; color: #767688;">You are receiving this transaction email as confirmation of your refund request. <a href="#">Unsubscribe</a></p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refund Request Update</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f8f7f4; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e0dcd3; }
+        .header { background-color: #1a1a2e; padding: 40px 20px; text-align: center; }
+        .header h1 { color: #c9a96e; margin: 0; font-size: 28px; letter-spacing: 4px; font-weight: normal; }
+        .header p { color: #ffffff; margin: 5px 0 0 0; font-size: 11px; letter-spacing: 2px; }
+        .content { padding: 40px; color: #333333; line-height: 1.6; }
+        .content h2 { color: #dc3545; margin-top: 0; font-size: 22px; font-weight: normal; }
+        .info-box { background-color: #fff5f5; border: 1px solid #feb2b2; border-radius: 4px; padding: 20px; margin: 20px 0; font-size: 14px; color: #9b2c2c; }
+        .footer { background-color: #1a1a2e; color: #a5a5b5; padding: 30px 20px; text-align: center; font-size: 12px; }
+        .footer a { color: #c9a96e; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>BELLEDONNE</h1>
+            <p>PARIS</p>
+        </div>
+        <div class="content">
+            <h2>Refund Request Update ⚠️</h2>
+            <p>Dear <span th:text="${name}">Customer</span>,</p>
+            <p>We are writing to update you regarding your refund request for order <strong th:text="${orderNumber}">ORD-000</strong>.</p>
+            <p>Unfortunately, your refund request could not be approved due to the following reason:</p>
+
+            <div class="info-box">
+                <strong>Rejection Reason:</strong><br>
+                <span th:text="${rejectionReason}">Reason not specified.</span>
+            </div>
+
+            <p style="font-size: 14px; color: #555;">If you believe this decision was made in error or if you have any questions, please reply to this email or contact support with your order number.</p>
+        </div>
+        <div class="footer">
+            <p>Visit our store at <a href="http://belledonne.in">belledonne.in</a></p>
+            <p>Support team: <a href="mailto:support@belledonne.in">support@belledonne.in</a></p>
+        </div>
+    </div>
+</body>
+</html>

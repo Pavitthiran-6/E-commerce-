@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refund Approved & Processed</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f8f7f4; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e0dcd3; }
+        .header { background-color: #1a1a2e; padding: 40px 20px; text-align: center; }
+        .header h1 { color: #c9a96e; margin: 0; font-size: 28px; letter-spacing: 4px; font-weight: normal; }
+        .header p { color: #ffffff; margin: 5px 0 0 0; font-size: 11px; letter-spacing: 2px; }
+        .content { padding: 40px; color: #333333; line-height: 1.6; }
+        .content h2 { color: #1a1a2e; margin-top: 0; font-size: 22px; font-weight: normal; }
+        .refund-badge { display: inline-block; background-color: #e8f4fd; border: 1px solid #b8daff; color: #004085; border-radius: 4px; padding: 8px 18px; font-size: 13px; margin-bottom: 24px; }
+        .info-box { background-color: #f8f7f4; border: 1px solid #e0dcd3; border-radius: 4px; padding: 20px; margin: 20px 0; font-size: 14px; }
+        .timeline-box { background-color: #fff8e1; border: 1px solid #ffd54f; border-radius: 4px; padding: 16px 20px; margin: 24px 0; font-size: 13px; color: #5d4037; }
+        .footer { background-color: #1a1a2e; color: #a5a5b5; padding: 30px 20px; text-align: center; font-size: 12px; }
+        .footer a { color: #c9a96e; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>BELLEDONNE</h1>
+            <p>PARIS</p>
+        </div>
+        <div class="content">
+            <h2>Refund Approved 🎉</h2>
+            <p>Dear <span th:text="${name}">Customer</span>,</p>
+            <p>We are pleased to inform you that your refund request for order <strong th:text="${orderNumber}">ORD-000</strong> has been approved by our team.</p>
+
+            <div class="refund-badge" th:if="${razorpayRefundId != null}">✅ Refund ID: <strong th:text="${razorpayRefundId}">rfnd_XXXXX</strong></div>
+
+            <div class="info-box">
+                <div style="font-weight: bold; margin-bottom: 12px; color: #1a1a2e; border-bottom: 1px solid #e0dcd3; padding-bottom: 8px;">Refund Details</div>
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="color: #666;">Order Number:</td>
+                        <td style="text-align: right; font-weight: bold;" th:text="${orderNumber}">ORD-000</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #666;">Refund Amount:</td>
+                        <td style="text-align: right; font-weight: bold; color: #28a745;" th:text="${'₹' + refundAmount}">₹0.00</td>
+                    </tr>
+                    <tr th:if="${adminNotes != null && !adminNotes.empty}">
+                        <td style="color: #666;">Admin Message:</td>
+                        <td style="text-align: right; font-style: italic; color: #555;" th:text="${adminNotes}">N/A</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="timeline-box">
+                <strong>⏱ Refund Timeline</strong><br><br>
+                The refund has been initiated through Razorpay and typically takes <strong>5-7 business days</strong> to reflect in your original payment method.
+            </div>
+
+            <p style="font-size: 14px; color: #555;">Thank you for shopping with us. We hope to serve you better in the future.</p>
+        </div>
+        <div class="footer">
+            <p>Visit our store at <a href="http://belledonne.in">belledonne.in</a></p>
+            <p>Support team: <a href="mailto:support@belledonne.in">support@belledonne.in</a></p>
+        </div>
+    </div>
+</body>
+</html>

@@ -112,6 +112,11 @@ public class Order {
     @EqualsAndHashCode.Exclude
     private Payment payment;
 
+    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private RefundRequest refundRequest;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Refund Request Alert</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f8f7f4; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e0dcd3; }
+        .header { background-color: #dc3545; padding: 30px 20px; text-align: center; }
+        .header h1 { color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 2px; font-weight: normal; }
+        .content { padding: 40px; color: #333333; line-height: 1.6; }
+        .info-box { background-color: #f8f7f4; border: 1px solid #e0dcd3; border-radius: 4px; padding: 20px; margin: 20px 0; font-size: 14px; }
+        .btn { display: inline-block; background-color: #1a1a2e; color: #ffffff !important; border-radius: 4px; padding: 12px 24px; text-decoration: none; font-size: 14px; font-weight: bold; margin-top: 10px; }
+        .footer { background-color: #1a1a2e; color: #a5a5b5; padding: 30px 20px; text-align: center; font-size: 12px; }
+        .footer a { color: #c9a96e; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>New Refund Request Pending 🚨</h1>
+        </div>
+        <div class="content">
+            <p>Hello Admin,</p>
+            <p>A customer has submitted a refund request for a cancelled order. Please review it on the Admin Refund Dashboard.</p>
+
+            <div class="info-box">
+                <div style="font-weight: bold; margin-bottom: 12px; color: #1a1a2e; border-bottom: 1px solid #e0dcd3; padding-bottom: 8px;">Refund Details</div>
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="color: #666;">Order Number:</td>
+                        <td style="text-align: right; font-weight: bold;" th:text="${orderNumber}">ORD-000</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #666;">Customer Name:</td>
+                        <td style="text-align: right;" th:text="${customerName}">Customer</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #666;">Customer Email:</td>
+                        <td style="text-align: right;" th:text="${customerEmail}">customer@example.com</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #666;">Refund Amount:</td>
+                        <td style="text-align: right; font-weight: bold; color: #28a745;" th:text="${'₹' + refundAmount}">₹0.00</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #666;">Cancellation Reason:</td>
+                        <td style="text-align: right; font-style: italic; color: #dc3545;" th:text="${cancellationReason}">No reason provided</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="http://belledonne.in/admin/refunds" class="btn">Go to Refund Dashboard</a>
+            </div>
+        </div>
+        <div class="footer">
+            <p>BELLEDONNE E-Commerce Platform</p>
+        </div>
+    </div>
+</body>
+</html>

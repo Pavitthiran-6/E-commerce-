@@ -128,6 +128,7 @@ const HeroManagement = lazyWithRetry(() => import('../pages/admin/HeroManagement
 const ManageSynonyms = lazyWithRetry(() => import('../pages/admin/ManageSynonyms'));
 const SecurityLogs = lazyWithRetry(() => import('../pages/admin/SecurityLogs'));
 const SecurityOverview = lazyWithRetry(() => import('../pages/admin/SecurityOverview'));
+const ManageRefunds = lazyWithRetry(() => import('../pages/admin/ManageRefunds'));
 
 // ----------------------------------------------------------------------
 
@@ -233,6 +234,7 @@ export default function AppRouter() {
               <Route path="/admin/sales" element={<ManageSales />} />
               <Route path="/admin/synonyms" element={<ManageSynonyms />} />
               <Route path="/admin/hero" element={<HeroManagement />} />
+              <Route path="/admin/refunds" element={<ManageRefunds />} />
             </Route>
           </Route>
 
