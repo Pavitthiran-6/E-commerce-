@@ -213,7 +213,7 @@ export default function AdminLayout() {
 
       {/* ── Sidebar ────────────────────────────────────────────────── */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-100 z-30 flex flex-col transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none
+        className={`fixed top-0 left-0 h-screen w-64 bg-white border-r border-gray-100 z-30 flex flex-col overflow-hidden transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
       >
         {/* Logo + close button */}
