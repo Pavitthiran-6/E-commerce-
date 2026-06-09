@@ -103,11 +103,13 @@ export default function ProfileOrders() {
   };
 
   // Show Retry button: payment failed + online order + order not delivered/cancelled
-  const canRetryPayment = (order: Order) =>
-    order.paymentStatus === 'FAILED' &&
-    order.paymentMethod !== 'COD' &&
-    order.status !== 'DELIVERED' &&
-    order.status !== 'delivered';
+  const canRetryPayment = (order: Order) => {
+    const s = order.status?.toLowerCase();
+    return order.paymentStatus === 'FAILED' &&
+      order.paymentMethod !== 'COD' &&
+      s !== 'delivered' &&
+      s !== 'cancelled';
+  };
 
   // Show Invoice button: payment successful (online orders) OR COD order marked SUCCESS
   const canDownloadInvoice = (order: Order) => order.paymentStatus === 'SUCCESS';
