@@ -69,6 +69,7 @@ public class AdminController {
     private final CategoryService categoryService;
     private final OrderTrackingService orderTrackingService;
     private final FileUploadService fileUploadService;
+    private final EmailService emailService;
     private final SaleSettingsService saleSettingsService;
     private final LoginLockoutService loginLockoutService;
     private final SecurityAuditService securityAuditService;
