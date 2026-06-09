@@ -456,7 +456,7 @@ public class RefundRequestService {
                 .customerName(request.getUser().getName())
                 .customerEmail(request.getUser().getEmail())
                 .cancellationReason(request.getCancellationReason())
-                .refundStatus(request.getRefundStatus().name())
+                .refundStatus(request.getRefundStatus() != null ? request.getRefundStatus().name() : null)
                 .refundAmount(request.getRefundAmount())
                 .adminNotes(request.getAdminNotes())
                 .rejectionReason(request.getRejectionReason())
@@ -469,7 +469,7 @@ public class RefundRequestService {
                 .updatedAt(request.getUpdatedAt())
                 .orderTotalAmount(request.getOrder().getTotalAmount())
                 .paymentMethod(request.getOrder().getPaymentMethod() != null ? request.getOrder().getPaymentMethod().name() : null)
-                .paymentStatus(request.getOrder().getPaymentStatus().name())
+                .paymentStatus(request.getOrder().getPaymentStatus() != null ? request.getOrder().getPaymentStatus().name() : null)
                 .orderDate(request.getOrder().getCreatedAt())
                 .items(items)
                 .build();
