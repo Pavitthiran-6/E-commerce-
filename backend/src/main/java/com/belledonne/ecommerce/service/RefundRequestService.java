@@ -123,7 +123,7 @@ public class RefundRequestService {
             // Customer Acknowledgement
             emailService.sendRefundRequestReceivedEmail(
                     order.getUser().getEmail(),
-                    order.getUser().getFirstName(),
+                    order.getUser().getName(),
                     order.getOrderNumber(),
                     order.getTotalAmount(),
                     request.getCancellationReason()
@@ -132,7 +132,7 @@ public class RefundRequestService {
             // Admin Notification
             emailService.sendRefundRequestAdminNotification(
                     order.getOrderNumber(),
-                    order.getUser().getFirstName() + " " + order.getUser().getLastName(),
+                    order.getUser().getName(),
                     order.getUser().getEmail(),
                     order.getTotalAmount(),
                     request.getCancellationReason()
@@ -186,7 +186,7 @@ public class RefundRequestService {
         try {
             emailService.sendRefundApprovedEmail(
                     refundRequest.getUser().getEmail(),
-                    refundRequest.getUser().getFirstName(),
+                    refundRequest.getUser().getName(),
                     refundRequest.getOrder().getOrderNumber(),
                     refundRequest.getRefundAmount(),
                     request.getAdminNotes(),
@@ -243,7 +243,7 @@ public class RefundRequestService {
         try {
             emailService.sendRefundRejectedEmail(
                     refundRequest.getUser().getEmail(),
-                    refundRequest.getUser().getFirstName(),
+                    refundRequest.getUser().getName(),
                     order.getOrderNumber(),
                     refundRequest.getRefundAmount(),
                     request.getRejectionReason()
@@ -300,8 +300,7 @@ public class RefundRequestService {
                 Predicate searchPredicate = cb.or(
                         cb.like(cb.lower(orderJoin.get("orderNumber")), searchPattern),
                         cb.like(cb.lower(userJoin.get("email")), searchPattern),
-                        cb.like(cb.lower(userJoin.get("firstName")), searchPattern),
-                        cb.like(cb.lower(userJoin.get("lastName")), searchPattern)
+                        cb.like(cb.lower(userJoin.get("name")), searchPattern)
                 );
                 predicates.add(searchPredicate);
             }
@@ -335,7 +334,7 @@ public class RefundRequestService {
                 .orderId(request.getOrder().getId())
                 .orderNumber(request.getOrder().getOrderNumber())
                 .userId(request.getUser().getId())
-                .customerName(request.getUser().getFirstName() + " " + request.getUser().getLastName())
+                .customerName(request.getUser().getName())
                 .customerEmail(request.getUser().getEmail())
                 .cancellationReason(request.getCancellationReason())
                 .refundStatus(request.getRefundStatus().name())
