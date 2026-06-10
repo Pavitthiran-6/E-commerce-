@@ -114,6 +114,7 @@ export default function Login() {
             text="continue_with"
             theme="outline"
             size="large"
+            width="350"
           />
         </div>
       </div>
