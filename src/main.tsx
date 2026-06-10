@@ -11,10 +11,12 @@ import './index.css'
 
 console.log("Google Client ID:", import.meta.env.VITE_GOOGLE_CLIENT_ID);
 
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '692370832248-4k20n2rn4gt39bjj0gcq81g36h9gnk0p.apps.googleusercontent.com';
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
+      <GoogleOAuthProvider clientId={googleClientId}>
         <BrowserRouter>
           <ToastProvider>
             <AuthProvider>
