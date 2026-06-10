@@ -1,15 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUser, logoutUser } from '../services/authService';
 import { useToast } from './ToastContext';
 import { extractNameFromEmail } from '../utils/extractNameFromEmail';
-import axiosInstance from '../api/axiosInstance';
+import axiosInstance, { isTokenExpired } from '../api/axiosInstance';
 
 interface AuthUser {
   id?: string;
   name: string;
   email: string;
   token: string;
+  refreshToken?: string;
   role?: string;
 }
 
@@ -30,11 +31,11 @@ function readStoredUser(): AuthUser | null {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    // Sanity check: must have at minimum a token and an email
+    // Must have at minimum a token and an email to be considered valid
     if (parsed && parsed.token && parsed.email) return parsed as AuthUser;
     return null;
   } catch {
-    // Corrupted — remove and start fresh
+    // Corrupted storage — remove and start fresh, but do NOT dispatch logout
     localStorage.removeItem(AUTH_STORAGE_KEY);
     return null;
   }
@@ -46,10 +47,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  // ── Initialise from localStorage immediately (no flicker / redirect on refresh) ──
+  // Initialise from localStorage immediately — no flicker on page refresh
   const [user, setUser] = useState<AuthUser | null>(readStoredUser);
 
-  // ── Re-hydrate whenever another tab logs in/out ──────────────────────────────
+  // Track whether we have already run the startup validation this session
+  const validationRanRef = useRef(false);
+
+  // ── Cross-tab sync: re-hydrate when another tab logs in or out ───────────
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
       if (e.key === AUTH_STORAGE_KEY) {
@@ -61,14 +65,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  // ── Sync user state across the same tab from Axios interceptors ──────────────
+  // ── Same-tab sync: react to events fired by the Axios interceptor ────────
   useEffect(() => {
     const handleLogout = () => {
       setUser(null);
     };
     const handleUpdate = (e: Event) => {
       const customEvent = e as CustomEvent;
-      setUser(customEvent.detail || null);
+      if (customEvent.detail) {
+        setUser(customEvent.detail as AuthUser);
+      }
     };
     window.addEventListener('auth:logout', handleLogout);
     window.addEventListener('auth:update', handleUpdate);
@@ -78,38 +84,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // ── Validate stored token on startup ─────────────────────────────────────────
-  // We only clear the session if the server explicitly returns 401 (invalid/expired
-  // token).  A network outage or 5xx should NOT log the user out.
+  // ── Startup token validation ──────────────────────────────────────────────
+  //
+  // Rules:
+  //   ✅ Logout when: server explicitly returns 401 (token definitively invalid)
+  //   ❌ Do NOT logout on:
+  //       - Token is still valid locally (skip the network call entirely)
+  //       - 500, 502, 503, 504 (server/infra issue — Render cold start etc.)
+  //       - Network error / timeout (user may be offline)
+  //       - Any non-401 error
+  //
+  // We also skip this check if we already ran it during this session, to
+  // avoid unnecessary requests on every strict-mode double-mount in dev.
   useEffect(() => {
-    if (!user?.token) return;
+    const storedUser = readStoredUser();
+    if (!storedUser?.token) return;
+    if (validationRanRef.current) return;
+    validationRanRef.current = true;
+
+    // If the token is not yet expired locally, skip the network round-trip
+    // entirely — the interceptor will handle proactive refresh on the next
+    // real API call.
+    if (!isTokenExpired(storedUser.token)) return;
 
     let cancelled = false;
 
-    const validate = async () => {
-      // Skip validation if no token
-      if (!user?.token) return;
-
+    const validateWithServer = async () => {
       try {
+        // A lightweight endpoint; the interceptor will proactively refresh
+        // an expired token before this request hits the wire.
         await axiosInstance.get('/api/user/profile');
       } catch (err: any) {
         if (cancelled) return;
-        // Only log out on definitive auth rejection, not on network errors
-        if (err.response?.status === 401) {
+
+        const status: number | undefined = err?.response?.status;
+
+        if (status === 401) {
+          // Server explicitly rejected the token — session is over
           localStorage.removeItem(AUTH_STORAGE_KEY);
           setUser(null);
+          return;
         }
-        // 403, 5xx, network errors → keep the session alive
+
+        // 403, 5xx, network errors, timeouts → keep the session alive.
+        // The server may be sleeping (Render cold start) or the user may
+        // be briefly offline.  A valid token should survive infra hiccups.
+        console.warn(
+          '[Auth] Startup validation failed with non-401 status — keeping session alive.',
+          status ?? 'network error'
+        );
       }
     };
 
-    validate();
+    validateWithServer();
     return () => { cancelled = true; };
-    // Only run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Login ─────────────────────────────────────────────────────────────────────
+  // ── Login ─────────────────────────────────────────────────────────────────
   const login = useCallback(async (email: string, password: string) => {
     try {
       const response = await loginUser({ email, password });
@@ -139,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [navigate, showToast]);
 
-  // ── Logout ────────────────────────────────────────────────────────────────────
+  // ── Logout ────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     try {
       await logoutUser();
