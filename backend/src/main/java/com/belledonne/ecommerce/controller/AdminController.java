@@ -487,11 +487,11 @@ public class AdminController {
             }
         }
 
-        // When locked=true, filter to only currently-locked accounts (accountLockedUntil > NOW)
-        java.time.LocalDateTime lockedAfter = Boolean.TRUE.equals(locked) ? java.time.LocalDateTime.now() : null;
+        boolean isLocked = Boolean.TRUE.equals(locked);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<UserAdminResponse> usersPage = userRepository.findUsersWithMetrics(search.trim(), roleEnum, blocked, lockedAfter, pageable);
+        Page<UserAdminResponse> usersPage = userRepository.findUsersWithMetrics(search.trim(), roleEnum, blocked, isLocked, now, pageable);
 
         long totalCustomers = userRepository.countByRole(Role.ROLE_USER);
         long activeUsers = userRepository.countByIsBlockedFalseAndRole(Role.ROLE_USER);

@@ -34,7 +34,7 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
            ") FROM User u " +
            "WHERE (:role IS NULL OR u.role = :role) AND " +
            "(:blocked IS NULL OR u.isBlocked = :blocked) AND " +
-           "(:lockedAfter IS NULL OR (u.accountLockedUntil IS NOT NULL AND u.accountLockedUntil > :lockedAfter)) AND " +
+           "(:locked = false OR (u.accountLockedUntil IS NOT NULL AND u.accountLockedUntil > :now)) AND " +
            "(:search IS NULL OR :search = '' OR " +
            "LOWER(COALESCE(u.name, '')) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(COALESCE(u.email, '')) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
@@ -44,7 +44,8 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
         @Param("search") String search,
         @Param("role") com.belledonne.ecommerce.enums.Role role,
         @Param("blocked") Boolean blocked,
-        @Param("lockedAfter") LocalDateTime lockedAfter,
+        @Param("locked") boolean locked,
+        @Param("now") LocalDateTime now,
         Pageable pageable
     );
 
