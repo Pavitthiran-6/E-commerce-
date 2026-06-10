@@ -19,5 +19,6 @@ public class UserManagementResponse {
     private long totalCustomers;
     private long activeUsers;
     private long blockedUsers;
+    private long lockedUsers;
     private long totalAdministrators;
 }

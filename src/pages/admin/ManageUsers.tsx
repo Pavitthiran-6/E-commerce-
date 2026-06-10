@@ -162,9 +162,10 @@ export default function ManageUsers() {
   const [totalAdministrators, setTotalAdministrators] = useState(0);
   const [activeUsersCount, setActiveUsersCount] = useState(0);
   const [blockedUsersCount, setBlockedUsersCount] = useState(0);
+  const [lockedUsersCount, setLockedUsersCount] = useState(0);
 
   // Active tab state
-  const [activeTab, setActiveTab] = useState<'customers' | 'blocked' | 'admins'>('customers');
+  const [activeTab, setActiveTab] = useState<'customers' | 'locked' | 'blocked' | 'admins'>('customers');
 
   // Blocking Modal States
   const [blockingUser, setBlockingUser] = useState<User | null>(null);
@@ -197,9 +198,13 @@ export default function ManageUsers() {
     try {
       let roleParam = '';
       let blockedParam = '';
+      let lockedParam = '';
       if (tab === 'customers') {
         roleParam = '&role=ROLE_USER';
         blockedParam = '&blocked=false';
+      } else if (tab === 'locked') {
+        roleParam = '&role=ROLE_USER';
+        lockedParam = '&locked=true';
       } else if (tab === 'blocked') {
         roleParam = '&role=ROLE_USER';
         blockedParam = '&blocked=true';
@@ -207,7 +212,7 @@ export default function ManageUsers() {
         roleParam = '&role=ROLE_ADMIN';
       }
 
-      const res = await axiosInstance.get(`/api/admin/users?page=${p}&size=15&search=${encodeURIComponent(query)}${roleParam}${blockedParam}`);
+      const res = await axiosInstance.get(`/api/admin/users?page=${p}&size=15&search=${encodeURIComponent(query)}${roleParam}${blockedParam}${lockedParam}`);
       const data = res.data.data;
       setUsers(data.content || []);
       setTotalPages(data.totalPages || 1);
@@ -216,6 +221,7 @@ export default function ManageUsers() {
       setTotalAdministrators(data.totalAdministrators || 0);
       setActiveUsersCount(data.activeUsers || 0);
       setBlockedUsersCount(data.blockedUsers || 0);
+      setLockedUsersCount(data.lockedUsers || 0);
     } catch (err) {
       setError('Failed to load registered users. Please make sure the backend is running.');
       console.error(err);
@@ -228,7 +234,7 @@ export default function ManageUsers() {
     loadUsers(page, debouncedSearch, activeTab);
   }, [page, debouncedSearch, activeTab]);
 
-  const handleTabChange = (tab: 'customers' | 'blocked' | 'admins') => {
+  const handleTabChange = (tab: 'customers' | 'locked' | 'blocked' | 'admins') => {
     setActiveTab(tab);
     setPage(0);
   };
@@ -865,7 +871,7 @@ export default function ManageUsers() {
           </div>
 
           {/* Quick Stats Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Total Customers */}
             <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
               <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 text-xl flex-shrink-0">👥</div>
@@ -881,6 +887,30 @@ export default function ManageUsers() {
               <div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">Active Users</p>
                 <p className="text-xl font-black text-emerald-600 mt-1.5 leading-none">{activeUsersCount}</p>
+              </div>
+            </div>
+
+            {/* Locked Accounts — clickable, switches to locked tab */}
+            <div
+              className={`bg-white border rounded-2xl p-4 shadow-sm flex items-center gap-4 transition-all cursor-pointer ${
+                lockedUsersCount > 0
+                  ? 'border-amber-200 hover:shadow-md hover:border-amber-300 bg-amber-50/30'
+                  : 'border-gray-100 hover:shadow-md'
+              }`}
+              onClick={() => handleTabChange('locked')}
+              title="Click to view locked accounts"
+            >
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${
+                lockedUsersCount > 0 ? 'bg-amber-100 text-amber-600' : 'bg-gray-50 text-gray-400'
+              }`}>🔒</div>
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">Locked Accounts</p>
+                <p className={`text-xl font-black mt-1.5 leading-none ${
+                  lockedUsersCount > 0 ? 'text-amber-600' : 'text-gray-400'
+                }`}>{lockedUsersCount}</p>
+                {lockedUsersCount > 0 && (
+                  <p className="text-[9px] font-bold text-amber-500 mt-0.5 leading-none">Click to review →</p>
+                )}
               </div>
             </div>
 
@@ -930,12 +960,25 @@ export default function ManageUsers() {
                 👥 Customers
               </button>
               <button
+                onClick={() => handleTabChange('locked')}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all relative ${
+                  activeTab === 'locked' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-amber-700'
+                }`}
+              >
+                🔒 Locked
+                {lockedUsersCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 flex items-center justify-center bg-amber-500 text-white text-[9px] font-black rounded-full">
+                    {lockedUsersCount}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => handleTabChange('blocked')}
                 className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
                   activeTab === 'blocked' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
                 }`}
               >
-                🚫 Blocked Customers
+                🚫 Blocked
               </button>
               <button
                 onClick={() => handleTabChange('admins')}
@@ -962,6 +1005,15 @@ export default function ManageUsers() {
               </div>
             ) : (
               <div className="overflow-x-auto admin-sticky-head">
+                {activeTab === 'locked' && (
+                  <div className="px-5 py-3 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
+                    <span className="text-amber-600 text-sm">🔒</span>
+                    <p className="text-xs font-bold text-amber-700">
+                      These accounts are temporarily locked due to too many failed login attempts.
+                      Click <strong>Approve &amp; Unlock</strong> to allow the user to log in again immediately.
+                    </p>
+                  </div>
+                )}
                 <table className="w-full text-sm">
                   <thead>
                     {activeTab === 'admins' ? (
@@ -971,6 +1023,15 @@ export default function ManageUsers() {
                         <th className="px-5 py-4 whitespace-nowrap">Role</th>
                         <th className="px-5 py-4 whitespace-nowrap">Created Date</th>
                         <th className="px-5 py-4 whitespace-nowrap text-right">Actions</th>
+                      </tr>
+                    ) : activeTab === 'locked' ? (
+                      <tr className="text-left text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-amber-50/60 border-b border-amber-100">
+                        <th className="px-5 py-4 whitespace-nowrap">User</th>
+                        <th className="px-5 py-4 whitespace-nowrap">Email</th>
+                        <th className="px-5 py-4 whitespace-nowrap">Failed Attempts</th>
+                        <th className="px-5 py-4 whitespace-nowrap">Locked Until</th>
+                        <th className="px-5 py-4 whitespace-nowrap">Last Login</th>
+                        <th className="px-5 py-4 whitespace-nowrap text-right">Admin Action</th>
                       </tr>
                     ) : (
                       <tr className="text-left text-[11px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-100">
@@ -990,19 +1051,97 @@ export default function ManageUsers() {
                       Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
                     ) : users.length === 0 ? (
                       <tr>
-                        <td colSpan={activeTab === 'admins' ? 5 : 8} className="px-5 py-16 text-center">
-                          <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-gray-100">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-400">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-                            </svg>
+                        <td colSpan={activeTab === 'admins' ? 5 : activeTab === 'locked' ? 6 : 8} className="px-5 py-16 text-center">
+                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 border ${
+                            activeTab === 'locked' ? 'bg-amber-50 border-amber-100' : 'bg-gray-50 border-gray-100'
+                          }`}>
+                            {activeTab === 'locked' ? (
+                              <span className="text-2xl">✅</span>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-400">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                              </svg>
+                            )}
                           </div>
-                          <p className="text-sm font-bold text-gray-700">No users found</p>
-                          <p className="text-xs text-gray-400 mt-1">{search ? `No matches for "${search}"` : 'No accounts found.'}</p>
+                          <p className="text-sm font-bold text-gray-700">
+                            {activeTab === 'locked' ? 'No locked accounts 🎉' : 'No users found'}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {activeTab === 'locked'
+                              ? 'All accounts are currently accessible. No pending approvals.'
+                              : search ? `No matches for "${search}"` : 'No accounts found.'}
+                          </p>
                         </td>
                       </tr>
                     ) : (
                       users.map(user => {
-                        if (activeTab === 'admins') {
+                        if (activeTab === 'locked') {
+                          return (
+                            <tr key={user.id} className="bg-amber-50/30 hover:bg-amber-50/60 border-l-4 border-l-amber-400 transition-colors">
+                              {/* User */}
+                              <td className="px-5 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${getGradient(user.id)} flex items-center justify-center text-[12px] font-black text-white flex-shrink-0 shadow-sm ring-2 ring-amber-300`}>
+                                    {getInitials(user.name, user.email)}
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-gray-900 text-xs tracking-tight">{user.name || '(No name)'}</p>
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 mt-0.5">
+                                      <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
+                                      Account Locked
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+                              {/* Email */}
+                              <td className="px-5 py-4 text-gray-600 text-xs font-medium">{user.email}</td>
+                              {/* Failed Attempts */}
+                              <td className="px-5 py-4">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex gap-0.5">
+                                    {[1,2,3,4,5].map(i => (
+                                      <span key={i} className={`w-2 h-2 rounded-full ${
+                                        i <= 5 ? 'bg-amber-500' : 'bg-gray-200'
+                                      }`} />
+                                    ))}
+                                  </div>
+                                  <span className="text-xs font-black text-amber-700">5 / 5</span>
+                                </div>
+                                <p className="text-[10px] text-gray-400 mt-0.5">Max attempts reached</p>
+                              </td>
+                              {/* Locked Until */}
+                              <td className="px-5 py-4">
+                                <p className="text-xs font-bold text-rose-600">
+                                  {formatLockTime(user.lockedUntil)}
+                                </p>
+                                <p className="text-[10px] text-gray-400 mt-0.5">Auto-expires in 15 min</p>
+                              </td>
+                              {/* Last Login */}
+                              <td className="px-5 py-4 text-xs text-gray-400 font-medium">
+                                {formatRelativeTime(user.lastLoginAt)}
+                              </td>
+                              {/* Actions */}
+                              <td className="px-5 py-4 text-right whitespace-nowrap">
+                                <button
+                                  onClick={() => setDetailsUserId(user.id)}
+                                  className="text-xs font-bold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 transition-colors shadow-sm mr-2 cursor-pointer"
+                                >
+                                  View Details
+                                </button>
+                                <button
+                                  onClick={() => handleUnlock(user)}
+                                  className="text-xs font-black px-4 py-1.5 rounded-xl border-2 border-amber-400 text-amber-800 bg-amber-100 hover:bg-amber-200 hover:border-amber-500 transition-all shadow-sm cursor-pointer inline-flex items-center gap-1.5"
+                                  title="Approve & Unlock — allow this user to log in immediately"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                                    <path fillRule="evenodd" d="M14.5 1A4.5 4.5 0 0 0 10 5.5V9H3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1.5V5.5a3 3 0 1 1 6 0v2.75a.75.75 0 0 0 1.5 0V5.5A4.5 4.5 0 0 0 14.5 1Z" clipRule="evenodd" />
+                                  </svg>
+                                  Approve &amp; Unlock
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        } else if (activeTab === 'admins') {
                           return (
                             <tr key={user.id} className="bg-purple-50/10 hover:bg-purple-50/20 border-l-2 border-l-purple-500 transition-colors">
                               <td className="px-5 py-4">

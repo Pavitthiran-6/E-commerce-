@@ -474,6 +474,7 @@ public class AdminController {
         @RequestParam(defaultValue = "") String search,
         @RequestParam(required = false) String role,
         @RequestParam(required = false) Boolean blocked,
+        @RequestParam(required = false) Boolean locked,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "15") int size) {
 
@@ -486,12 +487,16 @@ public class AdminController {
             }
         }
 
+        // When locked=true, filter to only currently-locked accounts (accountLockedUntil > NOW)
+        java.time.LocalDateTime lockedAfter = Boolean.TRUE.equals(locked) ? java.time.LocalDateTime.now() : null;
+
         Pageable pageable = PageRequest.of(page, size);
-        Page<UserAdminResponse> usersPage = userRepository.findUsersWithMetrics(search.trim(), roleEnum, blocked, pageable);
+        Page<UserAdminResponse> usersPage = userRepository.findUsersWithMetrics(search.trim(), roleEnum, blocked, lockedAfter, pageable);
 
         long totalCustomers = userRepository.countByRole(Role.ROLE_USER);
         long activeUsers = userRepository.countByIsBlockedFalseAndRole(Role.ROLE_USER);
         long blockedUsers = userRepository.countByIsBlockedTrueAndRole(Role.ROLE_USER);
+        long lockedUsers = userRepository.countByAccountLockedUntilAfter(java.time.LocalDateTime.now());
         long totalAdministrators = userRepository.countByRole(Role.ROLE_ADMIN);
 
         com.belledonne.ecommerce.dto.response.UserManagementResponse response =
@@ -504,11 +509,13 @@ public class AdminController {
                 .totalCustomers(totalCustomers)
                 .activeUsers(activeUsers)
                 .blockedUsers(blockedUsers)
+                .lockedUsers(lockedUsers)
                 .totalAdministrators(totalAdministrators)
                 .build();
 
         return ResponseEntity.ok(ApiResponse.success("Users fetched successfully", response));
     }
+
 
     @GetMapping("/users/{id}")
     @Operation(summary = "Get full user details — addresses, orders, wishlist, cart")
