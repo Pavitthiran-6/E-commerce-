@@ -399,7 +399,7 @@ public class AuthService {
                 }
 
                 // If user exists, check provider
-                if (user.getAuthProvider() == AuthProvider.LOCAL) {
+                if (user.getAuthProvider() == null || user.getAuthProvider() == AuthProvider.LOCAL) {
                     // Link to Google
                     user.setAuthProvider(AuthProvider.GOOGLE);
                     user.setGoogleId(googleId);

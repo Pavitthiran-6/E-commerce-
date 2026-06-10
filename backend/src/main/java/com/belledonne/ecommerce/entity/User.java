@@ -50,7 +50,7 @@ public class User {
     private Role role = Role.ROLE_USER;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "auth_provider", nullable = false, length = 20)
+    @Column(name = "auth_provider", nullable = true, length = 20)
     @Builder.Default
     private AuthProvider authProvider = AuthProvider.LOCAL;
 
