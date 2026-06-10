@@ -122,3 +122,20 @@ UPDATE orders SET stock_restored = FALSE WHERE stock_restored IS NULL;
 
 UPDATE users SET failed_login_attempts = 0 WHERE failed_login_attempts IS NULL;
 UPDATE users SET is_blocked = FALSE WHERE is_blocked IS NULL;
+
+-- =============================================================================
+-- 5. Google Login Schema Upgrades
+-- =============================================================================
+
+-- Add Google authentication provider fields
+ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) DEFAULT 'LOCAL';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255);
+
+-- Make password nullable for passwordless Google users
+ALTER TABLE users ALTER COLUMN password DROP NOT NULL;
+
+-- Create unique index on google_id
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL;
+
+-- Backfill auth_provider
+UPDATE users SET auth_provider = 'LOCAL' WHERE auth_provider IS NULL;

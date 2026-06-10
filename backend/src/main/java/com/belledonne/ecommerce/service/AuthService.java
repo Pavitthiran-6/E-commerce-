@@ -24,6 +24,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.belledonne.ecommerce.exception.UnauthorizedException;
 import com.belledonne.ecommerce.enums.SecurityAction;
+import com.belledonne.ecommerce.enums.AuthProvider;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import org.springframework.beans.factory.annotation.Value;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -43,6 +49,9 @@ public class AuthService {
     private final SecurityAuditService securityAuditService;
     private final PendingRegistrationService pendingRegistrationService;
     private final HttpServletRequest request;
+
+    @Value("${google.client.id}")
+    private String googleClientId;
 
     public String refreshToken(String refreshToken) {
         String ip = SecurityAuditService.getClientIp(this.request);
@@ -346,6 +355,100 @@ public class AuthService {
         
         // Send password reset success email via Brevo
         emailService.sendPasswordResetSuccessEmail(user.getEmail(), user.getName());
+    }
+
+    public AuthResponse googleLogin(GoogleLoginRequest request) {
+        String ip = SecurityAuditService.getClientIp(this.request);
+        String ua = this.request.getHeader("User-Agent");
+
+        try {
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
+                .setAudience(java.util.Collections.singletonList(googleClientId))
+                .build();
+
+            GoogleIdToken idToken = verifier.verify(request.getIdToken());
+            if (idToken == null) {
+                securityAuditService.log(null, null, SecurityAction.GOOGLE_LOGIN_FAILED, ip, ua, "FAILED", "Invalid Google ID token");
+                throw new BadRequestException("Invalid Google ID token");
+            }
+
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            String email = payload.getEmail();
+            String googleId = payload.getSubject(); // Unique Google user ID (sub)
+            String name = (String) payload.get("name");
+            boolean emailVerified = Boolean.TRUE.equals(payload.getEmailVerified());
+
+            if (!emailVerified) {
+                securityAuditService.log(null, email, SecurityAction.GOOGLE_LOGIN_FAILED, ip, ua, "FAILED", "Google email is not verified");
+                throw new BadRequestException("Google email is not verified");
+            }
+
+            // Find user by email
+            User user = userRepository.findByEmail(email).orElse(null);
+
+            if (user != null) {
+                // Check if blocked or locked
+                if (user.getIsBlocked() != null && user.getIsBlocked()) {
+                    securityAuditService.log(user.getId(), user.getEmail(), SecurityAction.GOOGLE_LOGIN_FAILED, ip, ua, "FAILED", "User account is blocked");
+                    throw new UnauthorizedException("User account is blocked");
+                }
+                if (loginLockoutService.isLocked(user)) {
+                    LocalDateTime lockedUntil = loginLockoutService.getLockedUntil(user);
+                    securityAuditService.log(user.getId(), user.getEmail(), SecurityAction.GOOGLE_LOGIN_FAILED, ip, ua, "FAILED", "Account is locked until " + lockedUntil);
+                    throw new AccountLockedException(lockedUntil);
+                }
+
+                // If user exists, check provider
+                if (user.getAuthProvider() == AuthProvider.LOCAL) {
+                    // Link to Google
+                    user.setAuthProvider(AuthProvider.GOOGLE);
+                    user.setGoogleId(googleId);
+                    user.setIsEmailVerified(true);
+                    userRepository.save(user);
+                    securityAuditService.log(user.getId(), user.getEmail(), SecurityAction.GOOGLE_ACCOUNT_LINKED, ip, ua, "SUCCESS", "Linked local account with Google authentication");
+                } else if (user.getGoogleId() == null) {
+                    // Update Google ID if it was somehow missing
+                    user.setGoogleId(googleId);
+                    userRepository.save(user);
+                }
+                
+                // Reset lockout state
+                loginLockoutService.resetLockout(user);
+            } else {
+                // User does not exist, create new Google user
+                user = User.builder()
+                    .name(name)
+                    .email(email)
+                    .googleId(googleId)
+                    .authProvider(AuthProvider.GOOGLE)
+                    .isEmailVerified(true)
+                    .build();
+                userRepository.save(user);
+                securityAuditService.log(user.getId(), user.getEmail(), SecurityAction.GOOGLE_LOGIN_SUCCESS, ip, ua, "SUCCESS", "New user registered via Google");
+            }
+
+            // Log successful login
+            securityAuditService.log(user.getId(), user.getEmail(), SecurityAction.GOOGLE_LOGIN_SUCCESS, ip, ua, "SUCCESS", "Logged in successfully via Google");
+
+            user.setLastLoginAt(LocalDateTime.now());
+            userRepository.save(user);
+
+            // Generate authenticated session
+            UserDetails userDetails = UserPrincipal.create(user);
+            Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+            return AuthResponse.builder()
+                .accessToken(tokenProvider.generateAccessToken(auth))
+                .refreshToken(tokenProvider.generateRefreshToken(auth))
+                .user(toUserResponse(user))
+                .build();
+
+        } catch (AccountLockedException | UnauthorizedException | BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            securityAuditService.log(null, null, SecurityAction.GOOGLE_LOGIN_FAILED, ip, ua, "FAILED", "Google token verification failed: " + e.getMessage());
+            throw new BadRequestException("Google login failed: " + e.getMessage());
+        }
     }
 
     public UserResponse toUserResponse(User user) {

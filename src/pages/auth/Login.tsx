@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { LoadingButton } from '../../components/LoadingButton';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const { login, loginWithGoogle } = useAuth();
+  const { showToast } = useToast();
 
   // Scroll to top on mount
   useEffect(() => {
@@ -48,6 +52,7 @@ export default function Login() {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full border-b-2 border-outline-variant/50 pb-2 text-sm focus:outline-none focus:border-primary transition-colors bg-transparent placeholder-on-surface-variant/50"
             required
+            disabled={isLoading || isGoogleLoading}
           />
         </div>
 
@@ -68,17 +73,51 @@ export default function Login() {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full border-b-2 border-outline-variant/50 pb-2 text-sm focus:outline-none focus:border-primary transition-colors bg-transparent placeholder-on-surface-variant/50"
             required
+            disabled={isLoading || isGoogleLoading}
           />
         </div>
 
         <LoadingButton 
           type="submit" 
           loading={isLoading}
+          disabled={isGoogleLoading}
           className="w-full bg-primary text-white font-button text-button uppercase py-4 mt-4 hover:bg-primary/90 transition-colors duration-400 ease-in-out tracking-[0.1em] flex justify-center items-center h-14"
         >
           Log In
         </LoadingButton>
       </form>
+
+      <div className="flex items-center my-6">
+        <div className="flex-1 border-t border-outline-variant/30"></div>
+        <span className="px-4 font-body-sm text-xs text-on-surface-variant uppercase tracking-widest">or</span>
+        <div className="flex-1 border-t border-outline-variant/30"></div>
+      </div>
+
+      <div className="flex justify-center w-full">
+        <div className="w-full max-w-sm">
+          <GoogleLogin
+            onSuccess={async (credentialResponse) => {
+              if (credentialResponse.credential) {
+                setIsGoogleLoading(true);
+                try {
+                  await loginWithGoogle(credentialResponse.credential);
+                } catch (error) {
+                  // Toast notifications handled by AuthContext
+                } finally {
+                  setIsGoogleLoading(false);
+                }
+              }
+            }}
+            onError={() => {
+              showToast('Google authentication failed', 'error');
+            }}
+            text="continue_with"
+            theme="outline"
+            size="large"
+            width="100%"
+          />
+        </div>
+      </div>
 
       <div className="mt-8 text-center border-t border-outline-variant/30 pt-6">
         <p className="font-body-sm text-on-surface-variant">

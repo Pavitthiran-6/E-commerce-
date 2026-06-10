@@ -61,6 +61,12 @@ export const resetPassword = async (data: {
   return response.data;
 };
 
+// Google Login
+export const googleLogin = async (idToken: string) => {
+  const response = await axiosInstance.post(ENDPOINTS.GOOGLE_LOGIN, { idToken });
+  return response.data;
+};
+
 // Logout
 export const logoutUser = async () => {
   const response = await axiosInstance.post(ENDPOINTS.LOGOUT);

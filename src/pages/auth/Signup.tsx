@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { LoadingButton } from '../../components/LoadingButton';
 import { registerUser } from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 
 const validatePassword = (pwd: string) => {
   const minLength = 8;
@@ -16,6 +18,7 @@ const validatePassword = (pwd: string) => {
 export default function Signup() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { loginWithGoogle } = useAuth();
   
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -24,6 +27,7 @@ export default function Signup() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // Scroll to top on mount
   useEffect(() => {
@@ -77,6 +81,7 @@ export default function Signup() {
               onChange={(e) => setFirstName(e.target.value)}
               className="w-full border-b-2 border-outline-variant/50 pb-2 text-sm focus:outline-none focus:border-primary transition-colors bg-transparent placeholder-on-surface-variant/50"
               required
+              disabled={isLoading || isGoogleLoading}
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -91,6 +96,7 @@ export default function Signup() {
               onChange={(e) => setLastName(e.target.value)}
               className="w-full border-b-2 border-outline-variant/50 pb-2 text-sm focus:outline-none focus:border-primary transition-colors bg-transparent placeholder-on-surface-variant/50"
               required
+              disabled={isLoading || isGoogleLoading}
             />
           </div>
         </div>
@@ -107,6 +113,7 @@ export default function Signup() {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full border-b-2 border-outline-variant/50 pb-2 text-sm focus:outline-none focus:border-primary transition-colors bg-transparent placeholder-on-surface-variant/50"
             required
+            disabled={isLoading || isGoogleLoading}
           />
         </div>
 
@@ -122,6 +129,7 @@ export default function Signup() {
             onChange={(e) => setPhone(e.target.value)}
             className="w-full border-b-2 border-outline-variant/50 pb-2 text-sm focus:outline-none focus:border-primary transition-colors bg-transparent placeholder-on-surface-variant/50"
             required
+            disabled={isLoading || isGoogleLoading}
           />
         </div>
 
@@ -137,6 +145,7 @@ export default function Signup() {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full border-b-2 border-outline-variant/50 pb-2 text-sm focus:outline-none focus:border-primary transition-colors bg-transparent placeholder-on-surface-variant/50"
             required
+            disabled={isLoading || isGoogleLoading}
           />
           {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
         </div>
@@ -144,11 +153,44 @@ export default function Signup() {
         <LoadingButton 
           type="submit" 
           loading={isLoading}
+          disabled={isGoogleLoading}
           className="w-full bg-primary text-white font-button text-button uppercase py-4 mt-4 hover:bg-primary/90 transition-colors duration-400 ease-in-out tracking-[0.1em] flex justify-center items-center h-14"
         >
           Create Account
         </LoadingButton>
       </form>
+
+      <div className="flex items-center my-6">
+        <div className="flex-1 border-t border-outline-variant/30"></div>
+        <span className="px-4 font-body-sm text-xs text-on-surface-variant uppercase tracking-widest">or</span>
+        <div className="flex-1 border-t border-outline-variant/30"></div>
+      </div>
+
+      <div className="flex justify-center w-full">
+        <div className="w-full max-w-sm">
+          <GoogleLogin
+            onSuccess={async (credentialResponse) => {
+              if (credentialResponse.credential) {
+                setIsGoogleLoading(true);
+                try {
+                  await loginWithGoogle(credentialResponse.credential);
+                } catch (error) {
+                  // Toast notifications handled by AuthContext
+                } finally {
+                  setIsGoogleLoading(false);
+                }
+              }
+            }}
+            onError={() => {
+              showToast('Google authentication failed', 'error');
+            }}
+            text="continue_with"
+            theme="outline"
+            size="large"
+            width="100%"
+          />
+        </div>
+      </div>
 
       <div className="mt-8 text-center border-t border-outline-variant/30 pt-6">
         <p className="font-body-sm text-on-surface-variant">

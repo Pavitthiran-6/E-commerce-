@@ -1,6 +1,7 @@
 package com.belledonne.ecommerce.entity;
 
 import com.belledonne.ecommerce.enums.Role;
+import com.belledonne.ecommerce.enums.AuthProvider;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -30,7 +31,7 @@ public class User {
     @Column(unique = true, nullable = false, length = 255)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    @Column(length = 255)
     @com.fasterxml.jackson.annotation.JsonIgnore
     private String password;
 
@@ -47,6 +48,14 @@ public class User {
     @Column(length = 20)
     @Builder.Default
     private Role role = Role.ROLE_USER;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false, length = 20)
+    @Builder.Default
+    private AuthProvider authProvider = AuthProvider.LOCAL;
+
+    @Column(name = "google_id", length = 255, unique = true)
+    private String googleId;
 
     @Column(name = "is_email_verified")
     @Builder.Default

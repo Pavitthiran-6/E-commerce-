@@ -74,6 +74,16 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Login successful", authResponse));
     }
 
+    @PostMapping("/google")
+    @Operation(summary = "Google OAuth login/signup", description = "Verify Google ID Token, login/signup user, and return JWT token")
+    public ResponseEntity<ApiResponse<?>> googleLogin(@Valid @RequestBody GoogleLoginRequest request, HttpServletResponse response) {
+        AuthResponse authResponse = authService.googleLogin(request);
+        if (authResponse.getRefreshToken() != null) {
+            setRefreshTokenCookie(response, authResponse.getRefreshToken());
+        }
+        return ResponseEntity.ok(ApiResponse.success("Login successful", authResponse));
+    }
+
     @PostMapping({"/refresh", "/refresh-token"})
     @Operation(summary = "Refresh access token", description = "Generate a new short-lived access token using refresh token")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Token refreshed successfully")

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser, logoutUser } from '../services/authService';
+import { loginUser, logoutUser, googleLogin } from '../services/authService';
 import { useToast } from './ToastContext';
 import { extractNameFromEmail } from '../utils/extractNameFromEmail';
 import axiosInstance, { isTokenExpired } from '../api/axiosInstance';
@@ -17,6 +17,7 @@ interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   isLoggedIn: boolean;
   userInitial: string;
@@ -171,6 +172,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [navigate, showToast]);
 
+  // ── Login with Google ──────────────────────────────────────────────────────
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    try {
+      const response = await googleLogin(idToken);
+      const { accessToken, refreshToken, user: userData } = response.data;
+
+      const loggedInUser: AuthUser = { ...userData, token: accessToken, refreshToken };
+
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(loggedInUser));
+      setUser(loggedInUser);
+      window.dispatchEvent(new CustomEvent('belledonne:login'));
+      showToast('Welcome back! 👋', 'success');
+
+      const redirectPath = localStorage.getItem('redirectAfterLogin');
+      localStorage.removeItem('redirectAfterLogin');
+
+      if (redirectPath) {
+        navigate(redirectPath);
+      } else if (loggedInUser.role === 'ROLE_ADMIN') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Google login failed. Please try again.';
+      showToast(message, 'error');
+      throw error;
+    }
+  }, [navigate, showToast]);
+
   // ── Logout ────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     try {
@@ -190,7 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     : (user?.email ? user.email.charAt(0).toUpperCase() : '');
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoggedIn, userInitial, userName }}>
+    <AuthContext.Provider value={{ user, login, loginWithGoogle, logout, isLoggedIn, userInitial, userName }}>
       {children}
     </AuthContext.Provider>
   );
