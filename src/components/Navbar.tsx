@@ -292,38 +292,12 @@ export default function Navbar() {
                     </button>
                   </div>
                 ) : (
-                  <>
-                    <button
-                      onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                      className="w-8 h-8 rounded-full bg-[#0C831F] text-white flex items-center justify-center font-bold text-sm hover:bg-[#0A6B19] transition-colors"
-                    >
-                      {userInitial}
-                    </button>
-                    {profileDropdownOpen && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setProfileDropdownOpen(false)} />
-                        <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden py-1">
-                          <Link to="/profile/details" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium" onClick={() => setProfileDropdownOpen(false)}>
-                            👤 My Profile
-                          </Link>
-                          <Link to="/profile/orders" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium" onClick={() => setProfileDropdownOpen(false)}>
-                            📦 My Orders
-                          </Link>
-                          <Link to="/profile/addresses" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium" onClick={() => setProfileDropdownOpen(false)}>
-                            📍 Saved Addresses
-                          </Link>
-                          <Link to="/wishlist" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 font-medium" onClick={() => setProfileDropdownOpen(false)}>
-                            ❤️ Wishlist ({wishlistCount})
-                          </Link>
-                          <div className="border-t border-gray-100 mt-1 pt-1">
-                            <button onClick={() => { logout(); setProfileDropdownOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 font-medium">
-                              🚪 Logout
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </>
+                  <Link
+                    to="/profile"
+                    className="w-8 h-8 rounded-full bg-[#0C831F] text-white flex items-center justify-center font-bold text-sm hover:bg-[#0A6B19] transition-colors"
+                  >
+                    {userInitial}
+                  </Link>
                 )
               ) : (
                 <Link to="/login" className="text-sm font-semibold text-gray-700 hover:text-[#0C831F] transition-colors">
