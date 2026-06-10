@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
@@ -130,6 +132,7 @@ public class LoginLockoutService {
      * - Sends email notification (exactly once).
      * Returns true if the account becomes locked.
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean recordLoginFailure(User user) {
         int attempts;
         if (redisTemplate != null) {
@@ -204,6 +207,7 @@ public class LoginLockoutService {
     /**
      * Resets failed login attempts and clears lockout.
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void resetLockout(User user) {
         boolean wasLocked = isLocked(user);
 
