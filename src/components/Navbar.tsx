@@ -332,7 +332,7 @@ export default function Navbar() {
               )}
             </div>
 
-            {isLoggedIn && <NotificationBell />}
+            {isLoggedIn && user?.role === 'ROLE_ADMIN' && <NotificationBell />}
 
             {/* Wishlist (desktop) */}
             <Link to="/wishlist" className="relative hidden md:flex p-2 text-gray-600 hover:text-[#E53935] transition-colors" aria-label="Wishlist">
