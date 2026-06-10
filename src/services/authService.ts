@@ -67,8 +67,21 @@ export const googleLogin = async (idToken: string) => {
   return response.data;
 };
 
-// Logout
+// Logout — send refreshToken in body as a fallback alongside the HttpOnly cookie.
+// The backend reads the cookie first; if missing (e.g. cross-origin cookie blocked),
+// it falls back to the body token to ensure the refresh token is always blacklisted.
 export const logoutUser = async () => {
-  const response = await axiosInstance.post(ENDPOINTS.LOGOUT);
+  let body: Record<string, string> = {};
+  try {
+    const raw = localStorage.getItem('auth_user');
+    if (raw) {
+      const user = JSON.parse(raw);
+      if (user?.refreshToken) {
+        body = { refreshToken: user.refreshToken };
+      }
+    }
+  } catch { /* ignore — the cookie will still be sent */ }
+
+  const response = await axiosInstance.post(ENDPOINTS.LOGOUT, body);
   return response.data;
 };

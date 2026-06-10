@@ -39,8 +39,8 @@ public class TokenBlacklistService {
     @Nullable
     private final StringRedisTemplate redisTemplate;
 
-    /** TTL for blacklisted tokens — should match jwt.refresh-token-expiry (default 7 days). */
-    @Value("${jwt.refresh-token-expiry:604800000}")
+    /** TTL for blacklisted tokens — must match jwt.refresh-token-expiry (default 30 days). */
+    @Value("${jwt.refresh-token-expiry:2592000000}")
     private long refreshTokenExpiryMs;
 
     /** In-memory fallback — only used when Redis is not available. */

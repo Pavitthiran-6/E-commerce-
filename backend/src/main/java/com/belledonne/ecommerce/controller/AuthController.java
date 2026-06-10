@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -112,8 +113,25 @@ public class AuthController {
     @Operation(summary = "Logout user", description = "Invalidate refresh token and clear HTTP cookie")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Logout successful")
     public ResponseEntity<ApiResponse<?>> logout(
-        @CookieValue(name = "refreshToken", required = false) String refreshToken,
+        @CookieValue(name = "refreshToken", required = false) String cookieRefreshToken,
+        @RequestBody(required = false) Map<String, String> body,
         HttpServletResponse response) {
+
+        // Prefer the token from the request body (sent by frontend alongside the cookie).
+        // Fall back to the cookie if the body token is absent.
+        // This handles cases where SameSite/cross-origin rules prevent the cookie from
+        // being sent automatically (e.g. different subdomains).
+        String refreshToken = null;
+        if (body != null) {
+            String bodyToken = body.get("refreshToken");
+            if (bodyToken != null && !bodyToken.isBlank()) {
+                refreshToken = bodyToken;
+            }
+        }
+        if (refreshToken == null && cookieRefreshToken != null && !cookieRefreshToken.isBlank()) {
+            refreshToken = cookieRefreshToken;
+        }
+
         authService.logout(refreshToken);
         clearRefreshTokenCookie(response);
         return ResponseEntity.ok(ApiResponse.success("Logout successful"));
@@ -145,7 +163,7 @@ public class AuthController {
             .httpOnly(true)
             .secure(cookieSecure)  // Set COOKIE_SECURE=false only for local HTTP development
             .path("/")
-            .maxAge(7 * 24 * 60 * 60) // 7 days
+            .maxAge(30 * 24 * 60 * 60) // 30 days — must match jwt.refresh-token-expiry
             .sameSite("Strict")
             .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());

@@ -36,8 +36,14 @@ public class CorsConfig {
         config.setAllowedMethods(Arrays.asList(
             "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
         ));
-        // Allow all headers
-        config.setAllowedHeaders(List.of("*"));
+        // Explicitly list allowed request headers — avoid wildcard with allowCredentials
+        // since some browsers (Safari, older Chrome) reject it
+        config.setAllowedHeaders(Arrays.asList(
+            "Authorization", "Content-Type", "Accept", "Origin",
+            "X-Requested-With", "Cache-Control"
+        ));
+        // Expose Set-Cookie so browser can process refreshToken cookie in cross-origin responses
+        config.setExposedHeaders(Arrays.asList("Set-Cookie"));
         // Allow cookies and Authorization header
         config.setAllowCredentials(true);
         // Cache preflight for 1 hour

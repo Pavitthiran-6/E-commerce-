@@ -148,7 +148,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await loginUser({ email, password });
       const { accessToken, refreshToken, user: userData } = response.data;
 
-      const loggedInUser: AuthUser = { ...userData, token: accessToken, refreshToken };
+      // Guard: if refreshToken is missing, the session will not auto-refresh.
+      // Root cause is usually @JsonIgnore on AuthResponse.refreshToken — check backend.
+      if (!refreshToken) {
+        console.error(
+          '[Auth] ⚠️ Login response is missing refreshToken. ' +
+          'Ensure @JsonIgnore is NOT present on AuthResponse.refreshToken in the backend. ' +
+          'User will be logged out when the access token expires.'
+        );
+      }
+
+      const loggedInUser: AuthUser = {
+        ...userData,
+        id: userData?.id ? String(userData.id) : undefined,
+        token: accessToken,
+        refreshToken,
+      };
 
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(loggedInUser));
       setUser(loggedInUser);
@@ -178,7 +193,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await googleLogin(idToken);
       const { accessToken, refreshToken, user: userData } = response.data;
 
-      const loggedInUser: AuthUser = { ...userData, token: accessToken, refreshToken };
+      // Guard: same as above — refreshToken must be present for auto-refresh to work.
+      if (!refreshToken) {
+        console.error(
+          '[Auth] ⚠️ Google login response is missing refreshToken. ' +
+          'Ensure @JsonIgnore is NOT present on AuthResponse.refreshToken in the backend.'
+        );
+      }
+
+      const loggedInUser: AuthUser = {
+        ...userData,
+        id: userData?.id ? String(userData.id) : undefined,
+        token: accessToken,
+        refreshToken,
+      };
 
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(loggedInUser));
       setUser(loggedInUser);

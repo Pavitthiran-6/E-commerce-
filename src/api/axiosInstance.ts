@@ -64,8 +64,10 @@ export function isProtectedRoute(pathname: string): boolean {
 const refreshInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: REQUEST_TIMEOUT_MS,
+  withCredentials: true,  // Required so the browser sends the refreshToken HttpOnly cookie
   headers: { 'Content-Type': 'application/json' },
 });
+
 
 // --------------------------------------------------------------------------
 // Shared Refresh Lock — prevents parallel refresh requests
@@ -103,11 +105,13 @@ async function getOrRefreshAccessToken(): Promise<string | null> {
   // Token still valid — return immediately
   if (!isTokenExpired(token)) return token;
 
-  // Token expired but no refresh token — clear session
+  // Token expired but no refresh token in localStorage.
+  // IMPORTANT: Do NOT clear the session here — the backend can still
+  // read the refreshToken from the HttpOnly cookie. We fall through
+  // to the refresh attempt below (sending an empty body) and let the
+  // backend decide whether the session is truly over.
   if (!refreshToken) {
-    localStorage.removeItem('auth_user');
-    window.dispatchEvent(new CustomEvent('auth:logout'));
-    return null;
+    console.warn('[Auth] refreshToken not in localStorage — will attempt cookie-based refresh.');
   }
 
   // Reuse an already-in-flight refresh if one exists
@@ -115,11 +119,20 @@ async function getOrRefreshAccessToken(): Promise<string | null> {
 
   refreshPromise = (async (): Promise<string | null> => {
     try {
-      const response = await refreshInstance.post('/api/auth/refresh', { refreshToken });
+      // Send the token in the body when we have it (fastest path);
+      // if absent, the backend will fall back to the HttpOnly cookie.
+      const body = refreshToken ? { refreshToken } : {};
+      const response = await refreshInstance.post('/api/auth/refresh', body);
       const newAccessToken: string = response.data?.data?.accessToken;
 
-      // Persist the new token and notify the UI
+      if (!newAccessToken) throw new Error('No accessToken in refresh response');
+
+      // Persist the new access token and, if rotation returned a new refresh
+      // token, persist that too so future refreshes don't need the cookie.
       user.token = newAccessToken;
+      if (response.data?.data?.refreshToken) {
+        user.refreshToken = response.data.data.refreshToken;
+      }
       localStorage.setItem('auth_user', JSON.stringify(user));
       window.dispatchEvent(new CustomEvent('auth:update', { detail: user }));
       return newAccessToken;
@@ -130,6 +143,7 @@ async function getOrRefreshAccessToken(): Promise<string | null> {
         // Refresh token is definitively invalid — clear the session
         localStorage.removeItem('auth_user');
         window.dispatchEvent(new CustomEvent('auth:logout'));
+        return null;
       }
       // For network errors, 5xx from the refresh endpoint, etc., we do NOT
       // log the user out.  We return the stale token so the original request
@@ -150,8 +164,10 @@ async function getOrRefreshAccessToken(): Promise<string | null> {
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: REQUEST_TIMEOUT_MS,
+  withCredentials: true,  // Required so the browser sends the refreshToken HttpOnly cookie
   headers: { 'Content-Type': 'application/json' },
 });
+
 
 // --------------------------------------------------------------------------
 // Request Interceptor — proactive refresh & attach JWT
