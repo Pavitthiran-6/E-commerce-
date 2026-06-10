@@ -20,7 +20,6 @@ public class RateLimitConfig implements WebMvcConfigurer {
         // POST /api/auth/verify-otp      — OTP brute-force protection
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns(
-                    "/api/auth/login",
                     "/api/auth/forgot-password",
                     "/api/auth/reset-password",
                     "/api/auth/verify-otp",
