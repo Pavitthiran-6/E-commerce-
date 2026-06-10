@@ -9,6 +9,8 @@ import ScrollToTop from './components/common/ScrollToTop'
 import { ErrorBoundary } from './ErrorBoundary'
 import './index.css'
 
+console.log("Google Client ID:", import.meta.env.VITE_GOOGLE_CLIENT_ID);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
