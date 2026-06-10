@@ -187,7 +187,6 @@ export default function Signup() {
             text="continue_with"
             theme="outline"
             size="large"
-            width="100%"
           />
         </div>
       </div>
