@@ -55,11 +55,11 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
       <>
         {/* Top Part: Category & Discount Badge */}
         <div className="w-full">
-          <span className="text-[10px] sm:text-xs md:text-sm font-black tracking-widest text-amber-800 uppercase block mb-1">
+          <span className="text-xs sm:text-sm md:text-base lg:text-lg font-black tracking-widest text-amber-800 uppercase block mb-1">
             SUMMER DEALS
           </span>
           {featuredDiscountPercentage > 0 && (
-            <span className="inline-block bg-amber-100 text-amber-800 text-[10px] sm:text-xs md:text-xs font-bold px-2 py-0.5 rounded-full mb-1">
+            <span className="inline-block bg-amber-100 text-amber-800 text-[10px] sm:text-xs md:text-xs font-bold px-2.5 py-0.5 rounded-full mb-1">
               {featuredDiscountPercentage}% OFF
             </span>
           )}
