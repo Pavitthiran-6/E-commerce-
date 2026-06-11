@@ -179,36 +179,77 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
         )}
 
         {/* Title badge & date */}
-        <div className="relative z-10 space-y-0 max-w-lg">
-          <div className="flex flex-col items-center gap-1">
-            <h1
-              className="text-5xl md:text-8xl lg:text-9xl font-black tracking-tighter uppercase leading-none select-none"
+        <div className="relative z-10 flex flex-col items-center">
+          {/* HOUSEFULL - 3D extruded text */}
+          <h1
+            className="select-none uppercase leading-none font-black text-center"
+            style={{
+              fontFamily: "'Impact', 'Haettenschweiler', 'Arial Narrow Bold', sans-serif",
+              fontSize: 'clamp(4rem, 14vw, 13rem)',
+              color: '#FFFFFF',
+              letterSpacing: '-0.02em',
+              lineHeight: '0.9',
+              transform: 'perspective(500px) rotateX(5deg)',
+              textShadow: `
+                0px 1px 0 #000, 0px 2px 0 #000, 0px 3px 0 #000, 0px 4px 0 #000,
+                0px 5px 0 #000, 0px 6px 0 #000, 0px 7px 0 #000, 0px 8px 0 #000,
+                0px 9px 0 #000, 0px 10px 0 #000, 0px 11px 0 #000, 0px 12px 0 #000,
+                0px 13px 0 #000, 0px 14px 0 #000, 0px 15px 0 #000, 0px 16px 0 #000,
+                0px 17px 0 #000, 0px 18px 0 #000, 0px 19px 0 #000, 0px 20px 0 #000,
+                0px 21px 0 #000, 0px 22px 0 #000, 0px 23px 0 #000, 0px 24px 0 #000,
+                0px 25px 0 #000, 0px 26px 0 #000, 0px 27px 0 #000, 0px 28px 0 #000,
+                0px 29px 0 #000, 0px 30px 0 #000, 0px 31px 0 #000, 0px 32px 0 #000,
+                0px 33px 0 #000, 0px 34px 0 #000, 0px 35px 0 #000, 0px 36px 0 #000,
+                0px 37px 0 #000, 0px 38px 0 #000, 0px 39px 0 #000, 0px 40px 0 #000,
+                0px 41px 0 #000, 0px 42px 0 #000, 0px 43px 0 #000, 0px 44px 0 #000,
+                0px 45px 0 #000, 0px 46px 0 #000, 0px 47px 0 #000, 0px 48px 0 #000,
+                0px 49px 0 #000, 0px 50px 0 #000, 0px 55px 0 #000, 0px 60px 0 #000,
+                0px 65px 0 #000, 0px 70px 0 #000, 0px 75px 0 #000, 0px 80px 0 #000
+              `,
+            }}
+          >
+            {title}
+          </h1>
+
+          {/* SALE badge — yellow pill with black border + 3D box shadow, overlapping HOUSEFULL */}
+          {badge && (
+            <div
               style={{
-                color: '#FFFFFF',
-                WebkitTextStroke: '3px #1A1A1A',
-                textShadow: '4px 4px 0px #1A1A1A, -1px -1px 0px #1A1A1A',
-                fontFamily: "'Impact', 'Arial Black', sans-serif",
-                letterSpacing: '-0.02em',
+                backgroundColor: '#FFD24C',
+                border: '5px solid #1A1A1A',
+                borderRadius: '9999px',
+                transform: 'perspective(500px) rotateX(5deg) translateY(-1.5rem)',
+                padding: 'clamp(4px, 1.2vw, 12px) clamp(24px, 6vw, 64px)',
+                boxShadow: `
+                  0 1px 0 #1A1A1A, 0 2px 0 #1A1A1A, 0 3px 0 #1A1A1A,
+                  0 4px 0 #1A1A1A, 0 5px 0 #1A1A1A, 0 6px 0 #1A1A1A,
+                  0 7px 0 #1A1A1A, 0 8px 0 #1A1A1A, 0 9px 0 #1A1A1A,
+                  0 10px 0 #1A1A1A, 0 11px 0 #1A1A1A, 0 12px 0 #1A1A1A,
+                  0 13px 0 #1A1A1A, 0 14px 0 #1A1A1A, 0 15px 0 #1A1A1A,
+                  0 16px 0 #1A1A1A, 0 17px 0 #1A1A1A, 0 18px 0 #1A1A1A,
+                  0 19px 0 #1A1A1A, 0 20px 0 #1A1A1A
+                `,
+                skewX: '-2deg',
               }}
             >
-              {title}
-            </h1>
-            {badge && (
               <span
-                className="inline-block bg-[#1A1A1A] text-[#FFCA28] font-black uppercase tracking-wider rounded-full shadow-lg mt-1"
                 style={{
-                  fontSize: 'clamp(14px, 3vw, 28px)',
-                  padding: 'clamp(4px, 1vw, 10px) clamp(20px, 5vw, 48px)',
-                  fontFamily: "'Impact', 'Arial Black', sans-serif",
-                  letterSpacing: '0.08em',
+                  fontFamily: "'Impact', 'Haettenschweiler', 'Arial Narrow Bold', sans-serif",
+                  fontSize: 'clamp(2rem, 6vw, 6rem)',
+                  color: '#1A1A1A',
+                  letterSpacing: '0.1em',
+                  fontWeight: 900,
+                  display: 'block',
+                  lineHeight: 1,
                 }}
               >
                 {badge}
               </span>
-            )}
-          </div>
+            </div>
+          )}
+
           {dateRange && (
-            <p className="text-[9px] md:text-xs font-black text-gray-900 tracking-wider uppercase pt-2">
+            <p className="text-[9px] md:text-xs font-black text-gray-900 tracking-wider uppercase mt-4">
               {dateRange}
             </p>
           )}
