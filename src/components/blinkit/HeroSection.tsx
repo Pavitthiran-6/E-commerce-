@@ -194,11 +194,13 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
     );
   };
 
-  // Parse background color styles (hex or gradient)
-  const safeBgColor = backgroundColor || 'linear-gradient(to bottom right, #FFE082, #FFD54F, #FFCA28)';
-  const heroStyle = safeBgColor.includes('gradient')
-    ? { backgroundImage: safeBgColor }
-    : { backgroundColor: safeBgColor };
+  // Parse background styles (image base64/URL or fallback color/gradient)
+  const isBgImage = backgroundColor && (backgroundColor.startsWith('data:image') || backgroundColor.startsWith('http') || backgroundColor.startsWith('/'));
+  const heroStyle = isBgImage
+    ? { backgroundImage: `url(${backgroundColor})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : backgroundColor?.includes('gradient')
+      ? { backgroundImage: backgroundColor }
+      : { backgroundColor: backgroundColor || 'linear-gradient(to bottom right, #FFE082, #FFD54F, #FFCA28)' };
 
   return (
     <div

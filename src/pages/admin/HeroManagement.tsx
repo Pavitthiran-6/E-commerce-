@@ -310,14 +310,31 @@ export default function HeroManagement() {
               </div>
 
               <div>
-                <label className={labelCls}>Hero Background Color (CSS Color / Gradient)</label>
-                <input
-                  type="text"
-                  value={hero.backgroundColor}
-                  onChange={(e) => setHero({ ...hero, backgroundColor: e.target.value })}
-                  className={inputCls}
-                  placeholder="e.g. #FFD54F or linear-gradient(...)"
-                />
+                <label className={labelCls}>Hero Background Image</label>
+                <div className="flex items-center gap-3">
+                  <label className="flex-1 flex items-center justify-between border border-dashed border-gray-200 hover:border-gray-400 bg-gray-50 rounded-xl px-4 py-2.5 cursor-pointer transition-all">
+                    <span className="text-xs text-gray-500 font-medium truncate max-w-[150px]">
+                      {hero.backgroundColor ? 'Background Image Loaded' : 'Upload Background Image'}
+                    </span>
+                    <Upload className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileChange(e, (base64) => setHero({ ...hero, backgroundColor: base64 }))}
+                      className="hidden"
+                    />
+                  </label>
+                  {hero.backgroundColor && (
+                    <button
+                      type="button"
+                      onClick={() => setHero({ ...hero, backgroundColor: '' })}
+                      className="text-red-500 hover:text-red-700 p-2 border border-red-100 hover:bg-red-50 rounded-xl transition-colors"
+                      title="Clear Background Image"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Left icon base64 */}
@@ -643,7 +660,10 @@ export default function HeroManagement() {
                 <div
                   className="rounded-2xl p-4 flex flex-col gap-4 border"
                   style={{
-                    background: hero.backgroundColor || 'linear-gradient(to bottom right, #FFE082, #FFD54F, #FFCA28)',
+                    backgroundColor: hero.backgroundColor && (hero.backgroundColor.startsWith('data:image') || hero.backgroundColor.startsWith('http') || hero.backgroundColor.startsWith('/')) ? undefined : hero.backgroundColor || '#FFF9E6',
+                    backgroundImage: hero.backgroundColor && (hero.backgroundColor.startsWith('data:image') || hero.backgroundColor.startsWith('http') || hero.backgroundColor.startsWith('/')) ? `url(${hero.backgroundColor})` : hero.backgroundColor || 'linear-gradient(to bottom right, #FFE082, #FFD54F, #FFCA28)',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
                     borderColor: 'rgba(255,179,0,0.2)',
                   }}
                 >
