@@ -703,7 +703,8 @@ export default function TrackOrder() {
                 Tax Invoice will be available after payment confirmation.
               </span>
             )}
-            {status !== 'Delivered' && status !== 'Cancelled' && (
+            {/* Cancel button — hidden once order is Shipped or beyond */}
+            {status !== 'Delivered' && status !== 'Cancelled' && status !== 'Shipped' && status !== 'Out for delivery' && (
               order.paymentMethod !== 'COD' && order.paymentStatus === 'SUCCESS' ? (
                 <button 
                   onClick={() => setShowRefundModal(true)}
@@ -721,6 +722,13 @@ export default function TrackOrder() {
                   {isCancelling ? 'Cancelling...' : 'Cancel Order'}
                 </button>
               )
+            )}
+            {/* Non-cancellable notice shown when order has been shipped */}
+            {(status === 'Shipped' || status === 'Out for delivery') && (
+              <span className="flex-1 md:flex-none text-xs text-gray-500 font-semibold italic flex items-center gap-1.5 px-4 py-3 bg-orange-50 rounded-lg border border-dashed border-orange-200">
+                <Truck className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                Order cannot be cancelled once shipped.
+              </span>
             )}
           </div>
           
