@@ -241,7 +241,7 @@ export default function Home() {
 
         {/* ── Tech & Home promo banners ────────────────── */}
         <section>
-          <SectionHeader title="Deals of the Day" seeAllLink="/sale" seeAllLabel="View all deals" />
+          <SectionHeader title="Deals of the Day" />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {[
               { label: '3-Day Delivery', image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600', link: '/cart', color: '#E8F5E9' },
