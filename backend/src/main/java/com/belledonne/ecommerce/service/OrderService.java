@@ -139,13 +139,8 @@ public class OrderService {
         // Prepaid orders: email is deferred to PaymentService.verifyPayment()
         // so the customer is only notified after the payment is confirmed.
         if (PaymentMethod.COD.equals(order.getPaymentMethod())) {
-            try {
-                byte[] invoicePdf = invoiceService.generateInvoicePdf(saved);
-                emailService.sendOrderConfirmationEmail(user.getEmail(), saved, invoicePdf);
-            } catch (Exception e) {
-                log.error("Failed to generate/send invoice for COD order: {}", e.getMessage());
-                emailService.sendOrderConfirmationEmail(user.getEmail(), saved);
-            }
+            // COD: Send order confirmation email immediately, but DO NOT attach invoice PDF.
+            emailService.sendOrderConfirmationEmail(user.getEmail(), saved, null);
             // In-app notification for COD order placed
             notificationService.createNotification(
                 user.getId(),

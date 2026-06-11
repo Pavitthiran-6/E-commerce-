@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Package, RefreshCw, FileText, Loader2 } from 'lucide-react';
+import { Package, RefreshCw, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getOrders, type Order } from '../../services/orderService';
 import { retryPayment, downloadInvoice } from '../../services/paymentService';
@@ -125,7 +125,8 @@ export default function ProfileOrders() {
 
   const canDownloadInvoice = (order: Order) => {
     const s = order.status?.toLowerCase();
-    return s !== 'cancelled';
+    const isPaid = order.paymentStatus === 'SUCCESS' || order.paymentStatus === 'PAID';
+    return s !== 'cancelled' && isPaid;
   };
 
   if (isLoading) {
@@ -216,7 +217,7 @@ export default function ProfileOrders() {
               )}
 
               {/* ── Download Invoice button: shown only when payment is confirmed ── */}
-              {canDownloadInvoice(order) && (
+              {canDownloadInvoice(order) ? (
                 <button
                   onClick={() => handleDownloadInvoice(order)}
                   disabled={downloadingOrderId === order.id}
@@ -227,6 +228,13 @@ export default function ProfileOrders() {
                     : <FileText className="w-4 h-4" />}
                   Download Invoice
                 </button>
+              ) : (
+                order.status?.toLowerCase() !== 'cancelled' && (
+                  <span className="text-xs text-gray-500 font-semibold italic flex items-center gap-1.5 px-4 py-2.5 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                    <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                    Tax Invoice will be available after payment confirmation.
+                  </span>
+                )
               )}
             </div>
           </div>

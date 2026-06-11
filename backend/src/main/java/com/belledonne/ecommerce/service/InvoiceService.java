@@ -3,6 +3,8 @@ package com.belledonne.ecommerce.service;
 import com.belledonne.ecommerce.entity.Order;
 import com.belledonne.ecommerce.exception.ResourceNotFoundException;
 import com.belledonne.ecommerce.repository.OrderRepository;
+import com.belledonne.ecommerce.enums.PaymentStatus;
+import com.belledonne.ecommerce.exception.BadRequestException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -64,6 +66,11 @@ public class InvoiceService {
         if (!"ROLE_ADMIN".equals(userRole) && !order.getUser().getId().equals(userId)) {
             log.warn("Unauthorized invoice download attempt — orderId={}, userId={}, role={}", orderId, userId, userRole);
             throw new ResourceNotFoundException("Order", "id", orderId);
+        }
+        
+        // Block invoice download if payment is not confirmed (must be SUCCESS or PAID)
+        if (order.getPaymentStatus() != PaymentStatus.SUCCESS && order.getPaymentStatus() != PaymentStatus.PAID) {
+            throw new BadRequestException("Tax Invoice will be available after payment confirmation.");
         }
         
         return generateInvoicePdf(order);

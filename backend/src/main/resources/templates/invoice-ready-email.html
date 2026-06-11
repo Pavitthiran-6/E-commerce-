@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Tax Invoice is Ready</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f8f7f4; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e0dcd3; }
+        .header { background-color: #1a1a2e; padding: 40px 20px; text-align: center; }
+        .header h1 { color: #c9a96e; margin: 0; font-size: 28px; letter-spacing: 4px; font-weight: normal; }
+        .header p { color: #ffffff; margin: 5px 0 0 0; font-size: 11px; letter-spacing: 2px; }
+        .content { padding: 40px; color: #333333; line-height: 1.6; }
+        .content h2 { color: #1a1a2e; margin-top: 0; font-size: 22px; font-weight: normal; }
+        .invoice-box { background-color: #f8f7f4; border-left: 4px solid #0c831f; padding: 20px; margin: 25px 0; font-size: 14px; }
+        .btn-container { text-align: center; margin: 30px 0; }
+        .btn { background-color: #1a1a2e; color: #c9a96e !important; padding: 15px 30px; text-decoration: none; border-radius: 4px; font-size: 14px; letter-spacing: 1px; display: inline-block; font-weight: bold; }
+        .footer { background-color: #1a1a2e; color: #a5a5b5; padding: 30px 20px; text-align: center; font-size: 12px; }
+        .footer a { color: #c9a96e; text-decoration: none; }
+        .footer p { margin: 8px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>BELLEDONNE</h1>
+            <p>PARIS</p>
+        </div>
+        <div class="content">
+            <h2>Your Tax Invoice is Ready</h2>
+            <p>Hello <strong th:text="${order.user.name}">Customer</strong>,</p>
+            <p>We are pleased to inform you that your payment has been confirmed for order <strong th:text="${order.orderNumber}">ORD-000</strong>. Your official tax invoice has been generated and is attached to this email.</p>
+            
+            <div class="invoice-box">
+                <div style="font-weight: bold; margin-bottom: 8px; color: #1a1a2e;">Invoice Details:</div>
+                <p style="margin: 3px 0; color: #555;">Order Number: <strong th:text="${order.orderNumber}">ORD-000</strong></p>
+                <p style="margin: 3px 0; color: #555;">Total Amount Paid: <strong>₹<span th:text="${order.totalAmount}">0.00</span></strong></p>
+                <p style="margin: 3px 0; color: #555;">Payment Status: <strong style="color: #0c831f;">PAID</strong></p>
+            </div>
+
+            <p>You can also view your order details and download the invoice at any time from your account profile.</p>
+
+            <div class="btn-container">
+                <a href="http://localhost:5173/profile?tab=orders" class="btn">View My Orders</a>
+            </div>
+            
+            <p style="color: #666; font-size: 14px;">If you have any questions or require assistance, please contact us at support@belledonne.in.</p>
+        </div>
+        <div class="footer">
+            <p>Shop more at <a href="http://localhost:5173">belledonne.in</a></p>
+            <p>Customer Support: <a href="mailto:support@belledonne.in">support@belledonne.in</a></p>
+        </div>
+    </div>
+</body>
+</html>

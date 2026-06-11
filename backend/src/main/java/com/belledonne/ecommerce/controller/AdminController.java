@@ -11,6 +11,7 @@ import com.belledonne.ecommerce.dto.response.UserDetailsAdminResponse;
 import com.belledonne.ecommerce.entity.*;
 import com.belledonne.ecommerce.enums.OrderStatus;
 import com.belledonne.ecommerce.enums.PaymentMethod;
+import com.belledonne.ecommerce.enums.PaymentStatus;
 import com.belledonne.ecommerce.enums.RefundStatus;
 import com.belledonne.ecommerce.enums.Role;
 import com.belledonne.ecommerce.exception.BadRequestException;
@@ -78,6 +79,7 @@ public class AdminController {
     private final RefundRequestRepository refundRequestRepository;
     private final NotificationService notificationService;
     private final ReportsExportService reportsExportService;
+    private final InvoiceService invoiceService;
     private final HttpServletRequest request;
 
     // ---- 5A: ADMIN DASHBOARD ----
@@ -454,6 +456,70 @@ public class AdminController {
         }
 
         return ResponseEntity.ok(ApiResponse.success("Order status updated", orderService.toResponse(saved)));
+    }
+
+    @PutMapping("/orders/{id}/payment-status")
+    @Operation(summary = "Update payment status of an order")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<ApiResponse<?>> updateOrderPaymentStatus(
+        @PathVariable UUID id, @RequestBody Map<String, String> body, HttpServletRequest httpServletRequest) {
+        
+        Order order = orderRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Order", "id", id));
+        
+        String statusStr = body.get("paymentStatus");
+        if (statusStr == null || statusStr.isBlank()) {
+            throw new BadRequestException("paymentStatus is required");
+        }
+        
+        PaymentStatus oldStatus = order.getPaymentStatus();
+        PaymentStatus newStatus = PaymentStatus.valueOf(statusStr.toUpperCase());
+        
+        order.setPaymentStatus(newStatus);
+        
+        // Mirror to payment if it exists
+        if (order.getPayment() != null) {
+            order.getPayment().setStatus(newStatus);
+        }
+        
+        Order saved = orderRepository.save(order);
+        
+        // Audit log for payment status update
+        User admin = getLoggedInUser();
+        String ip = SecurityAuditService.getClientIp(httpServletRequest);
+        String ua = httpServletRequest.getHeader("User-Agent");
+        securityAuditService.log(
+            admin != null ? admin.getId() : null,
+            admin != null ? admin.getEmail() : "admin@belledonne.in",
+            SecurityAction.ADMIN_ACTION,
+            ip,
+            ua,
+            "SUCCESS",
+            "Updated payment status of order " + order.getOrderNumber() + " from " + oldStatus + " to " + newStatus
+        );
+        
+        // Trigger automatic invoice generation and email if status updated to PAID or SUCCESS
+        if (newStatus == PaymentStatus.PAID || newStatus == PaymentStatus.SUCCESS) {
+            try {
+                byte[] invoicePdf = invoiceService.generateInvoicePdf(saved);
+                emailService.sendInvoiceReadyEmail(saved.getUser().getEmail(), saved, invoicePdf);
+                
+                // Audit log for invoice generation
+                securityAuditService.log(
+                    admin != null ? admin.getId() : null,
+                    admin != null ? admin.getEmail() : "admin@belledonne.in",
+                    SecurityAction.ADMIN_ACTION,
+                    ip,
+                    ua,
+                    "SUCCESS",
+                    "Automatically generated invoice PDF and sent notification email for order: " + order.getOrderNumber()
+                );
+            } catch (Exception e) {
+                log.error("Failed to generate and email invoice for order: {}", order.getOrderNumber(), e);
+            }
+        }
+        
+        return ResponseEntity.ok(ApiResponse.success("Payment status updated", orderService.toResponse(saved)));
     }
 
     // ---- PART 4: ORDER TRACKING EVENTS (Admin) ----

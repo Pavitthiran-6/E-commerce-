@@ -69,6 +69,7 @@ export default function ManageOrders() {
   
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [isUpdatingPaymentId, setIsUpdatingPaymentId] = useState<string | null>(null);
 
   // Fulfillment Modal Form State
   const [showFulfillmentModal, setShowFulfillmentModal] = useState(false);
@@ -142,6 +143,23 @@ export default function ManageOrders() {
       alert('Failed to update order status.');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleMarkAsPaid = async (orderId: string) => {
+    setIsUpdatingPaymentId(orderId);
+    try {
+      await axiosInstance.put(`/api/admin/orders/${orderId}/payment-status`, {
+        paymentStatus: 'PAID'
+      });
+      setOrders(prev =>
+        prev.map(o => o.id === orderId ? { ...o, paymentStatus: 'PAID' } : o)
+      );
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || 'Failed to update payment status.';
+      alert(errMsg);
+    } finally {
+      setIsUpdatingPaymentId(null);
     }
   };
 
@@ -435,6 +453,30 @@ export default function ManageOrders() {
                                         </div>
                                       )}
                                     </div>
+
+                                    {order.paymentStatus !== 'SUCCESS' && order.paymentStatus !== 'PAID' && (
+                                      <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-xs mt-4">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Payment Actions</p>
+                                        <div className="flex items-center justify-between gap-4">
+                                          <div>
+                                            <p className="font-semibold text-gray-700">Status: <span className="text-amber-600 font-bold">{order.paymentStatus}</span></p>
+                                            <p className="text-gray-400 text-[10px] mt-0.5">Marking as paid will generate the invoice and notify the customer.</p>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleMarkAsPaid(order.id);
+                                            }}
+                                            disabled={isUpdatingPaymentId === order.id}
+                                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] uppercase tracking-wider transition-colors flex items-center gap-1.5 disabled:opacity-60 whitespace-nowrap"
+                                          >
+                                            {isUpdatingPaymentId === order.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                                            Mark as Paid
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>

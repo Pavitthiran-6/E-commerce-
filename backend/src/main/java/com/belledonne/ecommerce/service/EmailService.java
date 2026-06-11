@@ -134,6 +134,26 @@ public class EmailService {
     }
 
     @Async
+    public void sendInvoiceReadyEmail(String toEmail, Order order, byte[] invoicePdf) {
+        log.info("[EmailService] Email request started: Invoice Ready to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("order", order);
+            htmlContent = templateEngine.process("invoice-ready-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for invoice-ready-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
+        if (invoicePdf != null && invoicePdf.length > 0) {
+            sendEmailWithAttachment(toEmail, "Your BELLEDONNE Tax Invoice is Ready — " + order.getOrderNumber(), htmlContent,
+                invoicePdf, "invoice-" + order.getOrderNumber() + ".pdf");
+        } else {
+            sendEmail(toEmail, "Your BELLEDONNE Tax Invoice is Ready — " + order.getOrderNumber(), htmlContent);
+        }
+    }
+
+    @Async
     public void sendOrderShippedEmail(String toEmail, Order order, String trackingNumber) {
         log.info("[EmailService] Email request started: Order Shipped to {}", toEmail);
         String htmlContent;

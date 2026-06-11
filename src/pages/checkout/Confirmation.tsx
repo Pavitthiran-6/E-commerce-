@@ -260,15 +260,22 @@ export default function CheckoutConfirmation() {
             <Truck className="w-4 h-4" />
             Track My Order
           </Link>
-          {realOrderId && (
-            <button
-              onClick={handleDownloadInvoice}
-              disabled={downloading}
-              className="flex-1 border-2 border-charcoal-stone text-charcoal-stone font-semibold uppercase tracking-widest py-4 text-sm hover:bg-charcoal-stone hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-            >
-              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              Download Invoice
-            </button>
+          {paymentMethod === 'cod' ? (
+            <div className="flex-1 flex flex-col justify-center items-center py-2 px-4 bg-gray-50 border border-dashed border-gray-300 rounded-sm">
+              <span className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Invoice Info</span>
+              <p className="text-[11px] text-gray-500 font-semibold mt-1 text-center">Tax Invoice will be available after payment confirmation.</p>
+            </div>
+          ) : (
+            realOrderId && (
+              <button
+                onClick={handleDownloadInvoice}
+                disabled={downloading}
+                className="flex-1 border-2 border-charcoal-stone text-charcoal-stone font-semibold uppercase tracking-widest py-4 text-sm hover:bg-charcoal-stone hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Download Invoice
+              </button>
+            )
           )}
           <Link
             to="/collection"

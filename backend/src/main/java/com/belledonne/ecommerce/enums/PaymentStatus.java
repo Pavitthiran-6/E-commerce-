@@ -12,5 +12,6 @@ public enum PaymentStatus {
     REFUND_INITIATED,
     REFUNDED,
     PARTIALLY_REFUNDED,
-    REFUND_FAILED
+    REFUND_FAILED,
+    PAID
 }

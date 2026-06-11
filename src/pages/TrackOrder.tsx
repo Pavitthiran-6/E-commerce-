@@ -50,7 +50,8 @@ export default function TrackOrder() {
   }, [orderIdParam]);
 
   const status = order?.status ? (order.status.replace(/_/g, ' ').charAt(0).toUpperCase() + order.status.replace(/_/g, ' ').slice(1).toLowerCase()) : 'Unknown';
-  const showInvoice = order && order.status !== 'cancelled' && order.status !== 'CANCELLED';
+  const isPaid = order && (order.paymentStatus === 'SUCCESS' || order.paymentStatus === 'PAID');
+  const showInvoice = order && order.status !== 'cancelled' && order.status !== 'CANCELLED' && isPaid;
 
   const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -695,6 +696,12 @@ export default function TrackOrder() {
                   : <Download className="w-4 h-4" />}
                 Invoice
               </button>
+            )}
+            {!isPaid && order.status !== 'cancelled' && order.status !== 'CANCELLED' && (
+              <span className="text-xs text-gray-500 font-semibold italic flex items-center gap-1.5 px-4 py-3 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                <AlertCircle className="w-4.5 h-4.5 text-amber-500 flex-shrink-0" />
+                Tax Invoice will be available after payment confirmation.
+              </span>
             )}
             {status !== 'Delivered' && status !== 'Cancelled' && (
               order.paymentMethod !== 'COD' && order.paymentStatus === 'SUCCESS' ? (
