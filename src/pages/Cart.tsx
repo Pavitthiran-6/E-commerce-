@@ -76,7 +76,7 @@ export default function Cart() {
       : appliedCouponDetails.discountValue
     : 0;
 
-  const shipping = subtotal > 5000 ? 0 : 250;
+  const shipping = (subtotal - calculatedDiscount) >= 999 ? 0 : 79;
   const tax = Math.round((subtotal - calculatedDiscount) * 18 / 118);
   const total = subtotal - calculatedDiscount + shipping;
 
@@ -261,9 +261,9 @@ export default function Cart() {
               )}
 
               {shipping > 0 && (
-                <p className="text-center text-xs text-gray-500 mt-2">
-                  Add {fmt(5000 - subtotal)} more for free shipping
-                </p>
+                <div className="mt-2 text-center text-xs font-semibold text-[#0C831F] bg-[#E8F5E9]/50 py-1.5 rounded-lg border border-[#E8F5E9] animate-pulse">
+                  Add {fmt(999 - (subtotal - calculatedDiscount))} more for FREE shipping
+                </div>
               )}
             </div>
 
@@ -271,7 +271,7 @@ export default function Cart() {
             <div className="bg-white rounded-2xl p-4 shadow-sm grid grid-cols-2 gap-2">
               {[
                 { icon: '🔒', label: 'Secure Checkout' },
-                { icon: '🚚', label: 'Free Shipping ₹5000+' },
+                { icon: '🚚', label: 'Free Shipping ₹999+' },
                 { icon: '↩️', label: '7-Day Returns' },
                 { icon: '💵', label: 'COD Available' },
               ].map((badge) => (

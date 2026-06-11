@@ -142,7 +142,7 @@ export default function CheckoutConfirmation() {
   const discountAmount = 0; // Discount already applied by backend — shown for display only
   const isFreeShipping = appliedCoupon ? isFreeShippingCoupon(appliedCoupon, []) : false;
 
-  const shipping = isFreeShipping ? 0 : (subtotal > 5000 ? 0 : 250);
+  const shipping = isFreeShipping ? 0 : ((subtotal - discountAmount) >= 999 ? 0 : 79);
   const tax = Math.round((subtotal - discountAmount) * 18 / 118);
   const codFee = paymentMethod === 'cod' ? 49 : 0;
   const total = (subtotal - discountAmount) + shipping + codFee;

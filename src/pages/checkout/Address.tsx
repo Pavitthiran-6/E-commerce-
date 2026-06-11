@@ -120,7 +120,7 @@ export default function CheckoutAddress() {
   const discountAmount = 0; // Preview only — backend validates and applies the real discount
   const isFreeShipping = appliedCoupon ? isFreeShippingCoupon(appliedCoupon, []) : false;
 
-  const shipping = isFreeShipping ? 0 : (subtotal > 5000 ? 0 : 250);
+  const shipping = isFreeShipping ? 0 : ((subtotal - discountAmount) >= 999 ? 0 : 79);
   const tax = Math.round((subtotal - discountAmount) * 18 / 118);
   const total = (subtotal - discountAmount) + shipping;
 
@@ -286,10 +286,10 @@ function OrderSummary({ items, subtotal, discountAmount, appliedCoupon, shipping
           </div>
         </div>
 
-        {subtotal > 0 && subtotal < 5000 && (
+        {shipping > 0 && (
           <div className="px-5 pb-4">
-            <div className="bg-[#FFF8E1] border border-amber-200 rounded-xl text-xs text-amber-700 px-3 py-2">
-              Add {fmt(5000 - subtotal)} more for free shipping!
+            <div className="bg-[#E8F5E9]/50 border border-[#E8F5E9] rounded-xl text-xs text-[#0C831F] font-semibold px-3 py-2 text-center animate-pulse">
+              Add {fmt(999 - (subtotal - discountAmount))} more for FREE shipping
             </div>
           </div>
         )}
