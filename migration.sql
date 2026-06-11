@@ -190,3 +190,8 @@ ALTER TABLE security_audit_logs ADD CONSTRAINT security_audit_logs_action_check 
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_auth_provider_check;
 ALTER TABLE users ADD CONSTRAINT users_auth_provider_check CHECK (auth_provider IN ('LOCAL', 'GOOGLE'));
 
+-- =============================================================================
+-- 7. Hero Section Background Image Support Migration
+-- =============================================================================
+ALTER TABLE hero_sections ALTER COLUMN background_color TYPE TEXT;
+

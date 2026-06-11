@@ -27,7 +27,7 @@ public class HeroSection {
     @Column(name = "date_range", length = 100)
     private String dateRange;
 
-    @Column(name = "background_color", length = 200)
+    @Column(name = "background_color", columnDefinition = "TEXT")
     private String backgroundColor;
 
     @Column(name = "left_icon", columnDefinition = "TEXT")
