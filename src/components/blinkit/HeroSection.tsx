@@ -62,12 +62,12 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
               {featuredDiscountPercentage}% OFF
             </span>
           )}
-          <h3 className={`font-extrabold text-gray-900 leading-tight mt-1 line-clamp-2 ${isVertical ? 'text-xs md:text-base mb-3' : 'text-sm md:text-lg mb-1'}`}>
+          <h3 className={`font-extrabold text-gray-900 leading-tight mt-0.5 line-clamp-2 ${isVertical ? 'text-xs md:text-sm mb-1' : 'text-sm md:text-lg mb-1'}`}>
             {featuredProductName}
           </h3>
         </div>
 
-        <div className={`flex flex-col items-center gap-1 ${isVertical ? 'my-2' : 'flex-shrink-0'}`}>
+        <div className={`flex flex-col items-center gap-1 ${isVertical ? '' : 'flex-shrink-0'}`}>
           {featuredOriginalPrice > featuredSalePrice && (
             <span className="text-[9px] md:text-xs text-gray-400 line-through font-semibold leading-none">
               ₹{Number(featuredOriginalPrice).toLocaleString('en-IN')}
@@ -81,7 +81,7 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
         {featuredProductImage && (
           <div
             className={`aspect-square overflow-hidden bg-white/60 rounded-xl md:rounded-2xl border border-white/80 shadow-inner hover:scale-105 transition-transform duration-300 ${
-              isVertical ? 'w-14 sm:w-20 md:w-40 mt-1 md:mt-3' : 'w-16 md:w-28'
+              isVertical ? 'w-14 sm:w-20 md:w-36 mt-1' : 'w-16 md:w-28'
             }`}
           >
             <img src={featuredProductImage} alt={featuredProductName} className="w-full h-full object-cover" loading="lazy" />
@@ -90,10 +90,10 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
       </>
     );
 
-    const className = `w-full h-full rounded-2xl border border-amber-100/60 shadow-sm p-2 sm:p-4 md:p-6 flex transition-colors duration-300 hover:bg-[#FFF6DB] select-none ${
+    const className = `w-full h-full rounded-2xl border border-amber-100/60 shadow-sm p-2 sm:p-3 md:p-4 flex transition-colors duration-300 hover:bg-[#FFF6DB] select-none ${
       heroData?.productSlug ? 'cursor-pointer' : ''
     } ${
-      isVertical ? 'flex-col justify-between items-center text-center' : 'flex-row justify-between items-center'
+      isVertical ? 'flex-col justify-start items-center text-center gap-2' : 'flex-row justify-between items-center'
     }`;
     const style = { backgroundColor: featuredCardBackgroundColor || '#FFF9E6' };
 
