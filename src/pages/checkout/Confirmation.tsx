@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { CheckCircle2, MapPin, Package, Truck, Download, Loader2 } from 'lucide-react';
-import { isFreeShippingCoupon } from '../../utils/couponLogic';
 import { downloadInvoice } from '../../services/paymentService';
+import { getOrderById, type Order } from '../../services/orderService';
 
 const STEPS = ['Address', 'Payment', 'Confirmation'];
 
@@ -36,17 +36,9 @@ function StepBar({ current }: { current: number }) {
   );
 }
 
-// Generate a random order ID
-function genOrderId() {
-  const date = new Date();
-  const d = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `ORD-${d}-${rand}`;
-}
-
-function getDeliveryDate() {
-  const d = new Date();
-  d.setDate(d.getDate() + 4);
+function getDeliveryDate(estimatedDelivery?: string) {
+  if (!estimatedDelivery) return '—';
+  const d = new Date(estimatedDelivery);
   return d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
@@ -86,32 +78,41 @@ function AnimatedCheck() {
   );
 }
 
-const DELIVERY_ADDRESS = {
-  name: 'Rahul Sharma',
-  phone: '+91 98765 43210',
-  line1: 'Flat 4B, Sunrise Apartments, Bandra West',
-  city: 'Mumbai',
-  state: 'Maharashtra',
-  pincode: '400050',
-};
-
 export default function CheckoutConfirmation() {
-  const { cartItems, clearCart } = useCart();
-  const orderId = useRef(genOrderId()).current;
-  const deliveryDate = useRef(getDeliveryDate()).current;
-  const [cleared, setCleared] = useState(false);
+  const { clearCart } = useCart();
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
 
   const realOrderId = localStorage.getItem('lastOrderId');
 
+  useEffect(() => {
+    // Clear cart immediately on mount so checkout flow finishes cleanly
+    clearCart().catch(err => console.warn('Failed to clear cart:', err));
+
+    const fetchOrder = async () => {
+      if (!realOrderId) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const data = await getOrderById(realOrderId);
+        setOrder(data);
+      } catch (err) {
+        console.error('Failed to fetch order details:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrder();
+  }, [realOrderId]);
+
   const handleDownloadInvoice = async () => {
-    if (!realOrderId) {
-      alert("Order details not found.");
-      return;
-    }
+    if (!order) return;
     setDownloading(true);
     try {
-      await downloadInvoice(realOrderId, orderId);
+      await downloadInvoice(order.id, order.orderNumber);
     } catch (e) {
       alert('Failed to download invoice. Please try again.');
     } finally {
@@ -119,35 +120,34 @@ export default function CheckoutConfirmation() {
     }
   };
 
-  const paymentMethod = localStorage.getItem('lastPaymentMethod') || 'card';
-  const paymentDetails = localStorage.getItem('lastPaymentDetails') || 'Card ending in •••• 4242';
-
   const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
-  // Save a snapshot of cart items before clearing
-  const [orderItems] = useState([...cartItems]);
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#f7f6f2] pt-28 pb-20 px-4 sm:px-8 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-10 h-10 animate-spin text-charcoal-stone" />
+          <p className="text-sm text-gray-500 font-medium">Loading confirmation details...</p>
+        </div>
+      </main>
+    );
+  }
 
-  useEffect(() => {
-    if (!cleared) {
-      setCleared(true);
-      // Give the component time to render with the snapshot, then clear cart
-      const timer = setTimeout(() => clearCart(), 500);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+  if (!order) {
+    return (
+      <main className="min-h-screen bg-[#f7f6f2] pt-28 pb-20 px-4 sm:px-8 flex flex-col items-center justify-center text-center">
+        <h1 className="font-serif text-2xl text-charcoal-stone mb-2">Order Not Found</h1>
+        <p className="text-gray-500 mb-6 text-sm">We couldn't retrieve your order details. Please check your profile orders.</p>
+        <Link to="/collection" className="bg-charcoal-stone text-white font-semibold uppercase tracking-widest py-3 px-6 text-xs hover:bg-charcoal-stone/85 transition-all text-center">
+          Continue Shopping
+        </Link>
+      </main>
+    );
+  }
 
-  const appliedCoupon = sessionStorage.getItem('appliedCoupon');
-
-  const subtotal = orderItems.reduce((s, i) => s + i.price * i.quantity, 0);
-  const discountAmount = 0; // Discount already applied by backend — shown for display only
-  const isFreeShipping = appliedCoupon ? isFreeShippingCoupon(appliedCoupon, []) : false;
-
-  const shipping = isFreeShipping ? 0 : ((subtotal - discountAmount) >= 999 ? 0 : 79);
-  const tax = Math.round((subtotal - discountAmount) * 18 / 118);
-  const codFee = paymentMethod === 'cod' ? 49 : 0;
-  const total = (subtotal - discountAmount) + shipping + codFee;
-
-
+  const deliveryDate = getDeliveryDate(order.estimatedDelivery);
+  const paymentMethod = order.paymentMethod?.toLowerCase() || 'card';
+  const paymentDetails = order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online Payment';
 
   return (
     <main className="min-h-screen bg-[#f7f6f2] pt-28 pb-20 px-4 sm:px-8">
@@ -168,8 +168,8 @@ export default function CheckoutConfirmation() {
               <Package className="w-5 h-5 text-charcoal-stone" />
             </div>
             <div>
-              <p className="text-[11px] text-gray-400 uppercase tracking-widest font-medium mb-0.5">Order ID</p>
-              <p className="font-mono font-semibold text-charcoal-stone text-sm">{orderId}</p>
+              <p className="text-[11px] text-gray-400 uppercase tracking-widest font-medium mb-0.5">Order Number</p>
+              <p className="font-mono font-semibold text-charcoal-stone text-sm">{order.orderNumber}</p>
             </div>
           </div>
           <div className="bg-white border border-gray-200 rounded-sm px-5 py-4 flex items-center gap-4">
@@ -188,33 +188,39 @@ export default function CheckoutConfirmation() {
           <div className="px-6 py-4 border-b border-gray-100">
             <h2 className="font-serif text-lg text-charcoal-stone">Items Ordered</h2>
           </div>
-          {orderItems.length === 0 ? (
+          {!order.items || order.items.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">No items found.</p>
-          ) : orderItems.map(item => (
+          ) : order.items.map(item => (
             <div key={item.id} className="flex items-center gap-4 px-6 py-4 border-b border-gray-50 last:border-b-0">
-              <div className="w-16 h-20 bg-[#f6f5f0] flex-shrink-0 overflow-hidden">
-                <img src={item.image} alt={item.name} className="w-full h-full object-cover mix-blend-multiply" />
+              <div className="w-16 h-20 bg-[#f6f5f0] flex-shrink-0 overflow-hidden rounded-sm">
+                <img src={item.productImage || 'https://via.placeholder.com/60'} alt={item.productName} className="w-full h-full object-cover mix-blend-multiply" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-serif text-charcoal-stone text-[15px] mb-1">{item.name}</p>
-                <p className="text-xs text-gray-400">Size: {item.size} · Color: {item.color} · Qty: {item.quantity}</p>
+                <p className="font-serif text-charcoal-stone text-[15px] mb-1">{item.productName}</p>
+                <p className="text-xs text-gray-400">
+                  {item.size ? `Size: ${item.size}` : ''}
+                  {item.size && item.color ? ' · ' : ''}
+                  {item.color ? `Color: ${item.color}` : ''}
+                  {item.size || item.color ? ' · ' : ''}
+                  Qty: {item.quantity}
+                </p>
               </div>
-              <span className="font-semibold text-charcoal-stone">{fmt(item.price * item.quantity)}</span>
+              <span className="font-semibold text-charcoal-stone">{fmt(Number(item.totalPrice))}</span>
             </div>
           ))}
 
           {/* Price breakdown */}
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-col gap-2 text-sm">
-            <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
-            <div className="flex justify-between text-gray-500"><span>Shipping</span><span>{shipping === 0 ? <span className="text-emerald-600">Free</span> : fmt(shipping)}</span></div>
-            {appliedCoupon && (
-              <div className="flex justify-between text-emerald-600 font-medium"><span>Discount ({appliedCoupon})</span><span>- {fmt(discountAmount)}</span></div>
+            <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(Number(order.subtotal))}</span></div>
+            <div className="flex justify-between text-gray-500"><span>Shipping</span><span>{order.shippingCharge === 0 ? <span className="text-emerald-600">Free</span> : fmt(Number(order.shippingCharge))}</span></div>
+            {order.couponCode && (
+              <div className="flex justify-between text-emerald-600 font-medium"><span>Discount ({order.couponCode})</span><span>- {fmt(Number(order.discountAmount))}</span></div>
             )}
-            {codFee > 0 && <div className="flex justify-between text-orange-500"><span>COD Fee</span><span>+₹49</span></div>}
+            {order.paymentMethod === 'COD' && <div className="flex justify-between text-orange-500"><span>COD Fee</span><span>+₹49</span></div>}
             <div className="flex flex-col gap-0.5 border-t border-gray-200 pt-2 mt-1">
               <div className="flex justify-between font-semibold text-charcoal-stone text-base items-baseline">
-                <span className="font-serif">Total Paid</span>
-                <span className="text-emerald-600">{fmt(total)}</span>
+                <span className="font-serif">Total Amount</span>
+                <span className="text-emerald-600">{fmt(Number(order.totalAmount))}</span>
               </div>
               <p className="text-[10px] text-[#0C831F] font-semibold text-right leading-none">
                 ✓ Prices include all applicable taxes
@@ -224,17 +230,20 @@ export default function CheckoutConfirmation() {
         </div>
 
         {/* ── Delivery address ── */}
-        <div className="bg-white border border-gray-200 rounded-sm px-6 py-4 mb-8 flex items-start gap-4 shadow-sm">
-          <div className="w-10 h-10 bg-charcoal-stone/5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-            <MapPin className="w-5 h-5 text-charcoal-stone" />
+        {order.address && (
+          <div className="bg-white border border-gray-200 rounded-sm px-6 py-4 mb-8 flex items-start gap-4 shadow-sm">
+            <div className="w-10 h-10 bg-charcoal-stone/5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <MapPin className="w-5 h-5 text-charcoal-stone" />
+            </div>
+            <div>
+              <p className="text-[11px] text-gray-400 uppercase tracking-widest font-medium mb-1.5">Delivering To</p>
+              <p className="font-semibold text-charcoal-stone text-sm">{order.address.fullName} · {order.address.phone}</p>
+              <p className="text-sm text-gray-500 mt-0.5">{order.address.addressLine1}</p>
+              {order.address.addressLine2 && <p className="text-sm text-gray-500">{order.address.addressLine2}</p>}
+              <p className="text-sm text-gray-500">{order.address.city}, {order.address.state} – {order.address.postalCode}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-[11px] text-gray-400 uppercase tracking-widest font-medium mb-1.5">Delivering To</p>
-            <p className="font-semibold text-charcoal-stone text-sm">{DELIVERY_ADDRESS.name} · {DELIVERY_ADDRESS.phone}</p>
-            <p className="text-sm text-gray-500 mt-0.5">{DELIVERY_ADDRESS.line1}</p>
-            <p className="text-sm text-gray-500">{DELIVERY_ADDRESS.city}, {DELIVERY_ADDRESS.state} – {DELIVERY_ADDRESS.pincode}</p>
-          </div>
-        </div>
+        )}
 
         {/* ── Payment Method ── */}
         <div className="bg-white border border-gray-200 rounded-sm px-6 py-4 mb-8 flex items-start gap-4 shadow-sm">
@@ -266,16 +275,14 @@ export default function CheckoutConfirmation() {
               <p className="text-[11px] text-gray-500 font-semibold mt-1 text-center">Tax Invoice will be available after payment confirmation.</p>
             </div>
           ) : (
-            realOrderId && (
-              <button
-                onClick={handleDownloadInvoice}
-                disabled={downloading}
-                className="flex-1 border-2 border-charcoal-stone text-charcoal-stone font-semibold uppercase tracking-widest py-4 text-sm hover:bg-charcoal-stone hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                Download Invoice
-              </button>
-            )
+            <button
+              onClick={handleDownloadInvoice}
+              disabled={downloading}
+              className="flex-1 border-2 border-charcoal-stone text-charcoal-stone font-semibold uppercase tracking-widest py-4 text-sm hover:bg-charcoal-stone hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              Download Invoice
+            </button>
           )}
           <Link
             to="/collection"
@@ -284,8 +291,6 @@ export default function CheckoutConfirmation() {
             Continue Shopping
           </Link>
         </div>
-
-
       </div>
     </main>
   );
