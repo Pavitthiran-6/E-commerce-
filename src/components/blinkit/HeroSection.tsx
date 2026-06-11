@@ -53,39 +53,41 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
     const isVertical = layout === 'vertical';
     const cardContent = isVertical ? (
       <>
-        {/* Top Section: Text & Price grouped together */}
-        <div className="w-full flex flex-col items-center gap-3">
-          <div className="w-full">
-            <span className="text-[9px] md:text-xs font-black tracking-widest text-amber-800 uppercase block mb-1">
-              SUMMER DEALS
+        {/* Top Part: Category & Discount Badge */}
+        <div className="w-full">
+          <span className="text-[10px] sm:text-xs md:text-sm font-black tracking-widest text-amber-800 uppercase block mb-1">
+            SUMMER DEALS
+          </span>
+          {featuredDiscountPercentage > 0 && (
+            <span className="inline-block bg-amber-100 text-amber-800 text-[10px] sm:text-xs md:text-xs font-bold px-2 py-0.5 rounded-full mb-1">
+              {featuredDiscountPercentage}% OFF
             </span>
-            {featuredDiscountPercentage > 0 && (
-              <span className="inline-block bg-amber-100 text-amber-800 text-[9px] md:text-[11px] font-bold px-2 py-0.5 rounded-full mb-1">
-                {featuredDiscountPercentage}% OFF
-              </span>
-            )}
-            <h3 className="font-extrabold text-gray-900 leading-tight mt-0.5 line-clamp-2 text-xs md:text-base">
-              {featuredProductName}
-            </h3>
-          </div>
+          )}
+        </div>
+
+        {/* Middle Part: Large Product Title & Price Button (Centered in the card) */}
+        <div className="w-full flex flex-col items-center gap-2 md:gap-3 my-2">
+          <h3 className="font-extrabold text-gray-900 leading-tight text-sm sm:text-base md:text-xl lg:text-2xl max-w-[90%]">
+            {featuredProductName}
+          </h3>
 
           <div className="flex flex-col items-center gap-1">
             {featuredOriginalPrice > featuredSalePrice && (
-              <span className="text-[9px] md:text-xs text-gray-400 line-through font-semibold leading-none">
+              <span className="text-[10px] sm:text-xs md:text-sm text-gray-400 line-through font-semibold leading-none">
                 ₹{Number(featuredOriginalPrice).toLocaleString('en-IN')}
               </span>
             )}
-            <span className="bg-[#0C831F] text-white text-[10px] sm:text-xs md:text-lg font-black px-1.5 py-0.5 sm:px-2.5 sm:py-1 md:px-4 md:py-1.5 rounded-md sm:rounded-lg md:rounded-xl shadow-sm leading-none flex items-center">
+            <span className="bg-[#0C831F] text-white text-xs sm:text-sm md:text-base lg:text-xl font-black px-2 py-1 sm:px-3 sm:py-1.5 md:px-5 md:py-2 rounded-md sm:rounded-lg md:rounded-xl shadow-sm leading-none flex items-center">
               ₹{Number(featuredSalePrice).toLocaleString('en-IN')}
             </span>
           </div>
         </div>
 
-        {/* Bottom Section: Product Image */}
+        {/* Bottom Part: Product Image */}
         {featuredProductImage && (
-          <div className="w-full flex justify-center mt-4 flex-1 items-end">
+          <div className="w-full flex justify-center mt-2">
             <div
-              className="aspect-square overflow-hidden bg-white/60 rounded-xl md:rounded-2xl border border-white/80 shadow-inner hover:scale-105 transition-transform duration-300 w-24 sm:w-32 md:w-44 lg:w-48"
+              className="aspect-square overflow-hidden bg-white/60 rounded-xl md:rounded-2xl border border-white/80 shadow-inner hover:scale-105 transition-transform duration-300 w-24 sm:w-32 md:w-36 lg:w-40"
             >
               <img src={featuredProductImage} alt={featuredProductName} className="w-full h-full object-cover" loading="lazy" />
             </div>
