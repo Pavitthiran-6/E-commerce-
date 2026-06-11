@@ -218,7 +218,7 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
                 backgroundColor: '#FFD24C',
                 border: '5px solid #1A1A1A',
                 borderRadius: '9999px',
-                transform: 'perspective(500px) rotateX(5deg) translateY(-1.5rem)',
+                transform: 'perspective(500px) rotateX(5deg) translateY(-1.5rem) skewX(-2deg)',
                 padding: 'clamp(4px, 1.2vw, 12px) clamp(24px, 6vw, 64px)',
                 boxShadow: `
                   0 1px 0 #1A1A1A, 0 2px 0 #1A1A1A, 0 3px 0 #1A1A1A,
@@ -229,7 +229,6 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
                   0 16px 0 #1A1A1A, 0 17px 0 #1A1A1A, 0 18px 0 #1A1A1A,
                   0 19px 0 #1A1A1A, 0 20px 0 #1A1A1A
                 `,
-                skewX: '-2deg',
               }}
             >
               <span
