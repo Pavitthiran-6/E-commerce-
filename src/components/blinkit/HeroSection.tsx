@@ -179,13 +179,13 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
         )}
 
         {/* Title badge & date */}
-        <div className="relative z-10 flex flex-col items-center">
+        <div className="relative z-10 flex flex-col items-center text-center">
           {/* HOUSEFULL - 3D extruded text */}
           <h1
-            className="select-none uppercase leading-none font-black text-center"
+            className="select-none uppercase leading-none font-black text-center w-full"
             style={{
               fontFamily: "'Impact', 'Haettenschweiler', 'Arial Narrow Bold', sans-serif",
-              fontSize: 'clamp(4rem, 14vw, 13rem)',
+              fontSize: 'clamp(2rem, 6vw, 5rem)',
               color: '#FFFFFF',
               letterSpacing: '-0.02em',
               lineHeight: '0.9',
@@ -198,13 +198,7 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
                 0px 17px 0 #000, 0px 18px 0 #000, 0px 19px 0 #000, 0px 20px 0 #000,
                 0px 21px 0 #000, 0px 22px 0 #000, 0px 23px 0 #000, 0px 24px 0 #000,
                 0px 25px 0 #000, 0px 26px 0 #000, 0px 27px 0 #000, 0px 28px 0 #000,
-                0px 29px 0 #000, 0px 30px 0 #000, 0px 31px 0 #000, 0px 32px 0 #000,
-                0px 33px 0 #000, 0px 34px 0 #000, 0px 35px 0 #000, 0px 36px 0 #000,
-                0px 37px 0 #000, 0px 38px 0 #000, 0px 39px 0 #000, 0px 40px 0 #000,
-                0px 41px 0 #000, 0px 42px 0 #000, 0px 43px 0 #000, 0px 44px 0 #000,
-                0px 45px 0 #000, 0px 46px 0 #000, 0px 47px 0 #000, 0px 48px 0 #000,
-                0px 49px 0 #000, 0px 50px 0 #000, 0px 55px 0 #000, 0px 60px 0 #000,
-                0px 65px 0 #000, 0px 70px 0 #000, 0px 75px 0 #000, 0px 80px 0 #000
+                0px 29px 0 #000, 0px 30px 0 #000
               `,
             }}
           >
@@ -218,23 +212,20 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
                 backgroundColor: '#FFD24C',
                 border: '5px solid #1A1A1A',
                 borderRadius: '9999px',
-                transform: 'perspective(500px) rotateX(5deg) translateY(-1.5rem) skewX(-2deg)',
-                padding: 'clamp(4px, 1.2vw, 12px) clamp(24px, 6vw, 64px)',
+                transform: 'perspective(500px) rotateX(5deg) translateY(-0.6rem) skewX(-2deg)',
+                padding: 'clamp(2px, 0.6vw, 6px) clamp(12px, 3vw, 32px)',
                 boxShadow: `
                   0 1px 0 #1A1A1A, 0 2px 0 #1A1A1A, 0 3px 0 #1A1A1A,
                   0 4px 0 #1A1A1A, 0 5px 0 #1A1A1A, 0 6px 0 #1A1A1A,
                   0 7px 0 #1A1A1A, 0 8px 0 #1A1A1A, 0 9px 0 #1A1A1A,
-                  0 10px 0 #1A1A1A, 0 11px 0 #1A1A1A, 0 12px 0 #1A1A1A,
-                  0 13px 0 #1A1A1A, 0 14px 0 #1A1A1A, 0 15px 0 #1A1A1A,
-                  0 16px 0 #1A1A1A, 0 17px 0 #1A1A1A, 0 18px 0 #1A1A1A,
-                  0 19px 0 #1A1A1A, 0 20px 0 #1A1A1A
+                  0 10px 0 #1A1A1A
                 `,
               }}
             >
               <span
                 style={{
                   fontFamily: "'Impact', 'Haettenschweiler', 'Arial Narrow Bold', sans-serif",
-                  fontSize: 'clamp(2rem, 6vw, 6rem)',
+                  fontSize: 'clamp(1rem, 2.5vw, 2.5rem)',
                   color: '#1A1A1A',
                   letterSpacing: '0.1em',
                   fontWeight: 900,
