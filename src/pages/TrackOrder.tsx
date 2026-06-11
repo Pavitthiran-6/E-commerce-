@@ -208,15 +208,18 @@ export default function TrackOrder() {
   const steps = ['Placed', 'Confirmed', 'Packed', 'Shipped', 'Out for Delivery', 'Delivered'];
   const getStepStatus = (stepName: string, index: number) => {
     if (status.toLowerCase() === 'cancelled') return { completed: false, current: false };
-    
-    let currentIndex = 0;
+
     const currentStatus = status.toLowerCase();
+
+    // When fully delivered, ALL steps (including "Delivered") show the green completed tick
+    if (currentStatus === 'delivered') return { completed: true, current: false };
+
+    let currentIndex = 0;
     if (currentStatus === 'pending' || currentStatus === 'placed') currentIndex = 0;
     if (currentStatus === 'confirmed' || currentStatus === 'processing') currentIndex = 1;
     if (currentStatus === 'packed') currentIndex = 2;
     if (currentStatus === 'shipped') currentIndex = 3;
     if (currentStatus === 'out_for_delivery' || currentStatus === 'out for delivery') currentIndex = 4;
-    if (currentStatus === 'delivered') currentIndex = 5;
 
     if (index < currentIndex) return { completed: true, current: false };
     if (index === currentIndex) return { completed: false, current: true };
