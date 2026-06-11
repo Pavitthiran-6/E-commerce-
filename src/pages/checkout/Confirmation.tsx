@@ -143,9 +143,9 @@ export default function CheckoutConfirmation() {
   const isFreeShipping = appliedCoupon ? isFreeShippingCoupon(appliedCoupon, []) : false;
 
   const shipping = isFreeShipping ? 0 : (subtotal > 5000 ? 0 : 250);
-  const tax = Math.round((subtotal - discountAmount) * 0.18);
+  const tax = Math.round((subtotal - discountAmount) * 18 / 118);
   const codFee = paymentMethod === 'cod' ? 49 : 0;
-  const total = (subtotal - discountAmount) + shipping + tax + codFee;
+  const total = (subtotal - discountAmount) + shipping + codFee;
 
 
 
@@ -207,14 +207,18 @@ export default function CheckoutConfirmation() {
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-col gap-2 text-sm">
             <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
             <div className="flex justify-between text-gray-500"><span>Shipping</span><span>{shipping === 0 ? <span className="text-emerald-600">Free</span> : fmt(shipping)}</span></div>
-            <div className="flex justify-between text-gray-500"><span>GST (18%)</span><span>{fmt(tax)}</span></div>
             {appliedCoupon && (
               <div className="flex justify-between text-emerald-600 font-medium"><span>Discount ({appliedCoupon})</span><span>- {fmt(discountAmount)}</span></div>
             )}
             {codFee > 0 && <div className="flex justify-between text-orange-500"><span>COD Fee</span><span>+₹49</span></div>}
-            <div className="flex justify-between font-semibold text-charcoal-stone text-base border-t border-gray-200 pt-2 mt-1">
-              <span className="font-serif">Total Paid</span>
-              <span className="text-emerald-600">{fmt(total)}</span>
+            <div className="flex flex-col gap-0.5 border-t border-gray-200 pt-2 mt-1">
+              <div className="flex justify-between font-semibold text-charcoal-stone text-base items-baseline">
+                <span className="font-serif">Total Paid</span>
+                <span className="text-emerald-600">{fmt(total)}</span>
+              </div>
+              <p className="text-[10px] text-[#0C831F] font-semibold text-right leading-none">
+                ✓ Prices include all applicable taxes
+              </p>
             </div>
           </div>
         </div>

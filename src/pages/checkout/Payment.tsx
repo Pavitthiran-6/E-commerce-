@@ -82,9 +82,9 @@ export default function CheckoutPayment() {
   const isFreeShipping = appliedCoupon ? isFreeShippingCoupon(appliedCoupon, []) : false;
 
   const shipping = isFreeShipping ? 0 : (subtotal > 5000 ? 0 : 250);
-  const tax = Math.round((subtotal - discountAmount) * 0.18);
+  const tax = Math.round((subtotal - discountAmount) * 18 / 118);
   const codFee = method === 'cod' ? 49 : 0;
-  const total = (subtotal - discountAmount) + shipping + tax + codFee;
+  const total = (subtotal - discountAmount) + shipping + codFee;
 
   const ALL_METHODS: { id: PayMethod; label: string; icon: string }[] = [
     { id: 'online', label: 'Pay Online (UPI, Cards, Net Banking, Wallets, EMI)', icon: '💳' },
@@ -280,17 +280,21 @@ export default function CheckoutPayment() {
                 ))}
               </div>
               <div className="px-6 py-4 border-t border-gray-100 flex flex-col gap-2.5 text-sm">
-                <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
-                <div className="flex justify-between text-gray-500"><span>Shipping</span><span>{shipping === 0 ? <span className="text-emerald-600 font-medium">Free</span> : fmt(shipping)}</span></div>
-                <div className="flex justify-between text-gray-500"><span>GST (18%)</span><span>{fmt(tax)}</span></div>
-                {appliedCoupon && (
-                  <div className="flex justify-between text-emerald-600 font-medium"><span>Discount ({appliedCoupon})</span><span>- {fmt(discountAmount)}</span></div>
-                )}
-                {codFee > 0 && <div className="flex justify-between text-orange-500"><span>COD Fee</span><span>+₹49</span></div>}
-                <div className="flex justify-between font-semibold text-charcoal-stone text-base border-t border-gray-100 pt-2.5 mt-1">
-                  <span className="font-serif">Total</span>
-                  <span>{fmt(total)}</span>
-                </div>
+                 <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
+                 <div className="flex justify-between text-gray-500"><span>Shipping</span><span>{shipping === 0 ? <span className="text-emerald-600 font-medium">Free</span> : fmt(shipping)}</span></div>
+                 {appliedCoupon && (
+                   <div className="flex justify-between text-emerald-600 font-medium"><span>Discount ({appliedCoupon})</span><span>- {fmt(discountAmount)}</span></div>
+                 )}
+                 {codFee > 0 && <div className="flex justify-between text-orange-500"><span>COD Fee</span><span>+₹49</span></div>}
+                 <div className="flex flex-col gap-0.5 border-t border-gray-100 pt-2.5 mt-1">
+                   <div className="flex justify-between font-semibold text-charcoal-stone text-base items-baseline">
+                     <span className="font-serif">Total</span>
+                     <span>{fmt(total)}</span>
+                   </div>
+                   <p className="text-[10px] text-[#0C831F] font-semibold text-right leading-none">
+                     ✓ Prices include all applicable taxes
+                   </p>
+                 </div>
               </div>
             </div>
           </div>

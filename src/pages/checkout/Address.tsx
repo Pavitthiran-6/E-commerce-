@@ -121,8 +121,8 @@ export default function CheckoutAddress() {
   const isFreeShipping = appliedCoupon ? isFreeShippingCoupon(appliedCoupon, []) : false;
 
   const shipping = isFreeShipping ? 0 : (subtotal > 5000 ? 0 : 250);
-  const tax = Math.round((subtotal - discountAmount) * 0.18);
-  const total = (subtotal - discountAmount) + shipping + tax;
+  const tax = Math.round((subtotal - discountAmount) * 18 / 118);
+  const total = (subtotal - discountAmount) + shipping;
 
   return (
     <main className="min-h-screen bg-[#F8F8F8] pb-20 px-4 sm:px-8 py-6">
@@ -272,13 +272,17 @@ function OrderSummary({ items, subtotal, discountAmount, appliedCoupon, shipping
         <div className="px-5 py-4 border-t border-[#E8E8E8] flex flex-col gap-2.5 text-sm">
           <div className="flex justify-between text-gray-500"><span>Subtotal</span><span className="font-semibold">{fmt(subtotal)}</span></div>
           <div className="flex justify-between text-gray-500"><span>Shipping</span><span className={`font-semibold ${shipping === 0 ? 'text-[#0C831F]' : ''}`}>{shipping === 0 ? 'FREE' : fmt(shipping)}</span></div>
-          <div className="flex justify-between text-gray-500"><span>GST (18%)</span><span className="font-semibold">{fmt(tax)}</span></div>
           {appliedCoupon && (
             <div className="flex justify-between text-[#0C831F] font-semibold"><span>Coupon ({appliedCoupon})</span><span>- {fmt(discountAmount)}</span></div>
           )}
-          <div className="flex justify-between font-bold text-gray-900 text-base border-t border-[#E8E8E8] pt-2.5 mt-1">
-            <span>Total</span>
-            <span>{fmt(total)}</span>
+          <div className="flex flex-col gap-0.5 border-t border-[#E8E8E8] pt-2.5 mt-1">
+            <div className="flex justify-between font-bold text-gray-900 text-base items-baseline">
+              <span>Total</span>
+              <span>{fmt(total)}</span>
+            </div>
+            <p className="text-[10px] text-[#0C831F] font-semibold text-right leading-none">
+              ✓ Prices include all applicable taxes
+            </p>
           </div>
         </div>
 

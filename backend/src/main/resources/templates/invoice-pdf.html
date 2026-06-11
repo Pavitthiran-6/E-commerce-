@@ -270,7 +270,7 @@
             <td class="totals-td-value" th:text="${'₹' + order.shippingCharge}">₹0.00</td>
         </tr>
         <tr>
-            <td class="totals-td-label">GST (18%):</td>
+            <td class="totals-td-label">GST (18% Included):</td>
             <td class="totals-td-value" th:text="${'₹' + order.taxAmount}">₹0.00</td>
         </tr>
         <tr th:if="${order.discountAmount != null and order.discountAmount.doubleValue() > 0}">

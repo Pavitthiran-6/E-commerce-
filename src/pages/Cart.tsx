@@ -77,8 +77,8 @@ export default function Cart() {
     : 0;
 
   const shipping = subtotal > 5000 ? 0 : 250;
-  const tax = Math.round((subtotal - calculatedDiscount) * 0.18);
-  const total = subtotal - calculatedDiscount + shipping + tax;
+  const tax = Math.round((subtotal - calculatedDiscount) * 18 / 118);
+  const total = subtotal - calculatedDiscount + shipping;
 
   // Empty cart
   if (cartItems.length === 0) {
@@ -222,14 +222,15 @@ export default function Cart() {
                     {shipping === 0 ? 'FREE' : fmt(shipping)}
                   </span>
                 </div>
-                <div className="flex justify-between text-gray-700">
-                  <span>Estimated Tax (18%)</span>
-                  <span className="font-semibold">{fmt(tax)}</span>
-                </div>
               </div>
-              <div className="flex justify-between mb-4">
-                <span className="text-base font-bold text-gray-900">Total</span>
-                <span className="text-lg font-black text-gray-900">{fmt(total)}</span>
+              <div className="flex flex-col gap-0.5 mb-4">
+                <div className="flex justify-between items-baseline">
+                  <span className="text-base font-bold text-gray-900">Total</span>
+                  <span className="text-lg font-black text-gray-900">{fmt(total)}</span>
+                </div>
+                <p className="text-[11px] text-[#0C831F] font-semibold text-right leading-none">
+                  ✓ Prices include all applicable taxes
+                </p>
               </div>
 
               {calculatedDiscount > 0 && (

@@ -100,7 +100,7 @@
                     <td style="text-align: right;" th:text="${'₹' + order.shippingCharge}">₹0.00</td>
                 </tr>
                 <tr>
-                    <td style="color: #666;">GST (18%)</td>
+                    <td style="color: #666;">GST (18% Included)</td>
                     <td style="text-align: right;" th:text="${'₹' + order.taxAmount}">₹0.00</td>
                 </tr>
                 <tr th:if="${order.discountAmount != null && order.discountAmount.compareTo(T(java.math.BigDecimal).ZERO) > 0}">

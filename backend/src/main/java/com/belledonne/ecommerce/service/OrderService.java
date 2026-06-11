@@ -106,7 +106,7 @@ public class OrderService {
 
         BigDecimal shippingCharge = PriceUtil.calculateShipping(subtotal.subtract(discount));
         BigDecimal taxAmount = PriceUtil.calculateGst(subtotal.subtract(discount));
-        BigDecimal total = subtotal.subtract(discount).add(shippingCharge).add(taxAmount);
+        BigDecimal total = subtotal.subtract(discount).add(shippingCharge);
 
         String orderNumber = generateOrderNumber();
         Order order = Order.builder()

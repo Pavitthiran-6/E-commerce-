@@ -655,19 +655,20 @@ export default function TrackOrder() {
                   <span className="text-gray-500">Shipping</span>
                   <span className="font-medium">{order.shippingCharge === 0 ? 'Free' : `₹${order.shippingCharge.toLocaleString()}`}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Tax</span>
-                  <span className="font-medium">₹{order.taxAmount.toLocaleString()}</span>
-                </div>
                 {order.discountAmount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount {order.couponCode ? `(${order.couponCode})` : ''}</span>
                     <span className="font-medium">-₹{order.discountAmount.toLocaleString()}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-bold text-charcoal-stone text-lg pt-2 border-t border-gray-100 mt-2">
-                  <span>Total</span>
-                  <span>₹{order.totalAmount.toLocaleString()}</span>
+                <div className="border-t border-gray-100 pt-2 mt-2">
+                  <div className="flex justify-between font-bold text-charcoal-stone text-lg">
+                    <span>Total</span>
+                    <span>₹{order.totalAmount.toLocaleString()}</span>
+                  </div>
+                  <p className="text-[11px] text-[#0C831F] font-semibold text-right leading-none mt-1">
+                    ✓ Prices include all applicable taxes
+                  </p>
                 </div>
               </div>
             </div>

@@ -9,7 +9,7 @@ public class PriceUtil {
     public static final BigDecimal SHIPPING_CHARGE = new BigDecimal("79");
 
     public static BigDecimal calculateGst(BigDecimal amount) {
-        return amount.multiply(GST_RATE).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+        return amount.multiply(GST_RATE).divide(new BigDecimal("118"), 2, RoundingMode.HALF_UP);
     }
 
     public static BigDecimal calculateShipping(BigDecimal subtotal) {

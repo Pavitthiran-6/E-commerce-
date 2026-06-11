@@ -124,7 +124,7 @@ export default function Collection() {
     } else {
       params.delete('subcategories');
     }
-    
+
     if (selectedSlugs.length === 1) {
       params.set('category', selectedSlugs[0]);
     } else {
@@ -319,7 +319,7 @@ export default function Collection() {
   // Helper to map and resolve parent & subcategory names for a product
   const resolveProductCategory = useCallback((product: Product | any) => {
     const name = product.categoryName || product.category || '';
-    
+
     if (categories.length === 0) {
       return {
         mainCategory: name,
@@ -343,7 +343,7 @@ export default function Collection() {
         }
       }
     }
-    
+
     return {
       mainCategory: name,
       subCategory: '',
@@ -360,7 +360,7 @@ export default function Collection() {
     if (promoQuery === 'clearance' && (!p.discount || p.discount < 25)) return false;
     if (promoQuery === 'flash-deals' && (!p.discount || p.discount === 0)) return false;
     if (promoQuery === 'last-chance' && (!p.discount || p.discount < 15)) return false;
-    
+
     // Filter by departments (Men, Women, Unisex)
     if (selectedDepartments.length > 0) {
       const matchesGender = p.gender && selectedDepartments.includes(p.gender);
@@ -410,10 +410,10 @@ export default function Collection() {
   const pageTitle = searchQuery
     ? `Results for "${searchQuery}"`
     : promoQuery === 'clearance' ? 'Clearance'
-    : promoQuery === 'flash-deals' ? 'Flash Deals'
-    : promoQuery === 'last-chance' ? 'Last Chance'
-    : departmentQuery ? `${departmentQuery}'s Collection`
-    : 'All Products';
+      : promoQuery === 'flash-deals' ? 'Flash Deals'
+        : promoQuery === 'last-chance' ? 'Last Chance'
+          : departmentQuery ? `${departmentQuery}'s Collection`
+            : 'All Products';
 
   // Active filter count
   const activeFilterCount = selectedCategories.length + selectedDepartments.length +
@@ -424,7 +424,7 @@ export default function Collection() {
     const allSubCategories = selectedMainCategory === 'all'
       ? categories.flatMap(cat => cat.children || [])
       : (categories.find(c => c.name.toLowerCase() === selectedMainCategory.toLowerCase())?.children || []);
-    
+
     return (
       <div className="space-y-6">
         {/* Sub-categories Section */}
@@ -594,11 +594,10 @@ export default function Collection() {
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1">
             <button
               onClick={() => { setSelectedMainCategory('all'); setSelectedCategories([]); setCurrentPage(1); updateURL([], sliderPrice[0], sliderPrice[1], 'all'); }}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-150 ${
-                selectedMainCategory === 'all'
-                  ? 'bg-[#0C831F] text-white border-[#0C831F]'
-                  : 'bg-white text-gray-700 border-[#E8E8E8] hover:border-[#0C831F] hover:text-[#0C831F]'
-              }`}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-150 ${selectedMainCategory === 'all'
+                ? 'bg-[#0C831F] text-white border-[#0C831F]'
+                : 'bg-white text-gray-700 border-[#E8E8E8] hover:border-[#0C831F] hover:text-[#0C831F]'
+                }`}
             >
               All
             </button>
@@ -611,11 +610,10 @@ export default function Collection() {
                   setCurrentPage(1);
                   updateURL([], sliderPrice[0], sliderPrice[1], cat.name);
                 }}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-150 ${
-                  selectedMainCategory.toLowerCase() === cat.name.toLowerCase()
-                    ? 'bg-[#0C831F] text-white border-[#0C831F]'
-                    : 'bg-white text-gray-700 border-[#E8E8E8] hover:border-[#0C831F] hover:text-[#0C831F]'
-                }`}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-150 ${selectedMainCategory.toLowerCase() === cat.name.toLowerCase()
+                  ? 'bg-[#0C831F] text-white border-[#0C831F]'
+                  : 'bg-white text-gray-700 border-[#E8E8E8] hover:border-[#0C831F] hover:text-[#0C831F]'
+                  }`}
               >
                 {cat.name}
               </button>
@@ -627,11 +625,10 @@ export default function Collection() {
             {/* Mobile-only Filter Button */}
             <button
               onClick={() => setIsFilterSheetOpen(true)}
-              className={`md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                activeFilterCount > 0
-                  ? 'bg-[#0C831F] text-white border-[#0C831F]'
-                  : 'bg-white text-gray-700 border-[#E8E8E8] hover:border-[#0C831F]'
-              }`}
+              className={`md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${activeFilterCount > 0
+                ? 'bg-[#0C831F] text-white border-[#0C831F]'
+                : 'bg-white text-gray-700 border-[#E8E8E8] hover:border-[#0C831F]'
+                }`}
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
               Filter {activeFilterCount > 0 && `(${activeFilterCount})`}
@@ -653,11 +650,10 @@ export default function Collection() {
                       <button
                         key={option}
                         onClick={() => { setSortBy(option); setIsSortOpen(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors font-medium ${
-                          sortBy === option
-                            ? 'bg-[#E8F5E9] text-[#0C831F]'
-                            : 'text-gray-700 hover:bg-gray-50'
-                        }`}
+                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors font-medium ${sortBy === option
+                          ? 'bg-[#E8F5E9] text-[#0C831F]'
+                          : 'text-gray-700 hover:bg-gray-50'
+                          }`}
                       >
                         {option}
                       </button>
@@ -765,11 +761,10 @@ export default function Collection() {
                     <button
                       key={page}
                       onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                      className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-semibold border transition-colors ${
-                        currentPage === page
-                          ? 'bg-[#0C831F] text-white border-[#0C831F]'
-                          : 'bg-white text-gray-700 border-[#E8E8E8] hover:border-[#0C831F] hover:text-[#0C831F]'
-                      }`}
+                      className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-semibold border transition-colors ${currentPage === page
+                        ? 'bg-[#0C831F] text-white border-[#0C831F]'
+                        : 'bg-white text-gray-700 border-[#E8E8E8] hover:border-[#0C831F] hover:text-[#0C831F]'
+                        }`}
                     >
                       {page}
                     </button>
