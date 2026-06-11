@@ -239,7 +239,25 @@ export default function Home() {
           )}
         </section>
 
-
+        {/* ── Tech & Home promo banners ────────────────── */}
+        <section>
+          <SectionHeader title="Deals of the Day" seeAllLink="/sale" seeAllLabel="View all deals" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {[
+              { label: '3-Day Delivery', image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600', link: '/cart', color: '#E8F5E9' },
+              { label: 'Weekly Arrived', image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=600', link: '/new-arrivals', color: '#FFF8E1' },
+              { label: 'Flash Deals', image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=600', link: '/collection?promo=flash-deals', color: '#FFF3E0' },
+            ].map((promo) => (
+              <Link key={promo.label} to={promo.link} className="relative rounded-2xl overflow-hidden group h-28 shadow-sm hover:shadow-md transition-shadow">
+                <img src={promo.image} alt={promo.label} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
+                <div className="absolute inset-0 flex items-center px-4">
+                  <span className="text-white text-sm font-bold drop-shadow-sm">{promo.label}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
 
         {/* ── Dynamic Blinkit-style Category Sections ── */}
         {isCategoriesLoading ? (
@@ -298,26 +316,6 @@ export default function Home() {
             )}
           </section>
         )}
-
-        {/* ── Tech & Home promo banners ────────────────── */}
-        <section>
-          <SectionHeader title="Deals of the Day" seeAllLink="/sale" seeAllLabel="View all deals" />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            {[
-              { label: '3-Day Delivery', image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600', link: '/cart', color: '#E8F5E9' },
-              { label: 'Weekly Arrived', image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=600', link: '/new-arrivals', color: '#FFF8E1' },
-              { label: 'Flash Deals', image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=600', link: '/collection?promo=flash-deals', color: '#FFF3E0' },
-            ].map((promo) => (
-              <Link key={promo.label} to={promo.link} className="relative rounded-2xl overflow-hidden group h-28 shadow-sm hover:shadow-md transition-shadow">
-                <img src={promo.image} alt={promo.label} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
-                <div className="absolute inset-0 flex items-center px-4">
-                  <span className="text-white text-sm font-bold drop-shadow-sm">{promo.label}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
 
         {/* ── Tech & Home Products ─────────────────────── */}
         {(isLoading || techHome.length > 0) && (
