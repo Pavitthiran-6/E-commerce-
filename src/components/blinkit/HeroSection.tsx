@@ -179,23 +179,41 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
         )}
 
         {/* Title badge & date */}
-        <div className="relative z-10 space-y-1 max-w-lg">
+        <div className="relative z-10 space-y-0 max-w-lg">
           <div className="flex flex-col items-center gap-1">
-            <h1 className="text-xl md:text-5xl lg:text-6xl font-black tracking-tighter text-white drop-shadow-[0_3px_6px_rgba(0,0,0,0.2)] uppercase">
+            <h1
+              className="text-5xl md:text-8xl lg:text-9xl font-black tracking-tighter uppercase leading-none select-none"
+              style={{
+                color: '#FFFFFF',
+                WebkitTextStroke: '3px #1A1A1A',
+                textShadow: '4px 4px 0px #1A1A1A, -1px -1px 0px #1A1A1A',
+                fontFamily: "'Impact', 'Arial Black', sans-serif",
+                letterSpacing: '-0.02em',
+              }}
+            >
               {title}
             </h1>
             {badge && (
-              <span className="bg-[#1A1A1A] text-[#FFCA28] text-[9px] md:text-xs font-extrabold uppercase px-4 py-0.5 md:px-5 md:py-1 rounded-full shadow-md tracking-wider mt-0.5">
+              <span
+                className="inline-block bg-[#1A1A1A] text-[#FFCA28] font-black uppercase tracking-wider rounded-full shadow-lg mt-1"
+                style={{
+                  fontSize: 'clamp(14px, 3vw, 28px)',
+                  padding: 'clamp(4px, 1vw, 10px) clamp(20px, 5vw, 48px)',
+                  fontFamily: "'Impact', 'Arial Black', sans-serif",
+                  letterSpacing: '0.08em',
+                }}
+              >
                 {badge}
               </span>
             )}
           </div>
           {dateRange && (
-            <p className="text-[9px] md:text-xs font-black text-gray-900 tracking-wider uppercase pt-1">
+            <p className="text-[9px] md:text-xs font-black text-gray-900 tracking-wider uppercase pt-2">
               {dateRange}
             </p>
           )}
         </div>
+
       </div>
 
       {/* ── GRID LAYOUT FOR ALL SCREEN SIZES (Large Left Card, 4 promo cards right) ── */}
