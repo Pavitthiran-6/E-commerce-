@@ -471,7 +471,7 @@ export default function Collection() {
           ) : allSubCategories.length === 0 ? (
             <p className="text-xs text-gray-400 italic">No sub-categories found.</p>
           ) : (
-            <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+            <div className="space-y-2.5 pr-1">
               {allSubCategories.map((sub) => {
                 const isChecked = selectedCategories.includes(sub.name);
                 const count = products.filter(p => {
@@ -734,7 +734,7 @@ export default function Collection() {
           <div
             ref={sidebarRef}
             className="hidden md:block w-64 flex-shrink-0 bg-white rounded-2xl border border-gray-100 p-5 sticky overflow-y-auto overscroll-contain custom-scrollbar shadow-sm"
-            style={{ height: 'calc(100vh - 6rem)', top: '5rem' }}
+            style={{ maxHeight: 'calc(100vh - 6rem)', top: '5rem' }}
           >
             <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
               <span className="text-sm font-bold text-gray-900">Filters</span>
