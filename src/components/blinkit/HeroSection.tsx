@@ -87,7 +87,7 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
         {featuredProductImage && (
           <div className="w-full flex justify-center mt-2">
             <div
-              className="aspect-square overflow-hidden bg-white/60 rounded-xl md:rounded-2xl border border-white/80 shadow-inner hover:scale-105 transition-transform duration-300 w-24 sm:w-32 md:w-36 lg:w-40"
+              className="aspect-square overflow-hidden bg-white/60 rounded-xl md:rounded-2xl border border-white/80 shadow-inner hover:scale-105 transition-transform duration-300 w-20 sm:w-24 md:w-28 lg:w-32"
             >
               <img src={featuredProductImage} alt={featuredProductName} className="w-full h-full object-cover" loading="lazy" />
             </div>
@@ -131,7 +131,7 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
       </>
     );
 
-    const className = `w-full h-full rounded-2xl border border-amber-100/60 shadow-sm p-4 sm:p-5 md:p-6 flex transition-colors duration-300 hover:bg-[#FFF6DB] select-none ${
+    const className = `w-full h-full rounded-2xl border border-amber-100/60 shadow-sm p-3 sm:p-4 md:p-5 flex transition-colors duration-300 hover:bg-[#FFF6DB] select-none ${
       heroData?.productSlug ? 'cursor-pointer' : ''
     } ${
       isVertical ? 'flex-col justify-between items-center text-center' : 'flex-row justify-between items-center'
@@ -164,19 +164,19 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
           </span>
         </div>
 
-        <h3 className="text-[10px] md:text-base font-extrabold text-gray-900 tracking-tight leading-snug mt-1.5 line-clamp-2 min-h-[28px] md:min-h-[48px]">
+        <h3 className="text-[10px] md:text-sm font-extrabold text-gray-900 tracking-tight leading-snug mt-1 line-clamp-2 min-h-[20px] md:min-h-[36px]">
           {card.title}
         </h3>
 
         {card.image && (
-          <div className="w-full h-14 sm:h-20 md:h-32 flex items-center justify-center mt-1.5 overflow-hidden rounded-lg md:rounded-xl bg-white/40 shadow-inner group-hover:scale-105 transition-transform duration-300">
+          <div className="w-full h-10 sm:h-14 md:h-24 lg:h-26 flex items-center justify-center mt-1 overflow-hidden rounded-lg md:rounded-xl bg-white/40 shadow-inner group-hover:scale-105 transition-transform duration-300">
             <img src={card.image} alt={card.title} className="w-full h-full object-cover" loading="lazy" />
           </div>
         )}
       </>
     );
 
-    const className = "group relative flex flex-col justify-between overflow-hidden rounded-xl md:rounded-2xl border border-orange-100/50 p-2.5 md:p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-md cursor-pointer select-none h-full";
+    const className = "group relative flex flex-col justify-between overflow-hidden rounded-xl md:rounded-2xl border border-orange-100/50 p-2 md:p-3.5 transition-all duration-300 hover:scale-[1.02] hover:shadow-md cursor-pointer select-none h-full";
     const style = { backgroundColor: card.backgroundColor || '#FFF6F0' };
 
     if (card.productSlug) {
@@ -202,7 +202,7 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
 
   return (
     <div
-      className="relative overflow-hidden rounded-3xl border border-amber-500/10 shadow-md p-3 md:p-6 lg:p-8 flex flex-col gap-2 md:gap-6 lg:gap-8"
+      className="relative overflow-hidden rounded-3xl border border-amber-500/10 shadow-md p-3 md:p-5 lg:p-6 flex flex-col gap-2 md:gap-4 lg:gap-5"
       style={heroStyle}
     >
       {/* ── Header Title & Graphic Layout ────────────────────────── */}
