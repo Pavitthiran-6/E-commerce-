@@ -702,7 +702,7 @@ export default function Collection() {
         <div className="flex gap-6 items-start">
           {/* Left Sidebar filter layout - visible on desktop and tablet, hidden on mobile */}
           <div
-            className="hidden md:block w-64 flex-shrink-0 bg-white rounded-2xl border border-gray-100 p-5 sticky overflow-y-auto overscroll-contain custom-scrollbar shadow-sm"
+            className="hidden md:block w-64 flex-shrink-0 bg-white rounded-2xl border border-gray-100 p-5 sticky overflow-y-auto custom-scrollbar shadow-sm"
             style={{ maxHeight: 'calc(100vh - 6rem)', top: '5rem' }}
           >
             <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
