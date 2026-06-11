@@ -99,10 +99,6 @@
                     <td style="color: #666;">Shipping Charge</td>
                     <td style="text-align: right;" th:text="${'₹' + order.shippingCharge}">₹0.00</td>
                 </tr>
-                <tr>
-                    <td style="color: #666;">GST (18% Included)</td>
-                    <td style="text-align: right;" th:text="${'₹' + order.taxAmount}">₹0.00</td>
-                </tr>
                 <tr th:if="${order.discountAmount != null && order.discountAmount.compareTo(T(java.math.BigDecimal).ZERO) > 0}">
                     <td style="color: #666;">Discount</td>
                     <td style="text-align: right; color: #28a745;" th:text="${'-₹' + order.discountAmount}">-₹0.00</td>
@@ -110,6 +106,11 @@
                 <tr class="summary-row-bold">
                     <td>Total Paid</td>
                     <td style="text-align: right;" th:text="${'₹' + order.totalAmount}">₹0.00</td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="text-align: right; font-size: 11px; color: #0C831F; font-weight: bold; padding: 4px 10px 0 10px;">
+                        ✓ Prices include all applicable taxes (including GST)
+                    </td>
                 </tr>
             </table>
 
