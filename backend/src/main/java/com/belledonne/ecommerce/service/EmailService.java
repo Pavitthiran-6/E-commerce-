@@ -17,6 +17,9 @@ import jakarta.mail.internet.MimeMessage;
 
 import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.MailSendException;
+import org.springframework.transaction.annotation.Transactional;
+import com.belledonne.ecommerce.repository.OrderRepository;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +28,7 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
+    private final OrderRepository orderRepository;
 
     @Value("${app.mail.from:pavitthiran6@gmail.com}")
     private String fromEmail;
@@ -109,95 +113,111 @@ public class EmailService {
     }
 
     @Async
+    @Transactional(readOnly = true)
     public void sendOrderConfirmationEmail(String toEmail, Order order) {
         sendOrderConfirmationEmail(toEmail, order, null);
     }
 
     @Async
+    @Transactional(readOnly = true)
     public void sendOrderConfirmationEmail(String toEmail, Order order, byte[] invoicePdf) {
+        Order freshOrder = orderRepository.findById(order.getId())
+            .orElseThrow(() -> new IllegalArgumentException("Order not found: " + order.getId()));
         log.info("[EmailService] Email request started: Order Confirmation to {}", toEmail);
         String htmlContent;
         try {
             Context context = new Context();
-            context.setVariable("order", order);
+            context.setVariable("order", freshOrder);
             htmlContent = templateEngine.process("order-confirmation-email", context);
         } catch (Exception e) {
             log.error("[EmailService] ❌ Template rendering failure for order-confirmation-email to {}: {}", toEmail, e.getMessage(), e);
             return;
         }
         if (invoicePdf != null && invoicePdf.length > 0) {
-            sendEmailWithAttachment(toEmail, "Order Confirmed — " + order.getOrderNumber(), htmlContent,
-                invoicePdf, "invoice-" + order.getOrderNumber() + ".pdf");
+            sendEmailWithAttachment(toEmail, "Order Confirmed — " + freshOrder.getOrderNumber(), htmlContent,
+                invoicePdf, "invoice-" + freshOrder.getOrderNumber() + ".pdf");
         } else {
-            sendEmail(toEmail, "Order Confirmed — " + order.getOrderNumber(), htmlContent);
+            sendEmail(toEmail, "Order Confirmed — " + freshOrder.getOrderNumber(), htmlContent);
         }
     }
 
     @Async
+    @Transactional(readOnly = true)
     public void sendInvoiceReadyEmail(String toEmail, Order order, byte[] invoicePdf) {
+        Order freshOrder = orderRepository.findById(order.getId())
+            .orElseThrow(() -> new IllegalArgumentException("Order not found: " + order.getId()));
         log.info("[EmailService] Email request started: Invoice Ready to {}", toEmail);
         String htmlContent;
         try {
             Context context = new Context();
-            context.setVariable("order", order);
+            context.setVariable("order", freshOrder);
             htmlContent = templateEngine.process("invoice-ready-email", context);
         } catch (Exception e) {
             log.error("[EmailService] ❌ Template rendering failure for invoice-ready-email to {}: {}", toEmail, e.getMessage(), e);
             return;
         }
         if (invoicePdf != null && invoicePdf.length > 0) {
-            sendEmailWithAttachment(toEmail, "Your BELLEDONNE Tax Invoice is Ready — " + order.getOrderNumber(), htmlContent,
-                invoicePdf, "invoice-" + order.getOrderNumber() + ".pdf");
+            sendEmailWithAttachment(toEmail, "Your BELLEDONNE Tax Invoice is Ready — " + freshOrder.getOrderNumber(), htmlContent,
+                invoicePdf, "invoice-" + freshOrder.getOrderNumber() + ".pdf");
         } else {
-            sendEmail(toEmail, "Your BELLEDONNE Tax Invoice is Ready — " + order.getOrderNumber(), htmlContent);
+            sendEmail(toEmail, "Your BELLEDONNE Tax Invoice is Ready — " + freshOrder.getOrderNumber(), htmlContent);
         }
     }
 
     @Async
+    @Transactional(readOnly = true)
     public void sendOrderShippedEmail(String toEmail, Order order, String trackingNumber) {
+        Order freshOrder = orderRepository.findById(order.getId())
+            .orElseThrow(() -> new IllegalArgumentException("Order not found: " + order.getId()));
         log.info("[EmailService] Email request started: Order Shipped to {}", toEmail);
         String htmlContent;
         try {
             Context context = new Context();
-            context.setVariable("order", order);
+            context.setVariable("order", freshOrder);
             context.setVariable("trackingNumber", trackingNumber);
             htmlContent = templateEngine.process("order-shipped-email", context);
         } catch (Exception e) {
             log.error("[EmailService] ❌ Template rendering failure for order-shipped-email to {}: {}", toEmail, e.getMessage(), e);
             return;
         }
-        sendEmail(toEmail, "Your Order is on its Way! 🚚 — " + order.getOrderNumber(), htmlContent);
+        sendEmail(toEmail, "Your Order is on its Way! 🚚 — " + freshOrder.getOrderNumber(), htmlContent);
     }
 
     @Async
+    @Transactional(readOnly = true)
     public void sendOrderDeliveredEmail(String toEmail, Order order) {
+        Order freshOrder = orderRepository.findById(order.getId())
+            .orElseThrow(() -> new IllegalArgumentException("Order not found: " + order.getId()));
         log.info("[EmailService] Email request started: Order Delivered to {}", toEmail);
         String htmlContent;
         try {
             Context context = new Context();
-            context.setVariable("order", order);
+            context.setVariable("order", freshOrder);
             htmlContent = templateEngine.process("order-delivered-email", context);
         } catch (Exception e) {
             log.error("[EmailService] ❌ Template rendering failure for order-delivered-email to {}: {}", toEmail, e.getMessage(), e);
             return;
         }
-        sendEmail(toEmail, "Your Order Has Been Delivered! 📦 — " + order.getOrderNumber(), htmlContent);
+        sendEmail(toEmail, "Your Order Has Been Delivered! 📦 — " + freshOrder.getOrderNumber(), htmlContent);
     }
 
     @Async
+    @Transactional(readOnly = true)
     public void sendRefundInitiatedEmail(String toEmail, Order order, String refundId) {
+        Order freshOrder = orderRepository.findById(order.getId())
+            .orElseThrow(() -> new IllegalArgumentException("Order not found: " + order.getId()));
         log.info("[EmailService] Email request started: Refund Initiated to {}", toEmail);
         String htmlContent;
         try {
             Context context = new Context();
-            context.setVariable("order", order);
+            context.setVariable("order", freshOrder);
             context.setVariable("refundId", refundId);
             htmlContent = templateEngine.process("refund-initiated-email", context);
         } catch (Exception e) {
             log.error("[EmailService] ❌ Template rendering failure for refund-initiated-email to {}: {}", toEmail, e.getMessage(), e);
             return;
         }
-        sendEmail(toEmail, "Refund Initiated — " + order.getOrderNumber(), htmlContent);
+        sendEmail(toEmail, "Refund Initiated — " + freshOrder.getOrderNumber(), htmlContent);
     }
 
     @Value("${app.security.alert-email:admin@belledonne.in}")
@@ -313,12 +333,15 @@ public class EmailService {
     }
 
     @Async
+    @Transactional(readOnly = true)
     public void sendOrderStatusUpdateEmail(Order order, String statusLabel, String messageText) {
-        log.info("[EmailService] Email request started: Order Status Update to {}", order.getUser().getEmail());
+        Order freshOrder = orderRepository.findById(order.getId())
+            .orElseThrow(() -> new IllegalArgumentException("Order not found: " + order.getId()));
+        log.info("[EmailService] Email request started: Order Status Update to {}", freshOrder.getUser().getEmail());
         String htmlContent;
         try {
             Context context = new Context();
-            context.setVariable("order", order);
+            context.setVariable("order", freshOrder);
             context.setVariable("statusLabel", statusLabel);
             context.setVariable("messageText", messageText);
             htmlContent = templateEngine.process("order-status-update-email", context);
@@ -326,7 +349,7 @@ public class EmailService {
             log.error("[EmailService] ❌ Template rendering failure for order-status-update-email: {}", e.getMessage(), e);
             return;
         }
-        sendEmail(order.getUser().getEmail(), "Order Update: #" + order.getOrderNumber() + " is " + statusLabel, htmlContent);
+        sendEmail(freshOrder.getUser().getEmail(), "Order Update: #" + freshOrder.getOrderNumber() + " is " + statusLabel, htmlContent);
     }
 
     private boolean sendEmail(String to, String subject, String htmlContent) {
