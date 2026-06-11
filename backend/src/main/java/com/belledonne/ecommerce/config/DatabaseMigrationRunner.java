@@ -54,6 +54,21 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         }
 
         try {
+            log.info("Updating check constraint on orders.status to include all current OrderStatus values...");
+            // Drop the stale constraint that only contained old/legacy status values
+            jdbcTemplate.execute("ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check");
+            // Recreate with all current OrderStatus enum values
+            jdbcTemplate.execute("ALTER TABLE orders ADD CONSTRAINT orders_status_check CHECK (status IN (" +
+                "'PLACED', 'CONFIRMED', 'PACKED', 'PROCESSING', 'SHIPPED', " +
+                "'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', " +
+                "'RETURN_REQUESTED', 'RETURNED', 'REFUNDED'" +
+                "))");
+            log.info("Database migration successfully updated orders_status_check constraint with all statuses!");
+        } catch (Exception e) {
+            log.warn("Database migration orders.status check constraint update skipped or failed: {}", e.getMessage());
+        }
+
+        try {
             log.info("Updating check constraint on security_audit_logs.action...");
             // Drop old constraint if it exists
             jdbcTemplate.execute("ALTER TABLE security_audit_logs DROP CONSTRAINT IF EXISTS security_audit_logs_action_check");
