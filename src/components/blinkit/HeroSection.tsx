@@ -51,9 +51,50 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
   // Helper to render Featured Card
   const renderFeaturedCard = (layout: 'vertical' | 'horizontal') => {
     const isVertical = layout === 'vertical';
-    const cardContent = (
+    const cardContent = isVertical ? (
       <>
-        <div className={isVertical ? 'w-full' : 'flex-1 pr-4'}>
+        {/* Top Section: Text & Price grouped together */}
+        <div className="w-full flex flex-col items-center gap-3">
+          <div className="w-full">
+            <span className="text-[9px] md:text-xs font-black tracking-widest text-amber-800 uppercase block mb-1">
+              SUMMER DEALS
+            </span>
+            {featuredDiscountPercentage > 0 && (
+              <span className="inline-block bg-amber-100 text-amber-800 text-[9px] md:text-[11px] font-bold px-2 py-0.5 rounded-full mb-1">
+                {featuredDiscountPercentage}% OFF
+              </span>
+            )}
+            <h3 className="font-extrabold text-gray-900 leading-tight mt-0.5 line-clamp-2 text-xs md:text-base">
+              {featuredProductName}
+            </h3>
+          </div>
+
+          <div className="flex flex-col items-center gap-1">
+            {featuredOriginalPrice > featuredSalePrice && (
+              <span className="text-[9px] md:text-xs text-gray-400 line-through font-semibold leading-none">
+                ₹{Number(featuredOriginalPrice).toLocaleString('en-IN')}
+              </span>
+            )}
+            <span className="bg-[#0C831F] text-white text-[10px] sm:text-xs md:text-lg font-black px-1.5 py-0.5 sm:px-2.5 sm:py-1 md:px-4 md:py-1.5 rounded-md sm:rounded-lg md:rounded-xl shadow-sm leading-none flex items-center">
+              ₹{Number(featuredSalePrice).toLocaleString('en-IN')}
+            </span>
+          </div>
+        </div>
+
+        {/* Bottom Section: Product Image */}
+        {featuredProductImage && (
+          <div className="w-full flex justify-center mt-4 flex-1 items-end">
+            <div
+              className="aspect-square overflow-hidden bg-white/60 rounded-xl md:rounded-2xl border border-white/80 shadow-inner hover:scale-105 transition-transform duration-300 w-24 sm:w-32 md:w-44 lg:w-48"
+            >
+              <img src={featuredProductImage} alt={featuredProductName} className="w-full h-full object-cover" loading="lazy" />
+            </div>
+          </div>
+        )}
+      </>
+    ) : (
+      <>
+        <div className="flex-1 pr-4">
           <span className="text-[9px] md:text-xs font-black tracking-widest text-amber-800 uppercase block mb-1">
             SUMMER DEALS
           </span>
@@ -62,12 +103,12 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
               {featuredDiscountPercentage}% OFF
             </span>
           )}
-          <h3 className={`font-extrabold text-gray-900 leading-tight mt-0.5 line-clamp-2 ${isVertical ? 'text-xs md:text-sm mb-1' : 'text-sm md:text-lg mb-1'}`}>
+          <h3 className="font-extrabold text-gray-900 leading-tight mt-1 line-clamp-2 text-sm md:text-lg mb-1">
             {featuredProductName}
           </h3>
         </div>
 
-        <div className={`flex flex-col items-center gap-1 ${isVertical ? '' : 'flex-shrink-0'}`}>
+        <div className="flex flex-col items-center gap-1 flex-shrink-0">
           {featuredOriginalPrice > featuredSalePrice && (
             <span className="text-[9px] md:text-xs text-gray-400 line-through font-semibold leading-none">
               ₹{Number(featuredOriginalPrice).toLocaleString('en-IN')}
@@ -80,9 +121,7 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
 
         {featuredProductImage && (
           <div
-            className={`aspect-square overflow-hidden bg-white/60 rounded-xl md:rounded-2xl border border-white/80 shadow-inner hover:scale-105 transition-transform duration-300 ${
-              isVertical ? 'w-14 sm:w-20 md:w-36 mt-1' : 'w-16 md:w-28'
-            }`}
+            className="aspect-square overflow-hidden bg-white/60 rounded-xl md:rounded-2xl border border-white/80 shadow-inner hover:scale-105 transition-transform duration-300 w-16 md:w-28"
           >
             <img src={featuredProductImage} alt={featuredProductName} className="w-full h-full object-cover" loading="lazy" />
           </div>
@@ -90,11 +129,12 @@ export default function HeroSection({ heroData, isLoading }: HeroSectionProps) {
       </>
     );
 
-    const className = `w-full h-full rounded-2xl border border-amber-100/60 shadow-sm p-2 sm:p-3 md:p-4 flex transition-colors duration-300 hover:bg-[#FFF6DB] select-none ${
+    const className = `w-full h-full rounded-2xl border border-amber-100/60 shadow-sm p-4 sm:p-5 md:p-6 flex transition-colors duration-300 hover:bg-[#FFF6DB] select-none ${
       heroData?.productSlug ? 'cursor-pointer' : ''
     } ${
-      isVertical ? 'flex-col justify-start items-center text-center gap-2' : 'flex-row justify-between items-center'
+      isVertical ? 'flex-col justify-between items-center text-center' : 'flex-row justify-between items-center'
     }`;
+
     const style = { backgroundColor: featuredCardBackgroundColor || '#FFF9E6' };
 
     if (heroData?.productSlug) {
