@@ -147,18 +147,7 @@ export default function ManageCoupons() {
     }
   };
 
-  // Toggle show on home status directly from table row
-  const handleToggleHomeStatus = async (coupon: Coupon) => {
-    try {
-      await axiosInstance.put(`/api/admin/coupons/${coupon.id}/toggle-home`);
-      setCoupons(prev =>
-        prev.map(c => (c.id === coupon.id ? { ...c, showOnHome: !c.showOnHome } : c))
-      );
-      showToast(`Coupon ${coupon.code} home status updated!`, 'success');
-    } catch (err) {
-      showToast('Failed to update show on home status.', 'error');
-    }
-  };
+
 
   // Toggle active status directly from table row
   const handleToggleStatus = async (coupon: Coupon) => {
@@ -358,11 +347,7 @@ export default function ManageCoupons() {
                 <Toggle checked={isActive} onClick={() => setIsActive(!isActive)} />
                 <span className="text-sm font-medium text-gray-700">Set active immediately</span>
               </div>
-              {/* Show on Home Toggle */}
-              <div className="flex items-center gap-2.5">
-                <Toggle checked={showOnHome} onClick={() => setShowOnHome(!showOnHome)} />
-                <span className="text-sm font-medium text-gray-700">Show on Home Page</span>
-              </div>
+
             </div>
 
             <button
@@ -441,7 +426,7 @@ export default function ManageCoupons() {
                   <th className="px-5 py-3.5 whitespace-nowrap">Min. Order</th>
                   <th className="px-5 py-3.5 whitespace-nowrap">Usage</th>
                   <th className="px-5 py-3.5 whitespace-nowrap">Expiry</th>
-                  <th className="px-5 py-3.5 whitespace-nowrap">On Home</th>
+
                   <th className="px-5 py-3.5 whitespace-nowrap">Active</th>
                   <th className="px-5 py-3.5 whitespace-nowrap text-right">Actions</th>
                 </tr>
@@ -512,18 +497,7 @@ export default function ManageCoupons() {
                         )}
                       </td>
 
-                      {/* Show on Home Toggle */}
-                      <td className="px-5 py-4">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleHomeStatus(coupon)}
-                          disabled={expired}
-                          title={expired ? 'Cannot toggle expired coupon' : 'Toggle show on home'}
-                          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${coupon.showOnHome && !expired ? 'bg-emerald-500' : 'bg-gray-200'}`}
-                        >
-                          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${coupon.showOnHome && !expired ? 'translate-x-4' : 'translate-x-0'}`} />
-                        </button>
-                      </td>
+
 
                       {/* Status Toggle */}
                       <td className="px-5 py-4">

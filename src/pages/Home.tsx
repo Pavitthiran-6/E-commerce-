@@ -239,13 +239,7 @@ export default function Home() {
           )}
         </section>
 
-        {/* ── Coupon row ───────────────────────────────── */}
-        {featuredCoupons.length > 0 && (
-          <section>
-            <SectionHeader title="Exclusive Offers" subtitle="Copy & apply at checkout" />
-            <BlinkitCouponRow coupons={featuredCoupons} onCopy={handleCopyCode} copiedCode={copiedCode} />
-          </section>
-        )}
+
 
         {/* ── Dynamic Blinkit-style Category Sections ── */}
         {isCategoriesLoading ? (
