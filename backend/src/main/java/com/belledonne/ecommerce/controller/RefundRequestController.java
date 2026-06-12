@@ -63,6 +63,12 @@ public class RefundRequestController {
             throw new com.belledonne.ecommerce.exception.BadRequestException("Product image proof is required for returns.");
         }
         
+        boolean hasUpi = upiId != null && !upiId.trim().isEmpty();
+        boolean hasBank = bankDetails != null && !bankDetails.trim().isEmpty();
+        if (!hasUpi && !hasBank) {
+            throw new com.belledonne.ecommerce.exception.BadRequestException("Refund payout details (either UPI ID or Bank Details) are required.");
+        }
+        
         String ipAddress = SecurityAuditService.getClientIp(httpServletRequest);
         String userAgent = httpServletRequest.getHeader("User-Agent");
  

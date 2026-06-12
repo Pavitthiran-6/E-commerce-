@@ -929,7 +929,7 @@ export default function TrackOrder() {
             <form onSubmit={handleCancelWithRefund} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-                  Why are you cancelling?
+                  Why are you cancelling? <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={cancellationReason}
@@ -1016,7 +1016,7 @@ export default function TrackOrder() {
                 {/* Return reason */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-                    Reason for Return
+                    Reason for Return <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     value={returnReason}
@@ -1038,7 +1038,7 @@ export default function TrackOrder() {
                 {/* Image upload */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-                    Upload Product Image Proof *
+                    Upload Product Image Proof <span className="text-red-500">*</span>
                   </label>
                   <div className="flex flex-col gap-2">
                     <input
@@ -1077,7 +1077,7 @@ export default function TrackOrder() {
 
                 {/* Payout Details */}
                 <div className="border-t border-gray-100 pt-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Refund Payout Option *</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Refund Payout Option <span className="text-red-500">*</span></p>
                   <div className="flex gap-2 p-1 bg-gray-50 border border-gray-200/80 rounded-xl mb-3">
                     <button
                       type="button"
@@ -1105,7 +1105,7 @@ export default function TrackOrder() {
 
                   {payoutMethod === 'upi' ? (
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">UPI ID</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">UPI ID <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         placeholder="e.g. name@upi, name@okhdfcbank"
@@ -1118,7 +1118,7 @@ export default function TrackOrder() {
                   ) : (
                     <div className="space-y-2">
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Bank Name</label>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Bank Name <span className="text-red-500">*</span></label>
                         <input
                           type="text"
                           placeholder="e.g. HDFC Bank, State Bank of India"
@@ -1129,7 +1129,7 @@ export default function TrackOrder() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account Holder Name</label>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account Holder Name <span className="text-red-500">*</span></label>
                         <input
                           type="text"
                           placeholder="e.g. John Doe"
@@ -1141,7 +1141,7 @@ export default function TrackOrder() {
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account Number</label>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account Number <span className="text-red-500">*</span></label>
                           <input
                             type="text"
                             placeholder="e.g. 50100234567890"
@@ -1152,7 +1152,7 @@ export default function TrackOrder() {
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">IFSC Code</label>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">IFSC Code <span className="text-red-500">*</span></label>
                           <input
                             type="text"
                             placeholder="e.g. HDFC0000240"
