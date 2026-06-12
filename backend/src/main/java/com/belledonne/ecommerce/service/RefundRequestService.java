@@ -28,10 +28,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -51,6 +53,7 @@ public class RefundRequestService {
     private final SecurityAuditService securityAuditService;
     private final InventoryService inventoryService;
     private final NotificationService notificationService;
+    private final FileUploadService fileUploadService;
 
     /**
      * Submit a new refund request for a cancelled order.
@@ -167,7 +170,7 @@ public class RefundRequestService {
     /**
      * Submit a return request for a delivered order.
      */
-    public RefundRequestResponse submitReturnRequest(UserPrincipal principal, UUID orderId, RefundRequestRequest request, String ipAddress, String userAgent) {
+    public RefundRequestResponse submitReturnRequest(UserPrincipal principal, UUID orderId, String cancellationReason, MultipartFile file, String ipAddress, String userAgent) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
 
@@ -184,6 +187,15 @@ public class RefundRequestService {
             throw new BadRequestException("Only successfully paid orders can be returned.");
         }
 
+        // Upload return proof image to Cloudinary
+        String productImageUrl = null;
+        if (file != null && !file.isEmpty()) {
+            Map<String, String> uploadResult = fileUploadService.uploadImage(file, "returns");
+            productImageUrl = uploadResult.get("url");
+        } else {
+            throw new BadRequestException("Product image proof is required for returns.");
+        }
+
         // Check if request already exists (idempotency)
         Optional<RefundRequest> existing = refundRequestRepository.findByOrderId(orderId);
         if (existing.isPresent()) {
@@ -197,7 +209,7 @@ public class RefundRequestService {
         order.getTrackingHistory().add(OrderTracking.builder()
                 .order(order)
                 .status("RETURN_REQUESTED")
-                .message("Return & refund request submitted by customer. Reason: " + request.getCancellationReason())
+                .message("Return & refund request submitted by customer. Reason: " + cancellationReason)
                 .build());
         orderRepository.save(order);
 
@@ -212,9 +224,10 @@ public class RefundRequestService {
         RefundRequest refundRequest = RefundRequest.builder()
                 .order(order)
                 .user(order.getUser())
-                .cancellationReason(request.getCancellationReason())
+                .cancellationReason(cancellationReason)
                 .refundStatus(RefundStatus.REFUND_REQUESTED)
                 .refundAmount(order.getTotalAmount())
+                .productImageUrl(productImageUrl)
                 .build();
 
         RefundRequest saved = refundRequestRepository.save(refundRequest);
@@ -238,7 +251,7 @@ public class RefundRequestService {
                     order.getUser().getName(),
                     order.getOrderNumber(),
                     order.getTotalAmount(),
-                    request.getCancellationReason()
+                    cancellationReason
             );
 
             // Admin Notification
@@ -247,7 +260,7 @@ public class RefundRequestService {
                     order.getUser().getName(),
                     order.getUser().getEmail(),
                     order.getTotalAmount(),
-                    request.getCancellationReason()
+                    cancellationReason
             );
         } catch (Exception e) {
             log.error("Failed to send return request emails for orderId={}: {}", orderId, e.getMessage());
@@ -601,6 +614,7 @@ public class RefundRequestService {
                 .reviewedAt(request.getReviewedAt())
                 .razorpayRefundId(request.getRazorpayRefundId())
                 .razorpayRefundFailureReason(request.getRazorpayRefundFailureReason())
+                .productImageUrl(request.getProductImageUrl())
                 .requestedAt(request.getRequestedAt())
                 .updatedAt(request.getUpdatedAt())
                 .orderTotalAmount(request.getOrder().getTotalAmount())

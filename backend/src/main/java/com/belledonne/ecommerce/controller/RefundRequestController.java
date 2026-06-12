@@ -42,19 +42,30 @@ public class RefundRequestController {
         return ResponseEntity.ok(ApiResponse.success("Refund request submitted successfully", response));
     }
 
-    @PutMapping("/{orderId}/return")
-    @Operation(summary = "Submit a return request for a delivered order")
+    @PostMapping(value = "/{orderId}/return", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Submit a return request for a delivered order with product image proof")
     public ResponseEntity<ApiResponse<RefundRequestResponse>> submitReturnRequest(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable UUID orderId,
-            @Valid @RequestBody RefundRequestRequest request,
+            @RequestParam("cancellationReason") String cancellationReason,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
             HttpServletRequest httpServletRequest) {
+        
+        if (cancellationReason == null || cancellationReason.trim().length() < 10) {
+            throw new com.belledonne.ecommerce.exception.BadRequestException("Cancellation/Return reason must be at least 10 characters.");
+        }
+        if (cancellationReason.trim().length() > 500) {
+            throw new com.belledonne.ecommerce.exception.BadRequestException("Cancellation/Return reason cannot exceed 500 characters.");
+        }
+        if (file == null || file.isEmpty()) {
+            throw new com.belledonne.ecommerce.exception.BadRequestException("Product image proof is required for returns.");
+        }
         
         String ipAddress = SecurityAuditService.getClientIp(httpServletRequest);
         String userAgent = httpServletRequest.getHeader("User-Agent");
 
         RefundRequestResponse response = refundRequestService.submitReturnRequest(
-                principal, orderId, request, ipAddress, userAgent
+                principal, orderId, cancellationReason, file, ipAddress, userAgent
         );
         return ResponseEntity.ok(ApiResponse.success("Return request submitted successfully", response));
     }

@@ -253,6 +253,7 @@ public class OrderService {
             .rejectionReason(o.getRefundRequest() != null ? o.getRefundRequest().getRejectionReason() : null)
             .razorpayRefundId(o.getRefundRequest() != null ? o.getRefundRequest().getRazorpayRefundId() : null)
             .razorpayRefundFailureReason(o.getRefundRequest() != null ? o.getRefundRequest().getRazorpayRefundFailureReason() : null)
+            .productImageUrl(o.getRefundRequest() != null ? o.getRefundRequest().getProductImageUrl() : null)
             .build();
     }
 }

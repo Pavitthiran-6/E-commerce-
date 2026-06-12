@@ -99,5 +99,12 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("Database migration security_audit_logs.action check constraint update skipped or failed: {}", e.getMessage());
         }
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS product_image_url TEXT");
+            log.info("Database migration successfully added product_image_url to refund_requests table!");
+        } catch (Exception e) {
+            log.warn("Database migration refund_requests.product_image_url alter skipped or failed: {}", e.getMessage());
+        }
     }
 }

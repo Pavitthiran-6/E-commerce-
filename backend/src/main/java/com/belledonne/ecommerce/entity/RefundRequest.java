@@ -100,6 +100,10 @@ public class RefundRequest {
     @Column(name = "razorpay_refund_failure_reason", columnDefinition = "TEXT")
     private String razorpayRefundFailureReason;
 
+    /** Uploaded image URL as proof of return. */
+    @Column(name = "product_image_url", columnDefinition = "TEXT")
+    private String productImageUrl;
+
     // ── Timestamps ────────────────────────────────────────────────────────────
 
     @CreationTimestamp

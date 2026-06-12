@@ -43,6 +43,7 @@ public class OrderResponse {
     private String rejectionReason;
     private String razorpayRefundId;
     private String razorpayRefundFailureReason;
+    private String productImageUrl;
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class OrderItemResponse {

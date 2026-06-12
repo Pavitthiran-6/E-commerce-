@@ -26,6 +26,8 @@ export default function TrackOrder() {
   const [returnReason, setReturnReason] = useState('');
   const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
   const [returnError, setReturnError] = useState<string | null>(null);
+  const [returnImage, setReturnImage] = useState<File | null>(null);
+  const [returnImagePreview, setReturnImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -158,11 +160,15 @@ export default function TrackOrder() {
       setReturnError('Return reason cannot exceed 500 characters.');
       return;
     }
+    if (!returnImage) {
+      setReturnError('Product image proof is required for returns.');
+      return;
+    }
 
     setIsSubmittingReturn(true);
     setReturnError(null);
     try {
-      const refundRequest = await requestReturn(order.id, returnReason);
+      const refundRequest = await requestReturn(order.id, returnReason, returnImage);
       
       // Update local order state with the return and refund fields
       setOrder(prev => {
@@ -176,12 +182,15 @@ export default function TrackOrder() {
           refundRequestedAt: refundRequest.requestedAt,
           refundNotes: refundRequest.adminNotes,
           rejectionReason: refundRequest.rejectionReason,
-          razorpayRefundId: refundRequest.razorpayRefundId
+          razorpayRefundId: refundRequest.razorpayRefundId,
+          productImageUrl: refundRequest.productImageUrl
         };
       });
       
       setShowReturnModal(false);
       setReturnReason('');
+      setReturnImage(null);
+      setReturnImagePreview(null);
       alert('Return request submitted successfully.');
     } catch (err: any) {
       console.error(err);
@@ -534,6 +543,20 @@ export default function TrackOrder() {
                     "{order.cancellationReason || 'No reason specified'}"
                   </p>
                 </div>
+                {order.productImageUrl && (
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Product Image Proof</p>
+                    <div className="w-24 h-24 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity">
+                      <img 
+                        src={order.productImageUrl} 
+                        alt="Return proof" 
+                        className="w-full h-full object-cover cursor-pointer" 
+                        onClick={() => window.open(order.productImageUrl, '_blank')}
+                        title="Click to view full image"
+                      />
+                    </div>
+                  </div>
+                )}
                 {order.refundRequestedAt && (
                   <div>
                     <span className="font-semibold text-gray-700">Requested On: </span>
@@ -929,6 +952,45 @@ export default function TrackOrder() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                  Upload Product Image Proof *
+                </label>
+                <div className="flex flex-col gap-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setReturnImage(file);
+                      if (file) {
+                        const url = URL.createObjectURL(file);
+                        setReturnImagePreview(url);
+                      } else {
+                        setReturnImagePreview(null);
+                      }
+                    }}
+                    required
+                    className="block w-full text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-primary/5 file:text-primary hover:file:bg-primary/10 file:transition-colors file:cursor-pointer cursor-pointer border border-gray-200 rounded-xl p-1.5 bg-gray-50/50"
+                  />
+                  {returnImagePreview && (
+                    <div className="relative w-28 h-28 border border-gray-200 rounded-xl overflow-hidden bg-gray-50 shadow-sm flex items-center justify-center mt-1">
+                      <img src={returnImagePreview} alt="Proof preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReturnImage(null);
+                          setReturnImagePreview(null);
+                        }}
+                        className="absolute top-1.5 right-1.5 bg-red-500/95 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {returnError && (
                 <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -942,6 +1004,8 @@ export default function TrackOrder() {
                   onClick={() => {
                     setShowReturnModal(false);
                     setReturnReason('');
+                    setReturnImage(null);
+                    setReturnImagePreview(null);
                     setReturnError(null);
                   }}
                   className="flex-1 border-2 border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
@@ -950,7 +1014,7 @@ export default function TrackOrder() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingReturn || returnReason.trim().length < 10}
+                  disabled={isSubmittingReturn || returnReason.trim().length < 10 || !returnImage}
                   className="flex-1 bg-primary text-white rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-primary/95 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-md text-center"
                 >
                   {isSubmittingReturn && <Loader2 className="w-4 h-4 animate-spin" />}

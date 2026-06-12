@@ -31,6 +31,7 @@ public class RefundRequestResponse {
     private LocalDateTime reviewedAt;
     private String razorpayRefundId;
     private String razorpayRefundFailureReason;
+    private String productImageUrl;
     private LocalDateTime requestedAt;
     private LocalDateTime updatedAt;
     

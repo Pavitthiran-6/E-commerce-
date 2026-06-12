@@ -18,6 +18,7 @@ export interface RefundRequest {
   reviewedAt?: string;
   razorpayRefundId?: string;
   razorpayRefundFailureReason?: string;
+  productImageUrl?: string;
   requestedAt: string;
   updatedAt: string;
   orderTotalAmount: number;
@@ -59,10 +60,16 @@ export const cancelWithRefund = async (orderId: string, cancellationReason: stri
   }
 };
 
-export const requestReturn = async (orderId: string, cancellationReason: string): Promise<RefundRequest> => {
+export const requestReturn = async (orderId: string, reason: string, file: File): Promise<RefundRequest> => {
   try {
-    const response = await axiosInstance.put(ENDPOINTS.RETURN_ORDER(orderId), {
-      cancellationReason
+    const formData = new FormData();
+    formData.append('cancellationReason', reason);
+    formData.append('file', file);
+
+    const response = await axiosInstance.post(ENDPOINTS.RETURN_ORDER(orderId), formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
     });
     return response.data.data;
   } catch (error) {
