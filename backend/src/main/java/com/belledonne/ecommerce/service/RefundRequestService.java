@@ -320,8 +320,10 @@ public class RefundRequestService {
             }
 
             // Update RefundRequest entity
+            // COD: set REFUND_APPROVED — admin still needs to physically transfer money
+            // Online: set REFUND_INITIATED — Razorpay API has been called
             if (refundRequest.getOrder().getPaymentMethod() == PaymentMethod.COD) {
-                refundRequest.setRefundStatus(RefundStatus.REFUNDED);
+                refundRequest.setRefundStatus(RefundStatus.REFUND_APPROVED);
             } else {
                 refundRequest.setRefundStatus(RefundStatus.REFUND_INITIATED);
                 refundRequest.setRazorpayRefundId(razorpayRefundId);
@@ -331,18 +333,19 @@ public class RefundRequestService {
             refundRequest.setReviewedByAdminId(adminPrincipal.getId());
             refundRequest.setReviewedByAdminEmail(adminPrincipal.getEmail());
             refundRequest.setReviewedAt(LocalDateTime.now());
-            
+
             // If the order status was RETURN_REQUESTED, update it to RETURNED
             Order order = refundRequest.getOrder();
             if (order.getStatus() == OrderStatus.RETURN_REQUESTED) {
                 order.setStatus(OrderStatus.RETURNED);
             }
+            // For COD: payment status is REFUND_APPROVED (pending physical transfer)
             if (refundRequest.getOrder().getPaymentMethod() == PaymentMethod.COD) {
-                order.setPaymentStatus(PaymentStatus.REFUNDED);
-                
+                order.setPaymentStatus(PaymentStatus.REFUND_APPROVED);
+
                 Payment payment = paymentRepository.findByOrderId(order.getId()).orElse(null);
                 if (payment != null) {
-                    payment.setStatus(PaymentStatus.REFUNDED);
+                    payment.setStatus(PaymentStatus.REFUND_APPROVED);
                     paymentRepository.save(payment);
                 }
             }
@@ -450,6 +453,68 @@ public class RefundRequestService {
 
             return toResponse(saved);
         }
+    }
+
+    /**
+     * Mark a COD refund as actually paid (money physically transferred to customer).
+     * Only applies to COD orders that are in REFUND_APPROVED status.
+     */
+    public RefundRequestResponse markRefundPaid(UUID refundRequestId, UserPrincipal adminPrincipal, String ipAddress, String userAgent) {
+        RefundRequest refundRequest = refundRequestRepository.findById(refundRequestId)
+                .orElseThrow(() -> new ResourceNotFoundException("RefundRequest", "id", refundRequestId));
+
+        if (refundRequest.getRefundStatus() != RefundStatus.REFUND_APPROVED) {
+            throw new BadRequestException("Only REFUND_APPROVED requests can be marked as paid. Current status: " + refundRequest.getRefundStatus());
+        }
+
+        // Transition to fully REFUNDED
+        refundRequest.setRefundStatus(RefundStatus.REFUNDED);
+        refundRequestRepository.save(refundRequest);
+
+        Order order = refundRequest.getOrder();
+        order.setPaymentStatus(PaymentStatus.REFUNDED);
+        orderRepository.save(order);
+
+        Payment payment = paymentRepository.findByOrderId(order.getId()).orElse(null);
+        if (payment != null) {
+            payment.setStatus(PaymentStatus.REFUNDED);
+            paymentRepository.save(payment);
+        }
+
+        // Audit log
+        securityAuditService.log(
+                adminPrincipal.getId(),
+                adminPrincipal.getEmail(),
+                SecurityAction.REFUND_APPROVED,
+                ipAddress,
+                userAgent,
+                "SUCCESS",
+                "COD refund marked as paid for Order " + order.getOrderNumber() + " | Amount: ₹" + refundRequest.getRefundAmount()
+        );
+
+        // Notify customer
+        try {
+            emailService.sendRefundApprovedEmail(
+                    refundRequest.getUser().getEmail(),
+                    refundRequest.getUser().getName(),
+                    order.getOrderNumber(),
+                    refundRequest.getRefundAmount(),
+                    refundRequest.getAdminNotes(),
+                    "COD-MANUAL"
+            );
+        } catch (Exception e) {
+            log.error("Failed to send refund paid email for refundRequestId={}: {}", refundRequestId, e.getMessage());
+        }
+
+        notificationService.createNotification(
+            refundRequest.getUser().getId(),
+            "Refund Credited ✓",
+            "Your refund of ₹" + refundRequest.getRefundAmount() + " for order " + order.getOrderNumber() + " has been transferred to your account.",
+            com.belledonne.ecommerce.enums.NotificationType.REFUND_APPROVED,
+            "/profile/orders"
+        );
+
+        return toResponse(refundRequest);
     }
 
     /**

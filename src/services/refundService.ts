@@ -156,3 +156,13 @@ export const retryRefundAdmin = async (id: string): Promise<RefundRequest> => {
     throw error;
   }
 };
+
+export const markRefundPaidAdmin = async (id: string): Promise<RefundRequest> => {
+  try {
+    const response = await axiosInstance.post(ENDPOINTS.ADMIN_MARK_REFUND_PAID(id));
+    return response.data.data;
+  } catch (error) {
+    console.error(`Error marking refund as paid ${id}`, error);
+    throw error;
+  }
+};

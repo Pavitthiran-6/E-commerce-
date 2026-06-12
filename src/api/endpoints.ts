@@ -83,6 +83,7 @@ export const ENDPOINTS = {
   ADMIN_APPROVE_REFUND: (id: string) => `/api/admin/refund-requests/${id}/approve`,
   ADMIN_REJECT_REFUND: (id: string) => `/api/admin/refund-requests/${id}/reject`,
   ADMIN_RETRY_REFUND: (id: string) => `/api/admin/refund-requests/${id}/retry`,
+  ADMIN_MARK_REFUND_PAID: (id: string) => `/api/admin/refund-requests/${id}/mark-paid`,
   ADMIN_UPDATE_ORDER_STATUS: (id: string) => `/api/admin/orders/${id}/status`,
   ADMIN_INVENTORY: '/api/admin/inventory',
   ADMIN_INVENTORY_ADJUST: '/api/admin/inventory/adjust',

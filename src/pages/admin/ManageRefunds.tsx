@@ -4,6 +4,7 @@ import {
   approveRefundAdmin, 
   rejectRefundAdmin, 
   retryRefundAdmin,
+  markRefundPaidAdmin,
   type RefundRequest 
 } from '../../services/refundService';
 import { 
@@ -25,12 +26,12 @@ import {
 } from 'lucide-react';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
-  REFUND_REQUESTED: { label: 'Pending Review', color: 'bg-amber-50 text-amber-700 border border-amber-100', dot: 'bg-amber-500' },
-  REFUND_APPROVED:  { label: 'Approved',       color: 'bg-blue-50 text-blue-700 border border-blue-100',       dot: 'bg-blue-500' },
-  REFUND_INITIATED: { label: 'Initiated',      color: 'bg-indigo-50 text-indigo-700 border border-indigo-100', dot: 'bg-indigo-500' },
-  REFUNDED:         { label: 'Refunded',       color: 'bg-emerald-50 text-emerald-700 border border-emerald-100', dot: 'bg-emerald-500' },
-  REFUND_REJECTED:  { label: 'Rejected',       color: 'bg-red-50 text-red-700 border border-red-100',          dot: 'bg-red-500' },
-  REFUND_FAILED:    { label: 'Refund Failed',  color: 'bg-red-100 text-red-800 border border-red-200',         dot: 'bg-red-600' },
+  REFUND_REQUESTED: { label: 'Pending Review',       color: 'bg-amber-50 text-amber-700 border border-amber-100',     dot: 'bg-amber-500' },
+  REFUND_APPROVED:  { label: 'Approved — Pay Now',   color: 'bg-orange-50 text-orange-700 border border-orange-200',  dot: 'bg-orange-500' },
+  REFUND_INITIATED: { label: 'Initiated',            color: 'bg-indigo-50 text-indigo-700 border border-indigo-100',  dot: 'bg-indigo-500' },
+  REFUNDED:         { label: 'Refunded',             color: 'bg-emerald-50 text-emerald-700 border border-emerald-100', dot: 'bg-emerald-500' },
+  REFUND_REJECTED:  { label: 'Rejected',             color: 'bg-red-50 text-red-700 border border-red-100',           dot: 'bg-red-500' },
+  REFUND_FAILED:    { label: 'Refund Failed',        color: 'bg-red-100 text-red-800 border border-red-200',          dot: 'bg-red-600' },
 };
 
 const SkeletonRow = () => (
@@ -519,6 +520,44 @@ export default function ManageRefunds() {
                         Retry Refund
                       </button>
                     </>
+                  )}
+                </div>
+              )}
+
+              {/* Mark as Paid button — shown for REFUND_APPROVED (COD manual transfer pending) */}
+              {selectedRequest.refundStatus === 'REFUND_APPROVED' && !actionType && (
+                <div className="pt-4 border-t border-gray-100 space-y-3">
+                  <div className="p-3.5 bg-orange-50 border border-orange-200 rounded-xl text-xs text-orange-800 font-medium">
+                    <p className="font-bold text-orange-900 mb-1">⚠️ Action Required — Manual Transfer Pending</p>
+                    <p>This refund has been approved. Please manually transfer <span className="font-bold">₹{selectedRequest.refundAmount.toLocaleString()}</span> to the customer via UPI or Bank Transfer using the payout details provided above, then click <strong>Mark as Paid</strong> to confirm.</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`Confirm that you have physically transferred ₹${selectedRequest.refundAmount.toLocaleString()} to the customer? This cannot be undone.`)) return;
+                      setIsActionSubmitting(true);
+                      setActionError('');
+                      try {
+                        const updated = await markRefundPaidAdmin(selectedRequest.id);
+                        setRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+                        setSelectedRequest(updated);
+                        alert('Refund marked as paid. Customer has been notified.');
+                      } catch (err: any) {
+                        setActionError(err.response?.data?.message || 'Failed to mark refund as paid.');
+                      } finally {
+                        setIsActionSubmitting(false);
+                      }
+                    }}
+                    disabled={isActionSubmitting}
+                    className="w-full bg-orange-600 hover:bg-orange-700 text-white rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors shadow-sm flex items-center justify-center gap-2"
+                  >
+                    {isActionSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    ✓ Mark as Paid / Transferred
+                  </button>
+                  {actionError && (
+                    <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{actionError}</span>
+                    </div>
                   )}
                 </div>
               )}

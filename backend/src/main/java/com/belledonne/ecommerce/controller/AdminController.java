@@ -1108,6 +1108,19 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("Refund retried successfully", response));
     }
 
+    @PostMapping("/refund-requests/{id}/mark-paid")
+    @Operation(summary = "Mark a COD refund as physically paid to the customer")
+    public ResponseEntity<ApiResponse<RefundRequestResponse>> markRefundPaid(
+            @AuthenticationPrincipal UserPrincipal adminPrincipal,
+            @PathVariable UUID id,
+            HttpServletRequest httpServletRequest) {
+
+        String ipAddress = SecurityAuditService.getClientIp(httpServletRequest);
+        String userAgent = httpServletRequest.getHeader("User-Agent");
+        RefundRequestResponse response = refundRequestService.markRefundPaid(id, adminPrincipal, ipAddress, userAgent);
+        return ResponseEntity.ok(ApiResponse.success("Refund marked as paid successfully", response));
+    }
+
     private User getLoggedInUser() {
         org.springframework.security.core.context.SecurityContext context = org.springframework.security.core.context.SecurityContextHolder.getContext();
         if (context.getAuthentication() != null && context.getAuthentication().getPrincipal() instanceof UserPrincipal) {
