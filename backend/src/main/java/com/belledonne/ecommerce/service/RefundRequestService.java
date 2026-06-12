@@ -220,13 +220,22 @@ public class RefundRequestService {
             paymentRepository.save(payment);
         }
 
+        // Calculate refund amount: total amount minus shipping charge (shipping is non-refundable for returns)
+        java.math.BigDecimal refundAmount = order.getTotalAmount();
+        if (order.getShippingCharge() != null) {
+            refundAmount = refundAmount.subtract(order.getShippingCharge());
+            if (refundAmount.compareTo(java.math.BigDecimal.ZERO) < 0) {
+                refundAmount = java.math.BigDecimal.ZERO;
+            }
+        }
+
         // Create RefundRequest
         RefundRequest refundRequest = RefundRequest.builder()
                 .order(order)
                 .user(order.getUser())
                 .cancellationReason(cancellationReason)
                 .refundStatus(RefundStatus.REFUND_REQUESTED)
-                .refundAmount(order.getTotalAmount())
+                .refundAmount(refundAmount)
                 .productImageUrl(productImageUrl)
                 .bankDetails(bankDetails)
                 .upiId(upiId)
@@ -242,7 +251,7 @@ public class RefundRequestService {
                 ipAddress,
                 userAgent,
                 "SUCCESS",
-                "Return/Refund requested for Order " + order.getOrderNumber() + " with amount ₹" + order.getTotalAmount()
+                "Return/Refund requested for Order " + order.getOrderNumber() + " with amount ₹" + refundAmount
         );
 
         // Send Email notifications
@@ -252,7 +261,7 @@ public class RefundRequestService {
                     order.getUser().getEmail(),
                     order.getUser().getName(),
                     order.getOrderNumber(),
-                    order.getTotalAmount(),
+                    refundAmount,
                     cancellationReason
             );
 
@@ -261,7 +270,7 @@ public class RefundRequestService {
                     order.getOrderNumber(),
                     order.getUser().getName(),
                     order.getUser().getEmail(),
-                    order.getTotalAmount(),
+                    refundAmount,
                     cancellationReason
             );
         } catch (Exception e) {
