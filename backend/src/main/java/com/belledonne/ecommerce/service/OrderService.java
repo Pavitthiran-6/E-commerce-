@@ -254,6 +254,8 @@ public class OrderService {
             .razorpayRefundId(o.getRefundRequest() != null ? o.getRefundRequest().getRazorpayRefundId() : null)
             .razorpayRefundFailureReason(o.getRefundRequest() != null ? o.getRefundRequest().getRazorpayRefundFailureReason() : null)
             .productImageUrl(o.getRefundRequest() != null ? o.getRefundRequest().getProductImageUrl() : null)
+            .bankDetails(o.getRefundRequest() != null ? o.getRefundRequest().getBankDetails() : null)
+            .upiId(o.getRefundRequest() != null ? o.getRefundRequest().getUpiId() : null)
             .build();
     }
 }

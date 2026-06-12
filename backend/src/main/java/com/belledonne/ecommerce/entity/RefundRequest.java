@@ -104,6 +104,14 @@ public class RefundRequest {
     @Column(name = "product_image_url", columnDefinition = "TEXT")
     private String productImageUrl;
 
+    /** Bank details provided by customer for return refund. */
+    @Column(name = "bank_details", columnDefinition = "TEXT")
+    private String bankDetails;
+
+    /** UPI ID provided by customer for return refund. */
+    @Column(name = "upi_id", length = 100)
+    private String upiId;
+
     // ── Timestamps ────────────────────────────────────────────────────────────
 
     @CreationTimestamp

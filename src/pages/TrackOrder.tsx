@@ -29,6 +29,14 @@ export default function TrackOrder() {
   const [returnImage, setReturnImage] = useState<File | null>(null);
   const [returnImagePreview, setReturnImagePreview] = useState<string | null>(null);
 
+  // Refund payout details state
+  const [payoutMethod, setPayoutMethod] = useState<'upi' | 'bank'>('upi');
+  const [upiId, setUpiId] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [ifscCode, setIfscCode] = useState('');
+
   useEffect(() => {
     window.scrollTo(0, 0);
     if (!orderIdParam) {
@@ -164,11 +172,24 @@ export default function TrackOrder() {
       setReturnError('Product image proof is required for returns.');
       return;
     }
+    if (payoutMethod === 'upi' && !upiId.trim()) {
+      setReturnError('UPI ID is required.');
+      return;
+    }
+    if (payoutMethod === 'bank' && (!bankName.trim() || !accountHolder.trim() || !accountNumber.trim() || !ifscCode.trim())) {
+      setReturnError('All bank details are required.');
+      return;
+    }
 
     setIsSubmittingReturn(true);
     setReturnError(null);
     try {
-      const refundRequest = await requestReturn(order.id, returnReason, returnImage);
+      const formattedBankDetails = payoutMethod === 'bank' 
+        ? `Bank Name: ${bankName}\nAccount Holder: ${accountHolder}\nAccount Number: ${accountNumber}\nIFSC Code: ${ifscCode}`
+        : undefined;
+      const finalUpiId = payoutMethod === 'upi' ? upiId.trim() : undefined;
+
+      const refundRequest = await requestReturn(order.id, returnReason, returnImage, formattedBankDetails, finalUpiId);
       
       // Update local order state with the return and refund fields
       setOrder(prev => {
@@ -183,7 +204,9 @@ export default function TrackOrder() {
           refundNotes: refundRequest.adminNotes,
           rejectionReason: refundRequest.rejectionReason,
           razorpayRefundId: refundRequest.razorpayRefundId,
-          productImageUrl: refundRequest.productImageUrl
+          productImageUrl: refundRequest.productImageUrl,
+          bankDetails: refundRequest.bankDetails,
+          upiId: refundRequest.upiId
         };
       });
       
@@ -191,6 +214,12 @@ export default function TrackOrder() {
       setReturnReason('');
       setReturnImage(null);
       setReturnImagePreview(null);
+      setUpiId('');
+      setBankName('');
+      setAccountHolder('');
+      setAccountNumber('');
+      setIfscCode('');
+      setPayoutMethod('upi');
       alert('Return request submitted successfully.');
     } catch (err: any) {
       console.error(err);
@@ -543,6 +572,22 @@ export default function TrackOrder() {
                     "{order.cancellationReason || 'No reason specified'}"
                   </p>
                 </div>
+                {order.upiId && (
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Refund Payout UPI ID</p>
+                    <p className="mt-1.5 text-gray-900 bg-gray-50 p-3.5 rounded-xl border border-gray-100 font-mono font-bold">
+                      {order.upiId}
+                    </p>
+                  </div>
+                )}
+                {order.bankDetails && (
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Refund Payout Bank Details</p>
+                    <p className="mt-1.5 text-gray-900 bg-gray-50 p-3.5 rounded-xl border border-gray-100 font-medium whitespace-pre-line">
+                      {order.bankDetails}
+                    </p>
+                  </div>
+                )}
                 {order.productImageUrl && (
                   <div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Product Image Proof</p>
@@ -991,6 +1036,108 @@ export default function TrackOrder() {
                 </div>
               </div>
 
+              {/* Payout Details Section */}
+              <div className="border-t border-gray-100 pt-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Refund Payout Option *</p>
+                <div className="flex gap-2 p-1 bg-gray-50 border border-gray-200/80 rounded-xl mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setPayoutMethod('upi')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      payoutMethod === 'upi'
+                        ? 'bg-white text-primary shadow-sm border border-gray-200/40'
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    UPI ID
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPayoutMethod('bank')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      payoutMethod === 'bank'
+                        ? 'bg-white text-primary shadow-sm border border-gray-200/40'
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    Bank Account
+                  </button>
+                </div>
+
+                {payoutMethod === 'upi' ? (
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                      UPI ID
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. name@upi, name@okhdfcbank"
+                      value={upiId}
+                      onChange={(e) => setUpiId(e.target.value)}
+                      required={payoutMethod === 'upi'}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                        Bank Name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. HDFC Bank, State Bank of India"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        required={payoutMethod === 'bank'}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                        Account Holder Name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. John Doe"
+                        value={accountHolder}
+                        onChange={(e) => setAccountHolder(e.target.value)}
+                        required={payoutMethod === 'bank'}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                          Account Number
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 50100234567890"
+                          value={accountNumber}
+                          onChange={(e) => setAccountNumber(e.target.value)}
+                          required={payoutMethod === 'bank'}
+                          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                          IFSC Code
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. HDFC0000240"
+                          value={ifscCode}
+                          onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+                          required={payoutMethod === 'bank'}
+                          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors font-mono uppercase"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {returnError && (
                 <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -1007,6 +1154,12 @@ export default function TrackOrder() {
                     setReturnImage(null);
                     setReturnImagePreview(null);
                     setReturnError(null);
+                    setUpiId('');
+                    setBankName('');
+                    setAccountHolder('');
+                    setAccountNumber('');
+                    setIfscCode('');
+                    setPayoutMethod('upi');
                   }}
                   className="flex-1 border-2 border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
                 >

@@ -44,6 +44,8 @@ public class OrderResponse {
     private String razorpayRefundId;
     private String razorpayRefundFailureReason;
     private String productImageUrl;
+    private String bankDetails;
+    private String upiId;
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class OrderItemResponse {

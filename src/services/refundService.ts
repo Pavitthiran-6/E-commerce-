@@ -19,6 +19,8 @@ export interface RefundRequest {
   razorpayRefundId?: string;
   razorpayRefundFailureReason?: string;
   productImageUrl?: string;
+  bankDetails?: string;
+  upiId?: string;
   requestedAt: string;
   updatedAt: string;
   orderTotalAmount: number;
@@ -60,11 +62,13 @@ export const cancelWithRefund = async (orderId: string, cancellationReason: stri
   }
 };
 
-export const requestReturn = async (orderId: string, reason: string, file: File): Promise<RefundRequest> => {
+export const requestReturn = async (orderId: string, reason: string, file: File, bankDetails?: string, upiId?: string): Promise<RefundRequest> => {
   try {
     const formData = new FormData();
     formData.append('cancellationReason', reason);
     formData.append('file', file);
+    if (bankDetails) formData.append('bankDetails', bankDetails);
+    if (upiId) formData.append('upiId', upiId);
 
     const response = await axiosInstance.post(ENDPOINTS.RETURN_ORDER(orderId), formData, {
       headers: {

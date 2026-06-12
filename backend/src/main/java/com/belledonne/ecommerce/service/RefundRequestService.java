@@ -170,7 +170,7 @@ public class RefundRequestService {
     /**
      * Submit a return request for a delivered order.
      */
-    public RefundRequestResponse submitReturnRequest(UserPrincipal principal, UUID orderId, String cancellationReason, MultipartFile file, String ipAddress, String userAgent) {
+    public RefundRequestResponse submitReturnRequest(UserPrincipal principal, UUID orderId, String cancellationReason, String bankDetails, String upiId, MultipartFile file, String ipAddress, String userAgent) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
 
@@ -228,6 +228,8 @@ public class RefundRequestService {
                 .refundStatus(RefundStatus.REFUND_REQUESTED)
                 .refundAmount(order.getTotalAmount())
                 .productImageUrl(productImageUrl)
+                .bankDetails(bankDetails)
+                .upiId(upiId)
                 .build();
 
         RefundRequest saved = refundRequestRepository.save(refundRequest);
@@ -615,6 +617,8 @@ public class RefundRequestService {
                 .razorpayRefundId(request.getRazorpayRefundId())
                 .razorpayRefundFailureReason(request.getRazorpayRefundFailureReason())
                 .productImageUrl(request.getProductImageUrl())
+                .bankDetails(request.getBankDetails())
+                .upiId(request.getUpiId())
                 .requestedAt(request.getRequestedAt())
                 .updatedAt(request.getUpdatedAt())
                 .orderTotalAmount(request.getOrder().getTotalAmount())

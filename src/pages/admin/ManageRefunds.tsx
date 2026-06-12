@@ -410,6 +410,27 @@ export default function ManageRefunds() {
                 </div>
               </div>
 
+              {/* Payout Information */}
+              {(selectedRequest.upiId || selectedRequest.bankDetails) && (
+                <div className="bg-amber-50/20 border border-amber-100 p-4 rounded-2xl space-y-3 text-xs">
+                  <h4 className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">Refund Payout Information</h4>
+                  {selectedRequest.upiId && (
+                    <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-200/50">
+                      <span className="text-gray-500 font-semibold">UPI ID:</span>
+                      <span className="font-mono font-bold text-gray-800">{selectedRequest.upiId}</span>
+                    </div>
+                  )}
+                  {selectedRequest.bankDetails && (
+                    <div className="space-y-1.5">
+                      <span className="text-gray-500 font-semibold block">Bank Details:</span>
+                      <p className="bg-white p-2.5 rounded-lg border border-gray-200/50 font-medium whitespace-pre-line text-gray-800 leading-relaxed font-mono">
+                        {selectedRequest.bankDetails}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Action Trail / Verification logs */}
               {/* Action Trail / Verification logs */}
               {selectedRequest.refundStatus !== 'REFUND_REQUESTED' && (

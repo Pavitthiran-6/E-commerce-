@@ -48,6 +48,8 @@ public class RefundRequestController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable UUID orderId,
             @RequestParam("cancellationReason") String cancellationReason,
+            @RequestParam(value = "bankDetails", required = false) String bankDetails,
+            @RequestParam(value = "upiId", required = false) String upiId,
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
             HttpServletRequest httpServletRequest) {
         
@@ -63,9 +65,9 @@ public class RefundRequestController {
         
         String ipAddress = SecurityAuditService.getClientIp(httpServletRequest);
         String userAgent = httpServletRequest.getHeader("User-Agent");
-
+ 
         RefundRequestResponse response = refundRequestService.submitReturnRequest(
-                principal, orderId, cancellationReason, file, ipAddress, userAgent
+                principal, orderId, cancellationReason, bankDetails, upiId, file, ipAddress, userAgent
         );
         return ResponseEntity.ok(ApiResponse.success("Return request submitted successfully", response));
     }

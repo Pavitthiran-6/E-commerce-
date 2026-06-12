@@ -63,6 +63,8 @@ export interface Order {
   razorpayRefundId?: string;
   razorpayRefundFailureReason?: string;
   productImageUrl?: string;
+  bankDetails?: string;
+  upiId?: string;
 }
 
 export const placeOrder = async (orderData: { addressId: number; paymentMethod: string; couponCode?: string; items?: { productId: string; variantId?: number; quantity: number }[] }): Promise<Order> => {
