@@ -37,7 +37,20 @@ export default function TrackOrder() {
   const [accountNumber, setAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
 
+  // Lock background scroll when any modal is open
   useEffect(() => {
+    if (showRefundModal || showReturnModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showRefundModal, showReturnModal]);
+
+  useEffect(() => {
+
     window.scrollTo(0, 0);
     if (!orderIdParam) {
       setError("No order ID provided");
