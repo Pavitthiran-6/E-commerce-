@@ -154,6 +154,10 @@ export default function TrackOrder() {
       setReturnError('Please provide a detailed reason (at least 10 characters).');
       return;
     }
+    if (returnReason.trim().length > 500) {
+      setReturnError('Return reason cannot exceed 500 characters.');
+      return;
+    }
 
     setIsSubmittingReturn(true);
     setReturnError(null);
@@ -888,6 +892,21 @@ export default function TrackOrder() {
               You are requesting a return for order <span className="font-semibold text-gray-800">#{order.orderNumber}</span>. Please specify the reason for return. Once submitted, our team will review the request.
             </p>
 
+            <div className="mb-4 max-h-36 overflow-y-auto space-y-3 bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Items to Return</p>
+              {order.items.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-100 shadow-sm">
+                  <div className="w-10 h-10 rounded border border-gray-200/80 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                    <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover mix-blend-multiply" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-gray-800 truncate">{item.productName}</p>
+                    <p className="text-[9px] text-gray-500 mt-0.5">Qty: {item.quantity} {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <form onSubmit={handleRequestReturn} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
@@ -899,12 +918,13 @@ export default function TrackOrder() {
                   placeholder="Please specify a reason (e.g., product damaged, wrong size, item not as described)..."
                   rows={4}
                   required
+                  maxLength={500}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors resize-none"
                 />
                 <div className="text-[10px] text-gray-400 mt-1.5 flex justify-between">
-                  <span>Minimum 10 characters required</span>
-                  <span className={returnReason.trim().length >= 10 ? 'text-green-500 font-bold' : 'text-gray-400'}>
-                    {returnReason.trim().length} chars
+                  <span>Min 10 / Max 500 characters</span>
+                  <span className={returnReason.trim().length >= 10 && returnReason.trim().length <= 500 ? 'text-green-500 font-bold' : 'text-gray-400'}>
+                    {returnReason.trim().length}/500 chars
                   </span>
                 </div>
               </div>

@@ -7,6 +7,6 @@ import lombok.Data;
 @Data
 public class RefundRequestRequest {
     @NotBlank(message = "Cancellation reason is required")
-    @Size(max = 2000, message = "Cancellation reason must be less than 2000 characters")
+    @Size(max = 500, message = "Cancellation reason must be less than 500 characters")
     private String cancellationReason;
 }
