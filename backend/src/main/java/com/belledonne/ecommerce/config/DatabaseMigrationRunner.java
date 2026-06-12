@@ -106,5 +106,23 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("Database migration refund_requests.product_image_url alter skipped or failed: {}", e.getMessage());
         }
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS bank_details TEXT");
+            jdbcTemplate.execute("ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS upi_id VARCHAR(100)");
+            log.info("Database migration successfully added bank_details and upi_id to refund_requests table!");
+        } catch (Exception e) {
+            log.warn("Database migration refund_requests.bank_details/upi_id alter skipped or failed: {}", e.getMessage());
+        }
+
+        try {
+            // Correct the refund amount of the existing return request that is currently ₹80 for test order #ORD-20260611-0001
+            jdbcTemplate.execute("UPDATE refund_requests SET refund_amount = 1.00 " +
+                                 "WHERE order_id IN (SELECT id FROM orders WHERE order_number = 'ORD-20260611-0001') " +
+                                 "AND refund_amount = 80.00");
+            log.info("Database migration successfully updated test order refund amount!");
+        } catch (Exception e) {
+            log.warn("Database migration test order refund amount update failed: {}", e.getMessage());
+        }
     }
 }
