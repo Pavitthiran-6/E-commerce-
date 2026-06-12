@@ -6,6 +6,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { getActiveCoupons, validateCoupon } from '../services/couponService';
 import type { Coupon } from '../services/couponService';
+import { getPublicShippingSettings } from '../services/orderService';
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -21,9 +22,19 @@ export default function Cart() {
   const [appliedCouponDetails, setAppliedCouponDetails] = useState<Coupon | null>(null);
   const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
   const [isValidating, setIsValidating] = useState(false);
+  const [shippingThreshold, setShippingThreshold] = useState(999);
+  const [shippingChargeVal, setShippingChargeVal] = useState(79);
 
   useEffect(() => {
     getActiveCoupons().then(setAvailableCoupons).catch(console.error);
+    getPublicShippingSettings()
+      .then((settings) => {
+        setShippingThreshold(settings.freeShippingThreshold);
+        setShippingChargeVal(settings.shippingCharge);
+      })
+      .catch((err) => {
+        console.warn('Failed to load shipping settings, using default fallback (999/79)', err);
+      });
   }, []);
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -76,9 +87,28 @@ export default function Cart() {
       : appliedCouponDetails.discountValue
     : 0;
 
-  const shipping = (subtotal - calculatedDiscount) >= 999 ? 0 : 79;
-  const tax = Math.round((subtotal - calculatedDiscount) * 18 / 118);
-  const total = subtotal - calculatedDiscount + shipping;
+  const subtotalAfterDiscount = subtotal - calculatedDiscount;
+
+  let productSpecificShipping = 0;
+  let hasFallbackItem = false;
+  
+  cartItems.forEach(item => {
+    if (item.freeShipping === true) {
+      // ships free
+    } else if (item.shippingCharge != null && item.shippingCharge > 0) {
+      productSpecificShipping += item.quantity * item.shippingCharge;
+    } else {
+      hasFallbackItem = true;
+    }
+  });
+
+  const fallbackShipping = hasFallbackItem
+    ? (subtotalAfterDiscount >= shippingThreshold ? 0 : shippingChargeVal)
+    : 0;
+
+  const shipping = productSpecificShipping + fallbackShipping;
+  const tax = Math.round(subtotalAfterDiscount * 18 / 118);
+  const total = subtotalAfterDiscount + shipping;
 
   // Empty cart
   if (cartItems.length === 0) {
@@ -262,7 +292,7 @@ export default function Cart() {
 
               {shipping > 0 && (
                 <div className="mt-2 text-center text-xs font-semibold text-[#0C831F] bg-[#E8F5E9]/50 py-1.5 rounded-lg border border-[#E8F5E9] animate-pulse">
-                  Add {fmt(999 - (subtotal - calculatedDiscount))} more for FREE shipping
+                  Add {fmt(shippingThreshold - (subtotal - calculatedDiscount))} more for FREE shipping
                 </div>
               )}
             </div>

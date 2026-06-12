@@ -24,6 +24,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
 
     boolean existsByUserIdAndCouponCodeIgnoreCaseAndStatusNot(UUID userId, String couponCode, OrderStatus status);
     Optional<Order> findByOrderNumber(String orderNumber);
+    Optional<Order> findByAwbCode(String awbCode);
     Page<Order> findAllByOrderByCreatedAtDesc(Pageable pageable);
     Page<Order> findByStatusOrderByCreatedAtDesc(OrderStatus status, Pageable pageable);
 
@@ -48,7 +49,6 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
     @Query("SELECT COALESCE(AVG(o.totalAmount), 0) FROM Order o WHERE o.status <> 'CANCELLED'")
     BigDecimal getAverageOrderValue();
 
-    // Returns [date_string, order_count, revenue] per day for last N days (native)
     @Query(value = "SELECT TO_CHAR(CAST(o.created_at AS date), 'YYYY-MM-DD') as day, " +
                    "COUNT(o.id) as orders, " +
                    "COALESCE(SUM(o.total_amount), 0) as revenue " +
@@ -57,5 +57,31 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
                    "GROUP BY day ORDER BY day ASC",
            nativeQuery = true)
     java.util.List<Object[]> getDailyTrend(@Param("from") LocalDateTime from);
+
+    @Query("SELECT o FROM Order o WHERE o.awbCode IS NOT NULL AND o.status NOT IN (" +
+           "com.belledonne.ecommerce.enums.OrderStatus.DELIVERED, " +
+           "com.belledonne.ecommerce.enums.OrderStatus.CANCELLED, " +
+           "com.belledonne.ecommerce.enums.OrderStatus.RETURNED, " +
+           "com.belledonne.ecommerce.enums.OrderStatus.REFUNDED" +
+           ")")
+    java.util.List<Order> findActiveShipments();
+
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.status IN (com.belledonne.ecommerce.enums.OrderStatus.PLACED, com.belledonne.ecommerce.enums.OrderStatus.CONFIRMED) AND o.awbCode IS NULL")
+    long countAwaitingShipment();
+
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.status = com.belledonne.ecommerce.enums.OrderStatus.PACKED OR o.shipmentStatus = 'pickup scheduled'")
+    long countPickupScheduled();
+
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.status = com.belledonne.ecommerce.enums.OrderStatus.SHIPPED")
+    long countInTransit();
+
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.status = com.belledonne.ecommerce.enums.OrderStatus.OUT_FOR_DELIVERY")
+    long countOutForDelivery();
+
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.status = com.belledonne.ecommerce.enums.OrderStatus.DELIVERED AND o.deliveryTimestamp >= :from")
+    long countDeliveredToday(@Param("from") LocalDateTime from);
+
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.status = com.belledonne.ecommerce.enums.OrderStatus.RETURNED OR LOWER(o.shipmentStatus) LIKE '%rto%'")
+    long countRtoOrders();
 }
 

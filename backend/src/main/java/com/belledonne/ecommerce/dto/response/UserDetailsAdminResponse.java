@@ -31,6 +31,10 @@ public class UserDetailsAdminResponse {
     
     private long totalOrders;
     private BigDecimal totalAmountSpent;
+    private Long totalReturns;
+    private Long totalRefunds;
+    private Double returnPercentage;
+    private Boolean isHighReturnRisk;
     private List<OrderMinDTO> latestOrders;
 
     private int wishlistCount;

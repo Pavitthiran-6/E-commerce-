@@ -8,6 +8,7 @@ import { isFreeShippingCoupon } from '../../utils/couponLogic';
 import { getAddresses, addAddress } from '../../services/userService';
 import type { Address } from '../../services/userService';
 import { Skeleton } from '../../components/common/SkeletonLoader';
+import { getPublicShippingSettings } from '../../services/orderService';
 
 const STEPS = ['Address', 'Payment', 'Confirmation'];
 
@@ -52,8 +53,19 @@ export default function CheckoutAddress() {
   const [isLoading, setIsLoading] = useState(true);
   const [form, setForm] = useState({ fullName: '', phone: '', pincode: '', addressLine1: '', addressLine2: '', city: '', state: '' });
 
+  const [shippingThreshold, setShippingThreshold] = useState(999);
+  const [shippingChargeVal, setShippingChargeVal] = useState(79);
+
   useEffect(() => {
     fetchAddresses();
+    getPublicShippingSettings()
+      .then((settings) => {
+        setShippingThreshold(settings.freeShippingThreshold);
+        setShippingChargeVal(settings.shippingCharge);
+      })
+      .catch((err) => {
+        console.warn('Failed to load shipping settings, using default fallback (999/79)', err);
+      });
   }, []);
 
   const fetchAddresses = async () => {
@@ -120,9 +132,27 @@ export default function CheckoutAddress() {
   const discountAmount = 0; // Preview only — backend validates and applies the real discount
   const isFreeShipping = appliedCoupon ? isFreeShippingCoupon(appliedCoupon, []) : false;
 
-  const shipping = isFreeShipping ? 0 : ((subtotal - discountAmount) >= 999 ? 0 : 79);
-  const tax = Math.round((subtotal - discountAmount) * 18 / 118);
-  const total = (subtotal - discountAmount) + shipping;
+  let productSpecificShipping = 0;
+  let hasFallbackItem = false;
+  
+  cartItems.forEach(item => {
+    if (item.freeShipping === true) {
+      // ships free
+    } else if (item.shippingCharge != null && item.shippingCharge > 0) {
+      productSpecificShipping += item.quantity * item.shippingCharge;
+    } else {
+      hasFallbackItem = true;
+    }
+  });
+
+  const subtotalAfterDiscount = subtotal - discountAmount;
+  const fallbackShipping = hasFallbackItem
+    ? (subtotalAfterDiscount >= shippingThreshold ? 0 : shippingChargeVal)
+    : 0;
+
+  const shipping = isFreeShipping ? 0 : (productSpecificShipping + fallbackShipping);
+  const tax = Math.round(subtotalAfterDiscount * 18 / 118);
+  const total = subtotalAfterDiscount + shipping;
 
   return (
     <main className="min-h-screen bg-[#F8F8F8] pb-20 px-4 sm:px-8 py-6">

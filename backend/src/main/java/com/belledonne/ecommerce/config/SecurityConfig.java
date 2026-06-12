@@ -79,6 +79,7 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
                 // Webhook (public, verified by signature)
                 .requestMatchers("/api/payments/webhook").permitAll()
+                .requestMatchers("/api/webhooks/shiprocket/**").permitAll()
                 // Admin routes
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // Everything else requires auth

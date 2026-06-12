@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
+import org.hibernate.annotations.JdbcTypeCode;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -55,9 +57,13 @@ public class RefundRequest {
     @EqualsAndHashCode.Exclude
     private User user;
 
-    /** Customer-entered reason for cancellation / refund. */
+    /** Customer-entered reason for the return/refund. */
     @Column(name = "cancellation_reason", columnDefinition = "TEXT", nullable = false)
     private String cancellationReason;
+
+    /** Optional additional comments providing more context. */
+    @Column(name = "additional_comments", columnDefinition = "TEXT")
+    private String additionalComments;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "refund_status", length = 30, nullable = false)
@@ -100,17 +106,95 @@ public class RefundRequest {
     @Column(name = "razorpay_refund_failure_reason", columnDefinition = "TEXT")
     private String razorpayRefundFailureReason;
 
-    /** Uploaded image URL as proof of return. */
+    // ── Return proof images ──────────────────────────────────────────────────────
+
+    /**
+     * Array of Cloudinary image URLs uploaded as proof of return (1–5 images).
+     * Stored as TEXT[]. Legacy single-image column productImageUrl kept for migration.
+     */
+    @Column(name = "product_image_urls", columnDefinition = "TEXT[]")
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    private String[] productImageUrls;
+
+    /** @deprecated Use productImageUrls instead. Kept for backward compatibility. */
+    @Deprecated
     @Column(name = "product_image_url", columnDefinition = "TEXT")
     private String productImageUrl;
 
-    /** Bank details provided by customer for return refund. */
+    /** Bank details provided by customer for COD return refund. */
     @Column(name = "bank_details", columnDefinition = "TEXT")
     private String bankDetails;
 
-    /** UPI ID provided by customer for return refund. */
+    /** UPI ID provided by customer for COD return refund. */
     @Column(name = "upi_id", length = 100)
     private String upiId;
+
+    // ── COD Payout Details Collection ─────────────────────────────────────────
+
+    /** Timestamp when admin requested payout details from customer (COD returns only). */
+    @Column(name = "payout_details_requested_at")
+    private java.time.LocalDateTime payoutDetailsRequestedAt;
+
+    /** Timestamp when customer submitted their payout details. */
+    @Column(name = "payout_details_provided_at")
+    private java.time.LocalDateTime payoutDetailsProvidedAt;
+
+    // ── Return & Refund SLA Analytics ─────────────────────────────────────────
+
+    @Column(name = "return_requested_at")
+    private LocalDateTime returnRequestedAt;
+
+    @Column(name = "return_approved_at")
+    private LocalDateTime returnApprovedAt;
+
+    @Column(name = "return_pickup_scheduled_at")
+    private LocalDateTime returnPickupScheduledAt;
+
+    @Column(name = "return_received_at")
+    private LocalDateTime returnReceivedAt;
+
+    @Column(name = "refund_processed_at")
+    private LocalDateTime refundProcessedAt;
+
+    // ── Warehouse Inspection Checklist & Notes ────────────────────────────────
+
+    @Column(name = "warehouse_inspection_notes", columnDefinition = "TEXT")
+    private String warehouseInspectionNotes;
+
+    @Column(name = "is_product_damaged")
+    @Builder.Default
+    private Boolean isProductDamaged = false;
+
+    @Column(name = "is_wrong_product_returned")
+    @Builder.Default
+    private Boolean isWrongProductReturned = false;
+
+    @Column(name = "is_missing_accessories")
+    @Builder.Default
+    private Boolean isMissingAccessories = false;
+
+    @Column(name = "is_used_product")
+    @Builder.Default
+    private Boolean isUsedProduct = false;
+
+    @Column(name = "is_packaging_missing")
+    @Builder.Default
+    private Boolean isPackagingMissing = false;
+
+    @Column(name = "is_quality_issue_confirmed")
+    @Builder.Default
+    private Boolean isQualityIssueConfirmed = false;
+
+    // ── Razorpay Refund Reconciliation details ────────────────────────────────
+
+    @Column(name = "razorpay_refund_status", length = 50)
+    private String razorpayRefundStatus;
+
+    @Column(name = "razorpay_refund_timestamp")
+    private LocalDateTime razorpayRefundTimestamp;
+
+    @Column(name = "razorpay_refund_notes", columnDefinition = "TEXT")
+    private String razorpayRefundNotes;
 
     // ── Timestamps ────────────────────────────────────────────────────────────
 

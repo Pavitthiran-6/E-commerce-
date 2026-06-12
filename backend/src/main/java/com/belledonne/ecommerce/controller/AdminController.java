@@ -45,6 +45,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -77,9 +78,13 @@ public class AdminController {
     private final SecurityLogsExportService securityLogsExportService;
     private final RefundRequestService refundRequestService;
     private final RefundRequestRepository refundRequestRepository;
+    private final AuditLogRepository auditLogRepository;
+    private final AuditLogService auditLogService;
     private final NotificationService notificationService;
     private final ReportsExportService reportsExportService;
     private final InvoiceService invoiceService;
+    private final ShippingSettingsService shippingSettingsService;
+    private final ShiprocketService shiprocketService;
     private final HttpServletRequest request;
 
     // ---- 5A: ADMIN DASHBOARD ----
@@ -174,6 +179,49 @@ public class AdminController {
             ));
         }
 
+        // Return SLA Calculations
+        List<Object[]> slaTimestamps = refundRequestRepository.findSlaTimestamps();
+        long totalApproveSec = 0, countApprove = 0;
+        long totalProcessSec = 0, countProcess = 0;
+        long totalCompleteSec = 0, countComplete = 0;
+
+        for (Object[] row : slaTimestamps) {
+            LocalDateTime req = (LocalDateTime) row[0];
+            LocalDateTime app = (LocalDateTime) row[1];
+            LocalDateTime rec = (LocalDateTime) row[2];
+            LocalDateTime pro = (LocalDateTime) row[3];
+
+            if (req != null && app != null) {
+                totalApproveSec += java.time.Duration.between(req, app).getSeconds();
+                countApprove++;
+            }
+            if (rec != null && pro != null) {
+                totalProcessSec += java.time.Duration.between(rec, pro).getSeconds();
+                countProcess++;
+            }
+            if (req != null && pro != null) {
+                totalCompleteSec += java.time.Duration.between(req, pro).getSeconds();
+                countComplete++;
+            }
+        }
+
+        double avgReturnApprovalTimeHours = countApprove > 0 ? (double) totalApproveSec / 3600.0 / countApprove : 0.0;
+        double avgRefundProcessingTimeHours = countProcess > 0 ? (double) totalProcessSec / 3600.0 / countProcess : 0.0;
+        double avgReturnCompletionTimeHours = countComplete > 0 ? (double) totalCompleteSec / 3600.0 / countComplete : 0.0;
+
+        // Logistics operations metrics
+        long awaitingShipment = orderRepository.countAwaitingShipment();
+        long pickupScheduled = orderRepository.countPickupScheduled();
+        long inTransit = orderRepository.countInTransit();
+        long outForDelivery = orderRepository.countOutForDelivery();
+        long deliveredTodayCount = orderRepository.countDeliveredToday(midnight);
+        long rtoOrders = orderRepository.countRtoOrders();
+        long activeReturnRequests = refundRequestRepository.countActiveReturnRequests();
+        long pendingRefundsCount = refundRequestRepository.countPendingRefunds();
+
+        // High Return Risk Customers
+        List<UserAdminResponse> highReturnRiskCustomers = userRepository.findHighReturnRiskCustomers();
+
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("totalRevenue",    totalRevenue);
         stats.put("revenueToday",    revenueToday);
@@ -198,6 +246,18 @@ public class AdminController {
         stats.put("orderStatusBreakdown", orderStatusBreakdown);
         stats.put("monthlyRevenue",  monthlyRevenueList);
         stats.put("dailyTrend",      dailyTrend);
+        stats.put("avgReturnApprovalTimeHours", avgReturnApprovalTimeHours);
+        stats.put("avgRefundProcessingTimeHours", avgRefundProcessingTimeHours);
+        stats.put("avgReturnCompletionTimeHours", avgReturnCompletionTimeHours);
+        stats.put("logisticsAwaitingShipment", awaitingShipment);
+        stats.put("logisticsPickupScheduled", pickupScheduled);
+        stats.put("logisticsInTransit", inTransit);
+        stats.put("logisticsOutForDelivery", outForDelivery);
+        stats.put("logisticsDeliveredToday", deliveredTodayCount);
+        stats.put("logisticsRtoOrders", rtoOrders);
+        stats.put("logisticsActiveReturnRequests", activeReturnRequests);
+        stats.put("logisticsPendingRefunds", pendingRefundsCount);
+        stats.put("highReturnRiskCustomers", highReturnRiskCustomers);
 
         return ResponseEntity.ok(ApiResponse.success("Dashboard stats fetched successfully", stats));
     }
@@ -652,6 +712,14 @@ public class AdminController {
                 }).collect(Collectors.toList());
         }
 
+        long userReturnsCount = refundRequestRepository.countByUserIdAndReturnRequestedAtIsNotNull(id);
+        long userRefundsCount = refundRequestRepository.countByUserIdAndRefundStatus(id, RefundStatus.REFUNDED);
+        double returnPercent = 0.0;
+        if (totalOrders > 0) {
+            returnPercent = (double) userReturnsCount * 100.0 / (double) totalOrders;
+        }
+        boolean isHighRisk = returnPercent > 40.0 && totalOrders > 0;
+
         UserDetailsAdminResponse details = UserDetailsAdminResponse.builder()
             .id(user.getId()).name(user.getName()).email(user.getEmail()).phone(user.getPhone())
             .role(user.getRole() != null ? user.getRole().name() : "ROLE_USER")
@@ -662,6 +730,10 @@ public class AdminController {
             .cartCount(cartCount).cartItems(cartDTOs)
             .failedLoginAttempts(loginLockoutService.getFailedAttempts(user))
             .accountLockedUntil(loginLockoutService.getLockedUntil(user))
+            .totalReturns(userReturnsCount)
+            .totalRefunds(userRefundsCount)
+            .returnPercentage(returnPercent)
+            .isHighReturnRisk(isHighRisk)
             .build();
 
         return ResponseEntity.ok(ApiResponse.success("User details fetched successfully", details));
@@ -1121,6 +1193,303 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("Refund marked as paid successfully", response));
     }
 
+    @PostMapping("/refund-requests/{id}/approve-return")
+    @Operation(summary = "Approve a return request")
+    public ResponseEntity<ApiResponse<RefundRequestResponse>> approveReturn(
+            @AuthenticationPrincipal UserPrincipal adminPrincipal,
+            @PathVariable UUID id,
+            HttpServletRequest httpServletRequest) {
+
+        String ipAddress = SecurityAuditService.getClientIp(httpServletRequest);
+        String userAgent = httpServletRequest.getHeader("User-Agent");
+        RefundRequestResponse response = refundRequestService.approveReturn(id, adminPrincipal, ipAddress, userAgent);
+        return ResponseEntity.ok(ApiResponse.success("Return approved successfully", response));
+    }
+
+    @PostMapping("/refund-requests/{id}/schedule-return-pickup")
+    @Operation(summary = "Schedule a return courier pickup")
+    public ResponseEntity<ApiResponse<RefundRequestResponse>> scheduleReturnPickup(
+            @AuthenticationPrincipal UserPrincipal adminPrincipal,
+            @PathVariable UUID id,
+            HttpServletRequest httpServletRequest) {
+
+        String ipAddress = SecurityAuditService.getClientIp(httpServletRequest);
+        String userAgent = httpServletRequest.getHeader("User-Agent");
+        RefundRequestResponse response = refundRequestService.scheduleReturnPickup(id, adminPrincipal, ipAddress, userAgent);
+        return ResponseEntity.ok(ApiResponse.success("Return pickup scheduled successfully", response));
+    }
+
+    @PostMapping("/refund-requests/{id}/mark-returned")
+    @Operation(summary = "Mark returned products as received at warehouse")
+    public ResponseEntity<ApiResponse<RefundRequestResponse>> markReturned(
+            @AuthenticationPrincipal UserPrincipal adminPrincipal,
+            @PathVariable UUID id,
+            @Valid @RequestBody WarehouseInspectionRequest request,
+            HttpServletRequest httpServletRequest) {
+
+        String ipAddress = SecurityAuditService.getClientIp(httpServletRequest);
+        String userAgent = httpServletRequest.getHeader("User-Agent");
+        RefundRequestResponse response = refundRequestService.markReturned(id, adminPrincipal, request, ipAddress, userAgent);
+        return ResponseEntity.ok(ApiResponse.success("Products marked as returned successfully", response));
+    }
+
+    @PostMapping("/refund-requests/{id}/process-refund")
+    @Operation(summary = "Process/Complete refund for returned or cancelled order")
+    public ResponseEntity<ApiResponse<RefundRequestResponse>> processRefund(
+            @AuthenticationPrincipal UserPrincipal adminPrincipal,
+            @PathVariable UUID id,
+            @Valid @RequestBody RefundApprovalRequest request,
+            HttpServletRequest httpServletRequest) {
+
+        String ipAddress = SecurityAuditService.getClientIp(httpServletRequest);
+        String userAgent = httpServletRequest.getHeader("User-Agent");
+        RefundRequestResponse response = refundRequestService.processRefund(id, adminPrincipal, request, ipAddress, userAgent);
+        return ResponseEntity.ok(ApiResponse.success("Refund processed successfully", response));
+    }
+
+    @PostMapping("/refund-requests/{id}/request-payout-details")
+    @Operation(summary = "Request UPI/Bank payout details from customer (COD return orders only)")
+    public ResponseEntity<ApiResponse<RefundRequestResponse>> requestPayoutDetails(
+            @AuthenticationPrincipal UserPrincipal adminPrincipal,
+            @PathVariable UUID id,
+            HttpServletRequest httpServletRequest) {
+
+        String ipAddress = SecurityAuditService.getClientIp(httpServletRequest);
+        String userAgent = httpServletRequest.getHeader("User-Agent");
+        RefundRequestResponse response = refundRequestService.requestPayoutDetails(id, adminPrincipal, ipAddress, userAgent);
+        return ResponseEntity.ok(ApiResponse.success("Payout details requested from customer successfully", response));
+    }
+
+    // ---- SHIPROCKET AND SHIPPING SETTINGS ENDPOINTS ----
+
+
+    @GetMapping("/shipping/settings")
+    @Operation(summary = "Get current shipping settings")
+    public ResponseEntity<ApiResponse<?>> getShippingSettings() {
+        return ResponseEntity.ok(ApiResponse.success("Shipping settings fetched", shippingSettingsService.getOrCreate()));
+    }
+
+    @PutMapping("/shipping/settings")
+    @Operation(summary = "Update shipping settings")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<ApiResponse<?>> updateShippingSettings(
+            @RequestBody Map<String, BigDecimal> body, HttpServletRequest httpServletRequest) {
+        BigDecimal threshold = body.get("freeShippingThreshold");
+        BigDecimal charge = body.get("shippingCharge");
+        if (threshold == null || charge == null) {
+            throw new BadRequestException("freeShippingThreshold and shippingCharge are required");
+        }
+        ShippingSettings updated = shippingSettingsService.updateSettings(threshold, charge);
+        
+        // Audit log
+        User admin = getLoggedInUser();
+        String ip = SecurityAuditService.getClientIp(httpServletRequest);
+        String ua = httpServletRequest.getHeader("User-Agent");
+        securityAuditService.log(
+            admin != null ? admin.getId() : null,
+            admin != null ? admin.getEmail() : "admin@belledonne.in",
+            SecurityAction.ADMIN_ACTION,
+            ip,
+            ua,
+            "SUCCESS",
+            "Updated shipping settings: freeShippingThreshold=" + threshold + ", shippingCharge=" + charge
+        );
+        
+        return ResponseEntity.ok(ApiResponse.success("Shipping settings updated successfully", updated));
+    }
+
+    @PostMapping("/orders/{id}/create-shipment")
+    @Operation(summary = "Create Shiprocket shipment for an order")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<ApiResponse<?>> createShipment(
+            @PathVariable UUID id, HttpServletRequest httpServletRequest) {
+        
+        Order order = orderRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Order", "id", id));
+        
+        if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.DELIVERED) {
+            throw new BadRequestException("Cannot create shipment for order in " + order.getStatus() + " status.");
+        }
+        
+        if (order.getAwbCode() != null || order.getShipmentId() != null) {
+            throw new BadRequestException("Shipment has already been created for this order.");
+        }
+        
+        String pickupPincode = "560001"; // Standard warehouse pincode
+        String deliveryPincode = order.getAddress().getPincode();
+        double weight = 0.5; // default weight
+        boolean isCod = order.getPaymentMethod() == PaymentMethod.COD;
+        
+        ShiprocketService.ServiceabilityResponse serviceability = shiprocketService.checkServiceability(
+            pickupPincode, deliveryPincode, weight, isCod
+        );
+        
+        if (serviceability.getAvailableCouriers() == null || serviceability.getAvailableCouriers().isEmpty()) {
+            throw new BadRequestException("No serviceable courier found for pincode: " + deliveryPincode);
+        }
+        
+        // Prefer recommended, fallback to highest rated
+        ShiprocketService.CourierCompany selectedCourier = null;
+        if (serviceability.getRecommendedCourierId() != null) {
+            selectedCourier = serviceability.getAvailableCouriers().stream()
+                .filter(c -> c.getCourierCompanyId().equals(serviceability.getRecommendedCourierId()))
+                .findFirst().orElse(null);
+        }
+        if (selectedCourier == null) {
+            selectedCourier = serviceability.getAvailableCouriers().stream()
+                .max(java.util.Comparator.comparingDouble(ShiprocketService.CourierCompany::getRating))
+                .orElse(serviceability.getAvailableCouriers().get(0));
+        }
+        
+        // 1. Create Shipment Order on Shiprocket
+        ShiprocketService.ShipmentResponse shipmentRes = shiprocketService.createShipment(order);
+        order.setShiprocketOrderId(shipmentRes.getShiprocketOrderId());
+        order.setShipmentId(shipmentRes.getShipmentId());
+        
+        // 2. Assign AWB
+        ShiprocketService.AwbResponse awbRes = shiprocketService.assignAwb(shipmentRes.getShipmentId(), selectedCourier.getCourierCompanyId());
+        order.setAwbCode(awbRes.getAwbCode());
+        order.setCourierName(awbRes.getCourierName());
+        order.setTrackingUrl("https://shiprocket.co/tracking/" + awbRes.getAwbCode());
+        order.setShipmentStatus("AWB Assigned");
+        order.setShipmentCreatedAt(LocalDateTime.now());
+        
+        // Set Order Status to PACKED
+        order.setStatus(OrderStatus.PACKED);
+        
+        order.getTrackingHistory().add(OrderTracking.builder()
+            .order(order)
+            .status("PACKED")
+            .message("Shipment created on Shiprocket. Courier: " + awbRes.getCourierName() + ", AWB: " + awbRes.getAwbCode())
+            .build());
+        
+        Order saved = orderRepository.save(order);
+        
+        // Audit log
+        User admin = getLoggedInUser();
+        String ip = SecurityAuditService.getClientIp(httpServletRequest);
+        String ua = httpServletRequest.getHeader("User-Agent");
+        securityAuditService.log(
+            admin != null ? admin.getId() : null,
+            admin != null ? admin.getEmail() : "admin@belledonne.in",
+            SecurityAction.ADMIN_ACTION,
+            ip,
+            ua,
+            "SUCCESS",
+            "Created Shiprocket shipment for order: " + order.getOrderNumber() + ", AWB: " + awbRes.getAwbCode()
+        );
+        
+        // Send Shipment Created Email
+        try {
+            emailService.sendShipmentCreatedEmail(saved.getUser().getEmail(), saved);
+            notificationService.createNotification(saved.getUser().getId(), "Shipment Created 📦",
+                "Your order " + saved.getOrderNumber() + " has been packed and tracking code generated.",
+                com.belledonne.ecommerce.enums.NotificationType.ORDER_CONFIRMED, "/profile/orders");
+        } catch (Exception e) {
+            log.error("Failed to send shipment confirmation email/notification: {}", e.getMessage());
+        }
+        
+        return ResponseEntity.ok(ApiResponse.success("Shipment created successfully", orderService.toResponse(saved)));
+    }
+
+    @PostMapping("/orders/{id}/request-pickup")
+    @Operation(summary = "Request courier pickup for a shipment")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<ApiResponse<?>> requestPickup(
+            @PathVariable UUID id, HttpServletRequest httpServletRequest) {
+        
+        Order order = orderRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Order", "id", id));
+        
+        if (order.getShipmentId() == null) {
+            throw new BadRequestException("Shipment has not been created yet.");
+        }
+        
+        boolean success = shiprocketService.requestPickup(order.getShipmentId());
+        if (!success) {
+            throw new BadRequestException("Failed to request pickup from Shiprocket. Please check Shiprocket panel.");
+        }
+        
+        order.setShipmentStatus("Pickup Scheduled");
+        order.getTrackingHistory().add(OrderTracking.builder()
+            .order(order)
+            .status("PROCESSING")
+            .message("Pickup request generated and scheduled with courier partner.")
+            .build());
+        
+        Order saved = orderRepository.save(order);
+        
+        // Audit log
+        User admin = getLoggedInUser();
+        String ip = SecurityAuditService.getClientIp(httpServletRequest);
+        String ua = httpServletRequest.getHeader("User-Agent");
+        securityAuditService.log(
+            admin != null ? admin.getId() : null,
+            admin != null ? admin.getEmail() : "admin@belledonne.in",
+            SecurityAction.ADMIN_ACTION,
+            ip,
+            ua,
+            "SUCCESS",
+            "Requested carrier pickup for order: " + order.getOrderNumber()
+        );
+        
+        return ResponseEntity.ok(ApiResponse.success("Pickup requested successfully", orderService.toResponse(saved)));
+    }
+
+    @PostMapping("/orders/{id}/cancel-shipment")
+    @Operation(summary = "Cancel Shiprocket shipment and set order status to CANCELLED")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<ApiResponse<?>> cancelShipment(
+            @PathVariable UUID id, HttpServletRequest httpServletRequest) {
+        
+        User admin = getLoggedInUser();
+        String adminEmail = admin != null ? admin.getEmail() : "admin@belledonne.in";
+        OrderResponse res = orderService.cancelShipmentAdmin(id, adminEmail);
+        
+        // Audit log
+        String ip = SecurityAuditService.getClientIp(httpServletRequest);
+        String ua = httpServletRequest.getHeader("User-Agent");
+        securityAuditService.log(
+            admin != null ? admin.getId() : null,
+            adminEmail,
+            SecurityAction.ADMIN_ACTION,
+            ip,
+            ua,
+            "SUCCESS",
+            "Cancelled shipment and order for order ID: " + id
+        );
+        
+        return ResponseEntity.ok(ApiResponse.success("Shipment and order cancelled successfully", res));
+    }
+
+    @GetMapping("/orders/{id}/track")
+    @Operation(summary = "Fetch tracking update for a shipment")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<ApiResponse<?>> trackShipment(
+            @PathVariable UUID id, HttpServletRequest httpServletRequest) {
+        
+        Order order = orderRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Order", "id", id));
+        
+        if (order.getAwbCode() == null) {
+            throw new BadRequestException("No AWB code associated with this order.");
+        }
+        
+        ShiprocketService.TrackingData trackingData = shiprocketService.trackShipment(order.getAwbCode());
+        if (trackingData == null) {
+            throw new BadRequestException("Unable to retrieve tracking details from Shiprocket.");
+        }
+        
+        OrderResponse updated = orderService.syncOrderTrackingStatus(
+            order.getAwbCode(),
+            trackingData.getStatus(),
+            trackingData.getLatestEvent(),
+            trackingData.getEstimatedDelivery()
+        );
+        
+        return ResponseEntity.ok(ApiResponse.success("Tracking updated", updated));
+    }
+
     private User getLoggedInUser() {
         org.springframework.security.core.context.SecurityContext context = org.springframework.security.core.context.SecurityContextHolder.getContext();
         if (context.getAuthentication() != null && context.getAuthentication().getPrincipal() instanceof UserPrincipal) {
@@ -1222,6 +1591,202 @@ public class AdminController {
             httpResponse.setHeader("Content-Disposition", "attachment; filename=\"customers.csv\"");
             reportsExportService.exportCustomersToCsv(httpResponse.getOutputStream(), fromDt, toDt);
         }
+    }
+
+    @lombok.Data
+    public static class DeliveryProofUpdateRequest {
+        private String deliveryRemarks;
+        private String receiverName;
+        private String deliveryConfirmationDetails;
+        private String proofOfDeliveryUrl;
+    }
+
+    @PutMapping("/orders/{id}/delivery-proof")
+    @Operation(summary = "Manually enter or override delivery proof details for an order")
+    public ResponseEntity<ApiResponse<OrderResponse>> updateDeliveryProof(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal adminPrincipal,
+            @RequestBody DeliveryProofUpdateRequest request) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", id));
+        order.setDeliveryTimestamp(LocalDateTime.now());
+        order.setCourierDeliveryRemarks(request.getDeliveryRemarks());
+        order.setReceiverName(request.getReceiverName());
+        order.setDeliveryConfirmationDetails(request.getDeliveryConfirmationDetails());
+        order.setProofOfDeliveryUrl(request.getProofOfDeliveryUrl());
+        
+        // If status was OUT_FOR_DELIVERY or SHIPPED, update it to DELIVERED
+        if (order.getStatus() != OrderStatus.DELIVERED) {
+            order.setStatus(OrderStatus.DELIVERED);
+            order.setDeliveredAt(LocalDateTime.now());
+            // Audit and notify
+            auditLogService.log(adminPrincipal.getEmail(), "SHIPMENT_DELIVERED",
+                    "Order " + order.getOrderNumber() + " manually marked delivered. Receiver: " + request.getReceiverName(),
+                    order.getId().toString(), null);
+        } else {
+            auditLogService.log(adminPrincipal.getEmail(), "SHIPMENT_UPDATED",
+                    "Order " + order.getOrderNumber() + " delivery proof updated manually.",
+                    order.getId().toString(), null);
+        }
+
+        orderRepository.save(order);
+        return ResponseEntity.ok(ApiResponse.success("Delivery proof updated successfully", orderService.toResponse(order)));
+    }
+
+    @GetMapping("/analytics/reports")
+    @Operation(summary = "Get aggregated reports (revenue, collections, return rates, delivery success)")
+    public ResponseEntity<ApiResponse<?>> getAnalyticsReports(@RequestParam(defaultValue = "daily") String period) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime from;
+        if ("weekly".equalsIgnoreCase(period)) {
+            from = now.minusWeeks(4).with(LocalTime.MIN);
+        } else if ("monthly".equalsIgnoreCase(period)) {
+            from = now.minusMonths(6).with(LocalTime.MIN);
+        } else { // default to daily (last 7 days)
+            from = now.minusDays(7).with(LocalTime.MIN);
+        }
+
+        List<Order> orders = orderRepository.findAll((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+        List<RefundRequest> refunds = refundRequestRepository.findAll((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("requestedAt"), from));
+
+        DateTimeFormatter formatter;
+        if ("weekly".equalsIgnoreCase(period)) {
+            formatter = DateTimeFormatter.ofPattern("yyyy-'W'ww");
+        } else if ("monthly".equalsIgnoreCase(period)) {
+            formatter = DateTimeFormatter.ofPattern("yyyy-MM");
+        } else {
+            formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        }
+
+        Map<String, Map<String, Object>> reportMap = new LinkedHashMap<>();
+        
+        // Initialize buckets
+        LocalDateTime temp = from;
+        while (temp.isBefore(now) || temp.isEqual(now)) {
+            String key = temp.format(formatter);
+            if (!reportMap.containsKey(key)) {
+                Map<String, Object> bucket = new LinkedHashMap<>();
+                bucket.put("period", key);
+                bucket.put("revenue", BigDecimal.ZERO);
+                bucket.put("codCollections", BigDecimal.ZERO);
+                bucket.put("razorpayCollections", BigDecimal.ZERO);
+                bucket.put("shippingCosts", BigDecimal.ZERO);
+                bucket.put("refunds", BigDecimal.ZERO);
+                bucket.put("ordersCount", 0L);
+                bucket.put("returnsCount", 0L);
+                bucket.put("rtoCount", 0L);
+                bucket.put("deliveredCount", 0L);
+                bucket.put("cancelledCount", 0L);
+                reportMap.put(key, bucket);
+            }
+            if ("weekly".equalsIgnoreCase(period)) {
+                temp = temp.plusWeeks(1);
+            } else if ("monthly".equalsIgnoreCase(period)) {
+                temp = temp.plusMonths(1);
+            } else {
+                temp = temp.plusDays(1);
+            }
+        }
+
+        for (Order o : orders) {
+            String key = o.getCreatedAt().format(formatter);
+            Map<String, Object> bucket = reportMap.get(key);
+            if (bucket == null) continue;
+            
+            bucket.put("ordersCount", (long) bucket.get("ordersCount") + 1);
+            
+            if (o.getStatus() != OrderStatus.CANCELLED) {
+                bucket.put("revenue", ((BigDecimal) bucket.get("revenue")).add(o.getTotalAmount()));
+            } else {
+                bucket.put("cancelledCount", (long) bucket.get("cancelledCount") + 1);
+            }
+            
+            if (o.getShippingCharge() != null) {
+                bucket.put("shippingCosts", ((BigDecimal) bucket.get("shippingCosts")).add(o.getShippingCharge()));
+            }
+            
+            if (o.getPaymentMethod() == PaymentMethod.COD) {
+                if (o.getStatus() == OrderStatus.DELIVERED || o.getPaymentStatus() == PaymentStatus.PAID) {
+                    bucket.put("codCollections", ((BigDecimal) bucket.get("codCollections")).add(o.getTotalAmount()));
+                }
+            } else {
+                if (o.getPaymentStatus() == PaymentStatus.SUCCESS || o.getPaymentStatus() == PaymentStatus.PAID) {
+                    bucket.put("razorpayCollections", ((BigDecimal) bucket.get("razorpayCollections")).add(o.getTotalAmount()));
+                }
+            }
+            
+            if (o.getStatus() == OrderStatus.DELIVERED) {
+                bucket.put("deliveredCount", (long) bucket.get("deliveredCount") + 1);
+            }
+            
+            if (o.getStatus() == OrderStatus.RETURNED) {
+                boolean isRto = !refundRequestRepository.findByOrderId(o.getId()).isPresent();
+                if (isRto) {
+                    bucket.put("rtoCount", (long) bucket.get("rtoCount") + 1);
+                } else {
+                    bucket.put("returnsCount", (long) bucket.get("returnsCount") + 1);
+                }
+            } else if (o.getShipmentStatus() != null && o.getShipmentStatus().toLowerCase().contains("rto")) {
+                bucket.put("rtoCount", (long) bucket.get("rtoCount") + 1);
+            }
+        }
+
+        for (RefundRequest rr : refunds) {
+            String key = rr.getRequestedAt().format(formatter);
+            Map<String, Object> bucket = reportMap.get(key);
+            if (bucket == null) continue;
+            
+            if (rr.getRefundStatus() == RefundStatus.REFUNDED || rr.getRefundStatus() == RefundStatus.REFUND_INITIATED) {
+                bucket.put("refunds", ((BigDecimal) bucket.get("refunds")).add(rr.getRefundAmount()));
+            }
+        }
+
+        for (Map<String, Object> bucket : reportMap.values()) {
+            long total = (long) bucket.get("ordersCount");
+            long returns = (long) bucket.get("returnsCount");
+            long rto = (long) bucket.get("rtoCount");
+            long delivered = (long) bucket.get("deliveredCount");
+            long cancelled = (long) bucket.get("cancelledCount");
+            
+            double returnRate = total > 0 ? (double) returns * 100.0 / total : 0.0;
+            double rtoRate = total > 0 ? (double) rto * 100.0 / total : 0.0;
+            
+            long deliverable = total - cancelled;
+            double deliverySuccessRate = deliverable > 0 ? (double) delivered * 100.0 / deliverable : 0.0;
+            
+            bucket.put("returnRate", returnRate);
+            bucket.put("rtoRate", rtoRate);
+            bucket.put("deliverySuccessRate", deliverySuccessRate);
+        }
+
+        return ResponseEntity.ok(ApiResponse.success("Reports analytics fetched successfully", reportMap.values()));
+    }
+
+    @GetMapping("/audit-logs")
+    @Operation(summary = "Get logistics operations audit trail logs")
+    public ResponseEntity<ApiResponse<Page<AuditLog>>> getAuditLogs(
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+        Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "timestamp"));
+        Specification<AuditLog> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (action != null && !action.isBlank()) {
+                predicates.add(cb.equal(root.get("action"), action));
+            }
+            if (search != null && !search.isBlank()) {
+                String pattern = "%" + search.toLowerCase() + "%";
+                predicates.add(cb.or(
+                    cb.like(cb.lower(root.get("adminUser")), pattern),
+                    cb.like(cb.lower(root.get("notes")), pattern)
+                ));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        Page<AuditLog> logs = auditLogRepository.findAll(spec, pageable);
+        return ResponseEntity.ok(ApiResponse.success("Audit logs fetched successfully", logs));
     }
 
 }

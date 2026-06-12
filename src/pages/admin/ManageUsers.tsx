@@ -33,6 +33,10 @@ interface User {
   totalAmountSpent: number;
   isLocked?: boolean;
   lockedUntil?: string;
+  totalReturns?: number;
+  totalRefunds?: number;
+  returnPercentage?: number;
+  isHighReturnRisk?: boolean;
 }
 
 interface AddressDTO {
@@ -86,6 +90,10 @@ interface UserDetails {
   addresses: AddressDTO[];
   totalOrders: number;
   totalAmountSpent: number;
+  totalReturns?: number;
+  totalRefunds?: number;
+  returnPercentage?: number;
+  isHighReturnRisk?: boolean;
   latestOrders: OrderMinDTO[];
   wishlistCount: number;
   wishlistItems: WishlistItemDTO[];
@@ -541,6 +549,15 @@ export default function ManageUsers() {
                           Basic Information
                         </h3>
 
+                        {details.isHighReturnRisk && (
+                          <div className="p-3.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl text-xs font-medium space-y-1">
+                            <p className="font-bold text-amber-900 flex items-center gap-1.5">
+                              ⚠️ High Return Risk Alert
+                            </p>
+                            <p>This customer has a high return rate of <strong>{details.returnPercentage?.toFixed(1)}%</strong> ({details.totalReturns} returns out of {details.totalOrders} orders). Please monitor their requests manually.</p>
+                          </div>
+                        )}
+
                         <div className="space-y-3.5">
                           <div>
                             <p className="text-[10px] font-bold text-gray-400 uppercase">User ID</p>
@@ -667,9 +684,9 @@ export default function ManageUsers() {
                       <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-5">
                         
                         {/* Metric Boxes */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                           <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+                            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 flex-shrink-0">
                               <List className="w-5 h-5" />
                             </div>
                             <div>
@@ -679,12 +696,32 @@ export default function ManageUsers() {
                           </div>
 
                           <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 flex-shrink-0">
                               <DollarSign className="w-5 h-5" />
                             </div>
                             <div>
                               <p className="text-[10px] font-bold text-gray-400 uppercase leading-none">Total Spent</p>
                               <p className="text-lg font-bold text-[#0C831F] mt-1 leading-none">{formatSpent(details.totalAmountSpent)}</p>
+                            </div>
+                          </div>
+
+                          <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 text-lg flex-shrink-0">
+                              ↩️
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase leading-none">Total Returns</p>
+                              <p className="text-lg font-bold text-gray-900 mt-1 leading-none">{details.totalReturns ?? 0}</p>
+                            </div>
+                          </div>
+
+                          <div className="p-4 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-600 text-lg flex-shrink-0">
+                              💸
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase leading-none">Total Refunds</p>
+                              <p className="text-lg font-bold text-red-600 mt-1 leading-none">{details.totalRefunds ?? 0}</p>
                             </div>
                           </div>
                         </div>
@@ -1180,12 +1217,26 @@ export default function ManageUsers() {
                                   <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${getGradient(user.id)} flex items-center justify-center text-[12px] font-black text-white flex-shrink-0 shadow-sm`}>
                                     {getInitials(user.name, user.email)}
                                   </div>
-                                  <p className="font-semibold text-gray-900 text-xs tracking-tight">{user.name || '(No name)'}</p>
+                                  <div>
+                                    <p className="font-semibold text-gray-900 text-xs tracking-tight">{user.name || '(No name)'}</p>
+                                    {user.isHighReturnRisk && (
+                                      <span className="inline-flex items-center gap-0.5 text-[9px] font-black bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.2 rounded mt-0.5 uppercase tracking-wide">
+                                        ⚠️ High Return Risk
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </td>
                               <td className="px-5 py-4 text-gray-600 text-xs font-medium">{user.email}</td>
                               <td className="px-5 py-4 text-gray-500 text-xs font-mono">{displayPhone(user.phone)}</td>
-                              <td className="px-5 py-4 text-xs text-gray-800 font-semibold">{user.ordersCount}</td>
+                              <td className="px-5 py-4">
+                                <span className="text-xs text-gray-800 font-semibold block">{user.ordersCount}</span>
+                                {user.totalReturns !== undefined && user.totalReturns > 0 && (
+                                  <span className="text-[10px] text-gray-400 block font-medium">
+                                    Returns: {user.totalReturns} ({user.returnPercentage?.toFixed(0)}%)
+                                  </span>
+                                )}
+                              </td>
                               <td className="px-5 py-4 text-xs text-[#0C831F] font-bold">{formatSpent(user.totalAmountSpent)}</td>
                               <td className="px-5 py-4 text-xs text-gray-400 font-medium">
                                 {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}

@@ -345,6 +345,11 @@ export default function EditProduct() {
   const [craftsmanshipContent, setCraftsmanshipContent] = useState('');
 
   const [freeShipping, setFreeShipping] = useState(true);
+  const [shippingCharge, setShippingCharge] = useState('');
+  const [weight, setWeight] = useState('0.5');
+  const [length, setLength] = useState('10');
+  const [width, setWidth] = useState('10');
+  const [height, setHeight] = useState('10');
   const [codAvailable, setCodAvailable] = useState(true);
   const [easyReturns, setEasyReturns] = useState(true);
 
@@ -418,6 +423,11 @@ export default function EditProduct() {
           setCraftsmanshipTitle(product.craftsmanshipTitle || 'CRAFTSMANSHIP');
           setCraftsmanshipContent(product.craftsmanshipContent || '');
           setFreeShipping(product.freeShipping ?? true);
+          setShippingCharge(product.shippingCharge != null ? String(product.shippingCharge) : '');
+          setWeight(product.weight != null ? String(product.weight) : '0.5');
+          setLength(product.length != null ? String(product.length) : '10');
+          setWidth(product.width != null ? String(product.width) : '10');
+          setHeight(product.height != null ? String(product.height) : '10');
           setCodAvailable(product.codAvailable ?? true);
           setEasyReturns(product.easyReturns ?? true);
         }
@@ -575,6 +585,11 @@ export default function EditProduct() {
         craftsmanshipTitle: craftsmanshipTitle.trim(),
         craftsmanshipContent: craftsmanshipContent.trim(),
         freeShipping: freeShipping,
+        shippingCharge: freeShipping ? undefined : (parseFloat(shippingCharge) || 0),
+        weight: parseFloat(weight) || 0.5,
+        length: parseFloat(length) || 10,
+        width: parseFloat(width) || 10,
+        height: parseFloat(height) || 10,
         codAvailable: codAvailable,
         easyReturns: easyReturns,
       };
@@ -1078,6 +1093,75 @@ export default function EditProduct() {
                     </div>
                   </label>
                 ))}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+                    Product Specific Shipping Charge (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={freeShipping ? '' : shippingCharge}
+                    onChange={e => setShippingCharge(e.target.value)}
+                    disabled={freeShipping}
+                    placeholder={freeShipping ? 'Disabled (Free Shipping active)' : '79'}
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+                    Product Weight (kg) *
+                  </label>
+                  <input
+                    required
+                    type="number"
+                    step="0.01"
+                    value={weight}
+                    onChange={e => setWeight(e.target.value)}
+                    placeholder="0.5"
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all text-gray-900"
+                  />
+                </div>
+              </div>
+
+              {/* Dimensions */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+                  📦 Package Dimensions (cm) — for Shiprocket shipping rates
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Length (cm)</label>
+                    <input
+                      type="number" step="0.1" min="1"
+                      value={length}
+                      onChange={e => setLength(e.target.value)}
+                      placeholder="10"
+                      className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Width (cm)</label>
+                    <input
+                      type="number" step="0.1" min="1"
+                      value={width}
+                      onChange={e => setWidth(e.target.value)}
+                      placeholder="10"
+                      className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Height (cm)</label>
+                    <input
+                      type="number" step="0.1" min="1"
+                      value={height}
+                      onChange={e => setHeight(e.target.value)}
+                      placeholder="10"
+                      className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all text-gray-900"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

@@ -9,7 +9,7 @@ export interface RefundRequest {
   customerName: string;
   customerEmail: string;
   cancellationReason: string;
-  refundStatus: 'REFUND_REQUESTED' | 'REFUND_APPROVED' | 'REFUND_INITIATED' | 'REFUNDED' | 'REFUND_REJECTED' | 'REFUND_FAILED';
+  refundStatus: 'REFUND_REQUESTED' | 'REFUND_APPROVED' | 'REFUND_INITIATED' | 'REFUNDED' | 'REFUND_REJECTED' | 'REFUND_FAILED' | 'RETURN_REQUESTED' | 'RETURN_APPROVED' | 'RETURN_PICKUP_SCHEDULED' | 'RETURNED' | 'PAYOUT_DETAILS_REQUESTED' | 'PAYOUT_DETAILS_PROVIDED';
   refundAmount: number;
   adminNotes?: string;
   rejectionReason?: string;
@@ -19,6 +19,8 @@ export interface RefundRequest {
   razorpayRefundId?: string;
   razorpayRefundFailureReason?: string;
   productImageUrl?: string;
+  productImageUrls?: string[];
+  additionalComments?: string;
   bankDetails?: string;
   upiId?: string;
   requestedAt: string;
@@ -27,6 +29,25 @@ export interface RefundRequest {
   paymentMethod: string;
   paymentStatus: string;
   orderDate: string;
+
+  returnRequestedAt?: string;
+  returnApprovedAt?: string;
+  returnPickupScheduledAt?: string;
+  returnReceivedAt?: string;
+  refundProcessedAt?: string;
+
+  warehouseInspectionNotes?: string;
+  isProductDamaged?: boolean;
+  isWrongProductReturned?: boolean;
+  isMissingAccessories?: boolean;
+  isUsedProduct?: boolean;
+  isPackagingMissing?: boolean;
+  isQualityIssueConfirmed?: boolean;
+
+  razorpayRefundStatus?: string;
+  razorpayRefundTimestamp?: string;
+  razorpayRefundNotes?: string;
+
   items: {
     id: number;
     productId: string;
@@ -62,13 +83,16 @@ export const cancelWithRefund = async (orderId: string, cancellationReason: stri
   }
 };
 
-export const requestReturn = async (orderId: string, reason: string, file: File, bankDetails?: string, upiId?: string): Promise<RefundRequest> => {
+export const requestReturn = async (orderId: string, reason: string, additionalComments: string, files: File[]): Promise<RefundRequest> => {
   try {
     const formData = new FormData();
     formData.append('cancellationReason', reason);
-    formData.append('file', file);
-    if (bankDetails) formData.append('bankDetails', bankDetails);
-    if (upiId) formData.append('upiId', upiId);
+    if (additionalComments) {
+      formData.append('additionalComments', additionalComments);
+    }
+    files.forEach(file => {
+      formData.append('files', file);
+    });
 
     const response = await axiosInstance.post(ENDPOINTS.RETURN_ORDER(orderId), formData, {
       headers: {
@@ -163,6 +187,68 @@ export const markRefundPaidAdmin = async (id: string): Promise<RefundRequest> =>
     return response.data.data;
   } catch (error) {
     console.error(`Error marking refund as paid ${id}`, error);
+    throw error;
+  }
+};
+
+export const approveReturnAdmin = async (id: string): Promise<RefundRequest> => {
+  try {
+    const response = await axiosInstance.post(ENDPOINTS.ADMIN_APPROVE_RETURN(id));
+    return response.data.data;
+  } catch (error) {
+    console.error(`Error approving return request ${id}`, error);
+    throw error;
+  }
+};
+
+export const scheduleReturnPickupAdmin = async (id: string): Promise<RefundRequest> => {
+  try {
+    const response = await axiosInstance.post(ENDPOINTS.ADMIN_SCHEDULE_RETURN_PICKUP(id));
+    return response.data.data;
+  } catch (error) {
+    console.error(`Error scheduling return pickup ${id}`, error);
+    throw error;
+  }
+};
+
+export interface WarehouseInspection {
+  warehouseInspectionNotes?: string;
+  isProductDamaged?: boolean;
+  isWrongProductReturned?: boolean;
+  isMissingAccessories?: boolean;
+  isUsedProduct?: boolean;
+  isPackagingMissing?: boolean;
+  isQualityIssueConfirmed?: boolean;
+}
+
+export const markReturnedAdmin = async (id: string, inspection: WarehouseInspection): Promise<RefundRequest> => {
+  try {
+    const response = await axiosInstance.post(ENDPOINTS.ADMIN_MARK_RETURNED(id), inspection);
+    return response.data.data;
+  } catch (error) {
+    console.error(`Error marking returned items ${id}`, error);
+    throw error;
+  }
+};
+
+export const processRefundAdmin = async (id: string, adminNotes?: string): Promise<RefundRequest> => {
+  try {
+    const response = await axiosInstance.post(ENDPOINTS.ADMIN_PROCESS_REFUND(id), {
+      adminNotes
+    });
+    return response.data.data;
+  } catch (error) {
+    console.error(`Error processing refund ${id}`, error);
+    throw error;
+  }
+};
+
+export const requestPayoutDetailsAdmin = async (id: string): Promise<RefundRequest> => {
+  try {
+    const response = await axiosInstance.post(ENDPOINTS.ADMIN_REQUEST_PAYOUT_DETAILS(id));
+    return response.data.data;
+  } catch (error) {
+    console.error(`Error requesting payout details for refund ${id}`, error);
     throw error;
   }
 };

@@ -203,6 +203,60 @@ public class EmailService {
 
     @Async
     @Transactional(readOnly = true)
+    public void sendShipmentCreatedEmail(String toEmail, Order order) {
+        Order freshOrder = orderRepository.findById(order.getId())
+            .orElseThrow(() -> new IllegalArgumentException("Order not found: " + order.getId()));
+        log.info("[EmailService] Email request started: Shipment Created to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("order", freshOrder);
+            htmlContent = templateEngine.process("shipment-shipped-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for shipment-shipped-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
+        sendEmail(toEmail, "Your BELLEDONNE Order Has Been Shipped", htmlContent);
+    }
+
+    @Async
+    @Transactional(readOnly = true)
+    public void sendShipmentOutEmail(String toEmail, Order order) {
+        Order freshOrder = orderRepository.findById(order.getId())
+            .orElseThrow(() -> new IllegalArgumentException("Order not found: " + order.getId()));
+        log.info("[EmailService] Email request started: Shipment Out For Delivery to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("order", freshOrder);
+            htmlContent = templateEngine.process("shipment-out-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for shipment-out-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
+        sendEmail(toEmail, "Your Order Is Out For Delivery", htmlContent);
+    }
+
+    @Async
+    @Transactional(readOnly = true)
+    public void sendShipmentDeliveredEmail(String toEmail, Order order) {
+        Order freshOrder = orderRepository.findById(order.getId())
+            .orElseThrow(() -> new IllegalArgumentException("Order not found: " + order.getId()));
+        log.info("[EmailService] Email request started: Shipment Delivered to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("order", freshOrder);
+            htmlContent = templateEngine.process("shipment-delivered-email", context);
+        } catch (Exception e) {
+            log.error("[EmailService] ❌ Template rendering failure for shipment-delivered-email to {}: {}", toEmail, e.getMessage(), e);
+            return;
+        }
+        sendEmail(toEmail, "Your Order Has Been Delivered", htmlContent);
+    }
+
+    @Async
+    @Transactional(readOnly = true)
     public void sendRefundInitiatedEmail(String toEmail, Order order, String refundId) {
         Order freshOrder = orderRepository.findById(order.getId())
             .orElseThrow(() -> new IllegalArgumentException("Order not found: " + order.getId()));
@@ -352,6 +406,64 @@ public class EmailService {
         sendEmail(freshOrder.getUser().getEmail(), "Order Update: #" + freshOrder.getOrderNumber() + " is " + statusLabel, htmlContent);
     }
 
+    /**
+     * Sends a dedicated "Return Pickup Scheduled" email to the customer.
+     * Called when admin schedules a return courier pickup.
+     */
+    @Async
+    public void sendReturnPickupScheduledEmail(String toEmail, String customerName, String orderNumber) {
+        log.info("[EmailService] Sending Return Pickup Scheduled email to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("customerName", customerName);
+            context.setVariable("orderNumber", orderNumber);
+            htmlContent = templateEngine.process("return-pickup-scheduled-email", context);
+        } catch (Exception e) {
+            // Fallback to simple HTML if template doesn't exist yet
+            log.warn("[EmailService] Template 'return-pickup-scheduled-email' not found, using fallback. Error: {}", e.getMessage());
+            htmlContent = "<html><body style='font-family:Arial,sans-serif;'>"
+                + "<h2 style='color:#2a2a2a;'>Return Pickup Scheduled</h2>"
+                + "<p>Dear <strong>" + customerName + "</strong>,</p>"
+                + "<p>A courier has been arranged to pick up your return for order <strong>#" + orderNumber + "</strong>.</p>"
+                + "<p>Please ensure the package is properly sealed and ready for collection. The courier will arrive within 1–3 business days.</p>"
+                + "<p style='color:#666;'>If you have any questions, please contact our support team.</p>"
+                + "<br><p>Thank you,<br><strong>BELLEDONNE Team</strong></p>"
+                + "</body></html>";
+        }
+        sendEmail(toEmail, "Return Pickup Scheduled — Order #" + orderNumber, htmlContent);
+    }
+
+    /**
+     * Sends an email to the customer requesting their UPI/Bank details for a COD return refund.
+     * Called when admin marks a COD return as received and triggers the payout details request.
+     */
+    @Async
+    public void sendPayoutDetailsRequestEmail(String toEmail, String customerName, String orderNumber, java.math.BigDecimal refundAmount) {
+        log.info("[EmailService] Sending Payout Details Request email to {}", toEmail);
+        String htmlContent;
+        try {
+            Context context = new Context();
+            context.setVariable("customerName", customerName);
+            context.setVariable("orderNumber", orderNumber);
+            context.setVariable("refundAmount", refundAmount);
+            htmlContent = templateEngine.process("payout-details-request-email", context);
+        } catch (Exception e) {
+            // Fallback to simple HTML if template doesn't exist yet
+            log.warn("[EmailService] Template 'payout-details-request-email' not found, using fallback. Error: {}", e.getMessage());
+            htmlContent = "<html><body style='font-family:Arial,sans-serif;'>"
+                + "<h2 style='color:#2a2a2a;'>Action Required: Provide Refund Details</h2>"
+                + "<p>Dear <strong>" + customerName + "</strong>,</p>"
+                + "<p>We have received your returned items for order <strong>#" + orderNumber + "</strong>.</p>"
+                + "<p>To process your refund of <strong>₹" + refundAmount + "</strong>, please log in to your account and provide your UPI ID or bank account details.</p>"
+                + "<p><a href='https://belledonne.in/profile/orders' style='background:#c8a96e;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;'>Provide Refund Details</a></p>"
+                + "<p style='color:#666;margin-top:20px;'>This is required to transfer your refund. If you have already provided your details, please ignore this email.</p>"
+                + "<br><p>Thank you,<br><strong>BELLEDONNE Team</strong></p>"
+                + "</body></html>";
+        }
+        sendEmail(toEmail, "Action Required: Provide Your Refund Details — Order #" + orderNumber, htmlContent);
+    }
+
     private boolean sendEmail(String to, String subject, String htmlContent) {
         log.info("[EmailService] Attempting to send email to {} with subject: '{}'...", to, subject);
         try {
@@ -408,5 +520,18 @@ public class EmailService {
             log.error("[EmailService] ❌ Failed to send email with attachment to {}: {}", to, e.getMessage(), e);
             return false;
         }
+    }
+
+    @Async
+    public void sendWarehouseRtoNotificationEmail(String orderNumber) {
+        log.info("[EmailService] Sending Warehouse RTO Notification email for order: {}", orderNumber);
+        String htmlContent = "<html><body style='font-family:Arial,sans-serif;'>"
+            + "<h2 style='color:#d32f2f;'>RTO Package Received at Warehouse</h2>"
+            + "<p>Hello Warehouse Team,</p>"
+            + "<p>An RTO (Return to Origin) shipment has been marked as <strong>delivered back to the origin</strong> by the courier.</p>"
+            + "<p>Please verify the contents of the package for order <strong>#" + orderNumber + "</strong> and log any stock updates accordingly.</p>"
+            + "<br><p>Thank you,<br><strong>BELLEDONNE Logistics</strong></p>"
+            + "</body></html>";
+        sendEmail(fromEmail, "RTO Delivered to Warehouse — Order #" + orderNumber, htmlContent);
     }
 }

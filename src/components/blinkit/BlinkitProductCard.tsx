@@ -36,6 +36,9 @@ export default function BlinkitProductCard({ product, className = '' }: BlinkitP
       quantity: 1,
       size: product.sizes?.[0] || 'Standard',
       color: product.colors?.[0] || 'Standard',
+      freeShipping: product.freeShipping,
+      shippingCharge: product.shippingCharge,
+      weight: product.weight,
     });
     setTimeout(() => setIsAdding(false), 300);
   };

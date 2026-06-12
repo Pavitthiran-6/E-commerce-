@@ -24,22 +24,27 @@ export default function TrackOrder() {
   const [refundError, setRefundError] = useState<string | null>(null);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnReason, setReturnReason] = useState('');
+  const [additionalComments, setAdditionalComments] = useState('');
   const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
   const [returnError, setReturnError] = useState<string | null>(null);
-  const [returnImage, setReturnImage] = useState<File | null>(null);
-  const [returnImagePreview, setReturnImagePreview] = useState<string | null>(null);
+  // Multi-image state (1–5 images)
+  const [returnImages, setReturnImages] = useState<File[]>([]);
+  const [returnImagePreviews, setReturnImagePreviews] = useState<string[]>([]);
 
-  // Refund payout details state
+  // Payout Details Modal — shown when admin has requested UPI/Bank details from customer
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [payoutMethod, setPayoutMethod] = useState<'upi' | 'bank'>('upi');
   const [upiId, setUpiId] = useState('');
   const [bankName, setBankName] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
+  const [isSubmittingPayout, setIsSubmittingPayout] = useState(false);
+  const [payoutError, setPayoutError] = useState<string | null>(null);
 
   // Lock background scroll when any modal is open
   useEffect(() => {
-    if (showRefundModal || showReturnModal) {
+    if (showRefundModal || showReturnModal || showPayoutModal) {
       document.body.style.overflow = 'hidden';
       document.documentElement.style.overflow = 'hidden';
     } else {
@@ -50,7 +55,7 @@ export default function TrackOrder() {
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
     };
-  }, [showRefundModal, showReturnModal]);
+  }, [showRefundModal, showReturnModal, showPayoutModal]);
 
   useEffect(() => {
 
@@ -194,28 +199,19 @@ export default function TrackOrder() {
       setReturnError('Return reason cannot exceed 500 characters.');
       return;
     }
-    if (!returnImage) {
-      setReturnError('Product image proof is required for returns.');
+    if (returnImages.length === 0) {
+      setReturnError('At least 1 product image is required for returns.');
       return;
     }
-    if (payoutMethod === 'upi' && !upiId.trim()) {
-      setReturnError('UPI ID is required.');
-      return;
-    }
-    if (payoutMethod === 'bank' && (!bankName.trim() || !accountHolder.trim() || !accountNumber.trim() || !ifscCode.trim())) {
-      setReturnError('All bank details are required.');
+    if (returnImages.length > 5) {
+      setReturnError('Maximum 5 images allowed.');
       return;
     }
 
     setIsSubmittingReturn(true);
     setReturnError(null);
     try {
-      const formattedBankDetails = payoutMethod === 'bank' 
-        ? `Bank Name: ${bankName}\nAccount Holder: ${accountHolder}\nAccount Number: ${accountNumber}\nIFSC Code: ${ifscCode}`
-        : undefined;
-      const finalUpiId = payoutMethod === 'upi' ? upiId.trim() : undefined;
-
-      const refundRequest = await requestReturn(order.id, returnReason, returnImage, formattedBankDetails, finalUpiId);
+      const refundRequest = await requestReturn(order.id, returnReason, additionalComments, returnImages);
       
       // Update local order state with the return and refund fields
       setOrder(prev => {
@@ -225,33 +221,79 @@ export default function TrackOrder() {
           status: 'RETURN_REQUESTED',
           paymentStatus: 'REFUND_REQUESTED',
           cancellationReason: refundRequest.cancellationReason,
+          additionalComments: refundRequest.additionalComments,
           refundStatus: refundRequest.refundStatus,
           refundRequestedAt: refundRequest.requestedAt,
           refundNotes: refundRequest.adminNotes,
           rejectionReason: refundRequest.rejectionReason,
           razorpayRefundId: refundRequest.razorpayRefundId,
-          productImageUrl: refundRequest.productImageUrl,
-          bankDetails: refundRequest.bankDetails,
-          upiId: refundRequest.upiId
+          productImageUrls: refundRequest.productImageUrls,
+          productImageUrl: refundRequest.productImageUrl
         };
       });
       
       setShowReturnModal(false);
       setReturnReason('');
-      setReturnImage(null);
-      setReturnImagePreview(null);
+      setAdditionalComments('');
+      setReturnImages([]);
+      setReturnImagePreviews([]);
+      alert('Return request submitted successfully. Our team will review your request shortly.');
+    } catch (err: any) {
+      console.error(err);
+      setReturnError(err.response?.data?.message || 'Failed to submit return request. Please try again.');
+    } finally {
+      setIsSubmittingReturn(false);
+    }
+  };
+
+  const handleSubmitPayoutDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+
+    if (payoutMethod === 'upi' && !upiId.trim()) {
+      setPayoutError('UPI ID is required.');
+      return;
+    }
+    if (payoutMethod === 'bank' && (!bankName.trim() || !accountHolder.trim() || !accountNumber.trim() || !ifscCode.trim())) {
+      setPayoutError('All bank details are required.');
+      return;
+    }
+
+    setIsSubmittingPayout(true);
+    setPayoutError(null);
+    try {
+      const payload = payoutMethod === 'upi'
+        ? { upiId: upiId.trim() }
+        : { accountHolderName: accountHolder.trim(), accountNumber: accountNumber.trim(), ifscCode: ifscCode.trim().toUpperCase(), bankName: bankName.trim() };
+      
+      const { default: axiosInstance } = await import('../api/axiosInstance');
+      const res = await axiosInstance.post(`/api/orders/${order.id}/return/payout-details`, payload);
+      const refundRequest = res.data?.data;
+      
+      setOrder(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          refundStatus: refundRequest?.refundStatus || 'PAYOUT_DETAILS_PROVIDED',
+          upiId: refundRequest?.upiId,
+          bankDetails: refundRequest?.bankDetails,
+          payoutDetailsProvidedAt: refundRequest?.payoutDetailsProvidedAt
+        };
+      });
+      
+      setShowPayoutModal(false);
       setUpiId('');
       setBankName('');
       setAccountHolder('');
       setAccountNumber('');
       setIfscCode('');
       setPayoutMethod('upi');
-      alert('Return request submitted successfully.');
+      alert('Payout details submitted successfully. Your refund will be processed soon.');
     } catch (err: any) {
       console.error(err);
-      setReturnError(err.response?.data?.message || 'Failed to submit return request. Please try again.');
+      setPayoutError(err.response?.data?.message || 'Failed to submit payout details. Please try again.');
     } finally {
-      setIsSubmittingReturn(false);
+      setIsSubmittingPayout(false);
     }
   };
 
@@ -400,6 +442,74 @@ export default function TrackOrder() {
   };
   const progressPercentage = getProgressPercentage();
 
+  const isReturnFlow = [
+    'return requested', 
+    'return_requested', 
+    'return approved', 
+    'return_approved', 
+    'return pickup scheduled', 
+    'return_pickup_scheduled', 
+    'returned'
+  ].includes(status.toLowerCase()) || (status.toLowerCase() === 'refunded' && trackingHistory.some(h => h.status.toLowerCase().includes('return')));
+
+  const returnSteps = ['Return Requested', 'Return Approved', 'Pickup Scheduled', 'Returned', 'Refunded'];
+
+  const getReturnStepStatus = (stepName: string, index: number) => {
+    const currentStatus = status.toLowerCase();
+    let currentIndex = 0;
+    if (currentStatus === 'return requested' || currentStatus === 'return_requested') currentIndex = 0;
+    else if (currentStatus === 'return approved' || currentStatus === 'return_approved') currentIndex = 1;
+    else if (currentStatus === 'return pickup scheduled' || currentStatus === 'return_pickup_scheduled') currentIndex = 2;
+    else if (currentStatus === 'returned') currentIndex = 3;
+    else if (currentStatus === 'refunded') currentIndex = 4;
+
+    if (index < currentIndex) return { completed: true, current: false };
+    if (index === currentIndex) return { completed: false, current: true };
+    return { completed: false, current: false };
+  };
+
+  const getReturnStepDate = (stepName: string) => {
+    let targetStatuses: string[] = [];
+    const name = stepName.toLowerCase();
+    if (name === 'return requested') {
+      targetStatuses = ['return_requested', 'return requested'];
+    } else if (name === 'return approved') {
+      targetStatuses = ['return_approved', 'return approved'];
+    } else if (name === 'pickup scheduled') {
+      targetStatuses = ['return_pickup_scheduled', 'return pickup scheduled'];
+    } else if (name === 'returned') {
+      targetStatuses = ['returned'];
+    } else if (name === 'refunded') {
+      targetStatuses = ['refunded'];
+    }
+
+    const event = trackingHistory.find(h => 
+      targetStatuses.includes(h.status.toLowerCase())
+    );
+    
+    if (event) {
+      return new Date(event.trackingTime).toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+    return null;
+  };
+
+  const getReturnProgressPercentage = () => {
+    const currentStatus = status.toLowerCase();
+    if (currentStatus === 'refunded') return '100%';
+    if (currentStatus === 'returned') return '75%';
+    if (currentStatus === 'return pickup scheduled' || currentStatus === 'return_pickup_scheduled') return '50%';
+    if (currentStatus === 'return approved' || currentStatus === 'return_approved') return '25%';
+    return '0%';
+  };
+  const returnProgressPercentage = getReturnProgressPercentage();
+
   const getEventIcon = (eventStatus: string) => {
     const s = eventStatus.toLowerCase();
     if (s.includes('deliver')) return <CheckCircle2 className="w-4 h-4 text-white" />;
@@ -452,23 +562,47 @@ export default function TrackOrder() {
         </div>
 
         {/* SECTION 2.5: Shipping & Tracking Details */}
-        {(order.trackingNumber || order.courierName || order.shipmentNotes) && (
+        {(order.trackingNumber || order.courierName || order.shipmentNotes || order.awbCode) && (
           <div className="bg-white rounded-xl border border-outline-variant/30 p-6 md:p-8 mb-8 shadow-sm">
             <h3 className="font-headline-md text-lg font-bold text-gray-900 mb-4 flex items-center gap-3">
               <Truck className="w-5 h-5 text-primary" />
               Shipment Tracking Details
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-              {order.courierName && (
+              {(order.courierName || order.awbCode) && (
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Courier Partner</p>
-                  <p className="font-semibold text-gray-900">{order.courierName}</p>
+                  <p className="font-semibold text-gray-900">{order.courierName || 'Shiprocket Partner'}</p>
                 </div>
               )}
-              {order.trackingNumber && (
+              {(order.trackingNumber || order.awbCode) && (
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Tracking Number</p>
-                  <p className="font-mono font-bold text-primary select-all">{order.trackingNumber}</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">AWB / Tracking Number</p>
+                  <p className="font-mono font-bold text-primary select-all">{order.awbCode || order.trackingNumber}</p>
+                </div>
+              )}
+              {order.estimatedDelivery && (
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Estimated Delivery</p>
+                  <p className="font-semibold text-gray-900">
+                    {new Date(order.estimatedDelivery).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                </div>
+              )}
+              {order.trackingUrl && (
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 md:col-span-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Real-time tracking link</p>
+                    <p className="text-gray-500 text-xs">Click the button to track the package live on courier portal.</p>
+                  </div>
+                  <a
+                    href={order.trackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center px-4 py-2 bg-indigo-650 hover:bg-indigo-750 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-colors gap-1.5 shadow-sm text-center"
+                  >
+                    Track Shipment Live
+                  </a>
                 </div>
               )}
               {order.shipmentNotes && (
@@ -481,8 +615,60 @@ export default function TrackOrder() {
           </div>
         )}
 
+        {/* SECTION 2.7: Delivery Verification & Proof of Delivery */}
+        {(order.deliveryTimestamp || order.receiverName || order.proofOfDeliveryUrl || order.courierDeliveryRemarks || order.deliveryConfirmationDetails) && (
+          <div className="bg-emerald-50/20 rounded-xl border border-emerald-100 p-6 md:p-8 mb-8 shadow-sm">
+            <h3 className="font-headline-md text-lg font-bold text-emerald-950 mb-4 flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              Delivery Verification &amp; Confirmation
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+              {order.deliveryTimestamp && (
+                <div className="bg-white p-4 rounded-xl border border-emerald-100/50 shadow-xs">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Delivered At</p>
+                  <p className="font-semibold text-gray-900">{new Date(order.deliveryTimestamp).toLocaleString()}</p>
+                </div>
+              )}
+              {order.receiverName && (
+                <div className="bg-white p-4 rounded-xl border border-emerald-100/50 shadow-xs">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Received By</p>
+                  <p className="font-semibold text-gray-900">{order.receiverName}</p>
+                </div>
+              )}
+              {order.courierDeliveryRemarks && (
+                <div className="bg-white p-4 rounded-xl border border-emerald-100/50 md:col-span-2 shadow-xs">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Courier Delivery Remarks</p>
+                  <p className="text-gray-750 font-medium italic">"{order.courierDeliveryRemarks}"</p>
+                </div>
+              )}
+              {order.deliveryConfirmationDetails && (
+                <div className="bg-white p-4 rounded-xl border border-emerald-100/50 md:col-span-2 shadow-xs">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Delivery Confirmation Details</p>
+                  <p className="text-gray-750 font-medium">{order.deliveryConfirmationDetails}</p>
+                </div>
+              )}
+              {order.proofOfDeliveryUrl && (
+                <div className="bg-white p-4 rounded-xl border border-emerald-100/50 md:col-span-2 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Official Proof of Delivery (POD)</p>
+                    <p className="text-gray-500 text-xs font-medium">Signed confirmation details from courier partner.</p>
+                  </div>
+                  <a
+                    href={order.proofOfDeliveryUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-colors gap-1.5 shadow-sm text-center cursor-pointer"
+                  >
+                    View Proof of Delivery
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* SECTION 3: Visual Progress Tracker */}
-        {status !== 'Cancelled' && status !== 'Return requested' && status !== 'Return_requested' && status !== 'Returned' && status !== 'Refunded' && (
+        {status !== 'Cancelled' && !isReturnFlow && (
           <div className="bg-white rounded-xl border border-outline-variant/30 p-6 md:p-10 mb-8 shadow-sm overflow-hidden">
             <h3 className="font-headline-md text-xl mb-8">Delivery Progress</h3>
             
@@ -560,6 +746,85 @@ export default function TrackOrder() {
           </div>
         )}
 
+        {/* Return & Refund Progress Tracker */}
+        {isReturnFlow && (
+          <div className="bg-white rounded-xl border border-outline-variant/30 p-6 md:p-10 mb-8 shadow-sm overflow-hidden">
+            <h3 className="font-headline-md text-xl mb-8">Return & Refund Progress</h3>
+            
+            {/* Desktop Horizontal */}
+            <div className="hidden md:flex relative items-center justify-between w-full">
+              {/* Progress Line */}
+              <div className="absolute top-5 left-0 w-full h-1 bg-gray-200 -z-10 rounded-full">
+                 <div 
+                   className="h-full bg-green-500 rounded-full transition-all duration-1000" 
+                   style={{ width: returnProgressPercentage }}
+                 />
+              </div>
+
+              {returnSteps.map((step, idx) => {
+                const { completed, current } = getReturnStepStatus(step, idx);
+                return (
+                  <div key={idx} className="flex flex-col items-center w-1/5 relative bg-white px-2">
+                    {completed ? (
+                      <div className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center shadow-md z-10 mb-3 border-4 border-white">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                    ) : current ? (
+                      <div className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-md z-10 mb-3 border-4 border-white relative">
+                        <span className="absolute inset-0 rounded-full bg-orange-500 animate-ping opacity-30"></span>
+                        <div className="w-3 h-3 bg-white rounded-full"></div>
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center z-10 mb-3 border-4 border-white">
+                        <div className="w-3 h-3 bg-white rounded-full"></div>
+                      </div>
+                    )}
+                    <span className={`text-sm font-semibold text-center ${completed || current ? 'text-charcoal-stone' : 'text-gray-400'}`}>
+                      {step}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Mobile Vertical */}
+            <div className="md:hidden flex flex-col gap-8 relative pl-4">
+              <div className="absolute top-4 bottom-4 left-6 w-0.5 bg-gray-200">
+                <div 
+                   className="w-full bg-green-500 transition-all duration-1000" 
+                   style={{ height: returnProgressPercentage }}
+                 />
+              </div>
+
+              {returnSteps.map((step, idx) => {
+                const { completed, current } = getReturnStepStatus(step, idx);
+                return (
+                  <div key={idx} className="flex gap-4 items-start relative z-10">
+                    {completed ? (
+                      <div className="w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center flex-shrink-0 mt-0.5 border-2 border-white ring-2 ring-white">
+                        <CheckCircle2 className="w-3 h-3" />
+                      </div>
+                    ) : current ? (
+                      <div className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center flex-shrink-0 mt-0.5 relative border-2 border-white ring-2 ring-white">
+                        <span className="absolute inset-0 rounded-full bg-orange-500 animate-ping opacity-30"></span>
+                        <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                      </div>
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5 border-2 border-white ring-2 ring-white"></div>
+                    )}
+                    <div>
+                      <p className={`text-sm font-bold ${completed || current ? 'text-charcoal-stone' : 'text-gray-400'}`}>{step}</p>
+                      {(completed || current) && getReturnStepDate(step) && (
+                        <span className="text-xs text-gray-500">{getReturnStepDate(step)}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* SECTION: Refund Status Tracker */}
         {order.refundStatus && (
           <div className="bg-white rounded-xl border border-outline-variant/30 p-6 md:p-8 mb-8 shadow-sm">
@@ -588,6 +853,27 @@ export default function TrackOrder() {
                 </span>
               </div>
             </div>
+
+
+            {order.refundStatus === 'PAYOUT_DETAILS_REQUESTED' && (
+              <div className="mb-6 p-4 bg-orange-50 border border-orange-200 text-orange-800 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-orange-955">Refund Payout Details Required</p>
+                    <p className="text-xs text-orange-700 mt-0.5">
+                      Our admin has approved your return request. Since this was a Cash on Delivery (COD) order, please provide your UPI ID or Bank account details so we can process your refund.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPayoutModal(true)}
+                  className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-colors shadow-sm whitespace-nowrap self-start md:self-auto cursor-pointer"
+                >
+                  Enter Payout Details
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Left Column: Details */}
@@ -869,12 +1155,12 @@ export default function TrackOrder() {
                 Tax Invoice will be available after payment confirmation.
               </span>
             )}
-            {/* Cancel button â€” only shown for cancellable statuses (Placed, Confirmed, Packed, Processing) */}
+            {/* Cancel button — only shown for cancellable statuses (Placed, Confirmed, Packed, Processing) */}
             {['Placed', 'Confirmed', 'Packed', 'Processing'].includes(status) && (
               order.paymentMethod !== 'COD' && order.paymentStatus === 'SUCCESS' ? (
                 <button 
                   onClick={() => setShowRefundModal(true)}
-                  className="flex-1 md:flex-none border-2 border-red-500 text-red-600 px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 md:flex-none border-2 border-red-500 text-red-600 px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-red-50 transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
                   Cancel & Request Refund
                 </button>
@@ -882,7 +1168,7 @@ export default function TrackOrder() {
                 <button 
                   onClick={handleCancelOrder}
                   disabled={isCancelling}
-                  className="flex-1 md:flex-none border-2 border-red-500 text-red-600 px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-red-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                  className="flex-1 md:flex-none border-2 border-red-500 text-red-600 px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-red-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 shadow-sm"
                 >
                   {isCancelling && <Loader2 className="w-4 h-4 animate-spin" />}
                   {isCancelling ? 'Cancelling...' : 'Cancel Order'}
@@ -904,6 +1190,16 @@ export default function TrackOrder() {
               >
                 <ArrowLeftRight className="w-4 h-4" />
                 Request Return / Refund
+              </button>
+            )}
+            {/* Submit Payout Details button — shown when refund status is PAYOUT_DETAILS_REQUESTED */}
+            {order?.refundStatus === 'PAYOUT_DETAILS_REQUESTED' && (
+              <button 
+                onClick={() => setShowPayoutModal(true)}
+                className="flex-1 md:flex-none bg-orange-600 hover:bg-orange-700 text-white px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs transition-colors flex items-center justify-center gap-2 shadow-md animate-pulse cursor-pointer"
+              >
+                <DollarSign className="w-4 h-4" />
+                Submit Payout Details
               </button>
             )}
           </div>
@@ -985,28 +1281,28 @@ export default function TrackOrder() {
           <div className="bg-white w-full max-w-md rounded-2xl border border-gray-100 shadow-2xl relative overflow-hidden flex flex-col h-[85vh]">
             <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary to-primary/80" />
 
-            {/* â”€â”€ Sticky Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            {/* Sticky Header */}
             <div className="px-6 pt-7 pb-4 flex-shrink-0">
               <h3 className="font-headline-md text-xl font-bold text-gray-900 mb-1">Request Return & Refund</h3>
               <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                You are requesting a return for order <span className="font-semibold text-gray-800">#{order.orderNumber}</span>. Please specify the reason for return. Once submitted, our team will review the request.
+                You are requesting a return for order <span className="font-semibold text-gray-800">#{order?.orderNumber}</span>. Please specify the reason for return. Once submitted, our team will review the request.
               </p>
             </div>
 
-            {/* â”€â”€ Scrollable Body â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            {/* Scrollable Body */}
             <div className="overflow-y-auto flex-1 min-h-0 px-6 pb-4 space-y-4 overscroll-contain" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d1d5db transparent' }}>
 
               {/* Items to return */}
               <div className="max-h-28 overflow-y-auto space-y-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Items to Return</p>
-                {order.items.map((item, idx) => (
+                {order?.items.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-100 shadow-sm">
                     <div className="w-9 h-9 rounded border border-gray-200/80 overflow-hidden flex-shrink-0 flex items-center justify-center">
                       <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover mix-blend-multiply" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-gray-800 truncate">{item.productName}</p>
-                      <p className="text-[9px] text-gray-500 mt-0.5">Qty: {item.quantity} {item.size && `â€¢ Size: ${item.size}`} {item.color && `â€¢ Color: ${item.color}`}</p>
+                      <p className="text-[9px] text-gray-500 mt-0.5">Qty: {item.quantity} {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}</p>
                     </div>
                   </div>
                 ))}
@@ -1035,136 +1331,66 @@ export default function TrackOrder() {
                   </div>
                 </div>
 
+                {/* Additional comments */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                    Additional Comments (Optional)
+                  </label>
+                  <textarea
+                    value={additionalComments}
+                    onChange={(e) => setAdditionalComments(e.target.value)}
+                    placeholder="Provide any additional details or context..."
+                    rows={2}
+                    maxLength={1000}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors resize-none"
+                  />
+                </div>
+
                 {/* Image upload */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-                    Upload Product Image Proof <span className="text-red-500">*</span>
+                    Upload Product Image Proof (1–5 images) <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex flex-col gap-2">
+                  <div className="space-y-3">
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
                       onChange={(e) => {
-                        const file = e.target.files?.[0] || null;
-                        setReturnImage(file);
-                        if (file) {
-                          const url = URL.createObjectURL(file);
-                          setReturnImagePreview(url);
-                        } else {
-                          setReturnImagePreview(null);
+                        const files = Array.from(e.target.files || []);
+                        if (returnImages.length + files.length > 5) {
+                          setReturnError('Maximum 5 images allowed.');
+                          return;
                         }
+                        const newImages = [...returnImages, ...files];
+                        setReturnImages(newImages);
+                        
+                        const newPreviews = files.map(file => URL.createObjectURL(file));
+                        setReturnImagePreviews(prev => [...prev, ...newPreviews]);
                       }}
-                      required
                       className="block w-full text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-primary/5 file:text-primary hover:file:bg-primary/10 file:transition-colors file:cursor-pointer cursor-pointer border border-gray-200 rounded-xl p-1.5 bg-gray-50/50"
                     />
-                    {returnImagePreview && (
-                      <div className="relative w-24 h-24 border border-gray-200 rounded-xl overflow-hidden bg-gray-50 shadow-sm flex items-center justify-center">
-                        <img src={returnImagePreview} alt="Proof preview" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setReturnImage(null);
-                            setReturnImagePreview(null);
-                          }}
-                          className="absolute top-1 right-1 bg-red-500/95 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow"
-                        >
-                          <XCircle className="w-3.5 h-3.5" />
-                        </button>
+                    
+                    {returnImagePreviews.length > 0 && (
+                      <div className="grid grid-cols-5 gap-2">
+                        {returnImagePreviews.map((preview, index) => (
+                          <div key={index} className="relative aspect-square border border-gray-200 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center group">
+                            <img src={preview} alt={`Proof preview ${index + 1}`} className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReturnImages(prev => prev.filter((_, i) => i !== index));
+                                setReturnImagePreviews(prev => prev.filter((_, i) => i !== index));
+                              }}
+                              className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600 transition-colors shadow"
+                            >
+                              <XCircle className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                </div>
-
-                {/* Payout Details */}
-                <div className="border-t border-gray-100 pt-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Refund Payout Option <span className="text-red-500">*</span></p>
-                  <div className="flex gap-2 p-1 bg-gray-50 border border-gray-200/80 rounded-xl mb-3">
-                    <button
-                      type="button"
-                      onClick={() => setPayoutMethod('upi')}
-                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                        payoutMethod === 'upi'
-                          ? 'bg-white text-primary shadow-sm border border-gray-200/40'
-                          : 'text-gray-500 hover:text-gray-800'
-                      }`}
-                    >
-                      UPI ID
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPayoutMethod('bank')}
-                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                        payoutMethod === 'bank'
-                          ? 'bg-white text-primary shadow-sm border border-gray-200/40'
-                          : 'text-gray-500 hover:text-gray-800'
-                      }`}
-                    >
-                      Bank Account
-                    </button>
-                  </div>
-
-                  {payoutMethod === 'upi' ? (
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">UPI ID <span className="text-red-500">*</span></label>
-                      <input
-                        type="text"
-                        placeholder="e.g. name@upi, name@okhdfcbank"
-                        value={upiId}
-                        onChange={(e) => setUpiId(e.target.value)}
-                        required={payoutMethod === 'upi'}
-                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Bank Name <span className="text-red-500">*</span></label>
-                        <input
-                          type="text"
-                          placeholder="e.g. HDFC Bank, State Bank of India"
-                          value={bankName}
-                          onChange={(e) => setBankName(e.target.value)}
-                          required={payoutMethod === 'bank'}
-                          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account Holder Name <span className="text-red-500">*</span></label>
-                        <input
-                          type="text"
-                          placeholder="e.g. John Doe"
-                          value={accountHolder}
-                          onChange={(e) => setAccountHolder(e.target.value)}
-                          required={payoutMethod === 'bank'}
-                          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account Number <span className="text-red-500">*</span></label>
-                          <input
-                            type="text"
-                            placeholder="e.g. 50100234567890"
-                            value={accountNumber}
-                            onChange={(e) => setAccountNumber(e.target.value)}
-                            required={payoutMethod === 'bank'}
-                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">IFSC Code <span className="text-red-500">*</span></label>
-                          <input
-                            type="text"
-                            placeholder="e.g. HDFC0000240"
-                            value={ifscCode}
-                            onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
-                            required={payoutMethod === 'bank'}
-                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors font-mono uppercase"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {returnError && (
@@ -1176,22 +1402,17 @@ export default function TrackOrder() {
               </form>
             </div>
 
-            {/* â”€â”€ Sticky Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            {/* Sticky Footer */}
             <div className="px-6 py-4 flex-shrink-0 border-t border-gray-100 bg-white flex gap-3">
               <button
                 type="button"
                 onClick={() => {
                   setShowReturnModal(false);
                   setReturnReason('');
-                  setReturnImage(null);
-                  setReturnImagePreview(null);
+                  setAdditionalComments('');
+                  setReturnImages([]);
+                  setReturnImagePreviews([]);
                   setReturnError(null);
-                  setUpiId('');
-                  setBankName('');
-                  setAccountHolder('');
-                  setAccountNumber('');
-                  setIfscCode('');
-                  setPayoutMethod('upi');
                 }}
                 className="flex-1 border-2 border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
               >
@@ -1200,11 +1421,156 @@ export default function TrackOrder() {
               <button
                 type="submit"
                 form="return-form"
-                disabled={isSubmittingReturn || returnReason.trim().length < 10 || !returnImage}
+                disabled={isSubmittingReturn || returnReason.trim().length < 10 || returnImages.length === 0}
                 className="flex-1 bg-primary text-white rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-primary/95 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-md text-center"
               >
                 {isSubmittingReturn && <Loader2 className="w-4 h-4 animate-spin" />}
                 {isSubmittingReturn ? 'Submitting...' : 'Confirm Return'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payout Details Modal (COD only, requested by admin) */}
+      {showPayoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" data-lenis-prevent>
+          <div className="bg-white w-full max-w-md rounded-2xl border border-gray-100 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-orange-500 to-amber-500" />
+
+            {/* Header */}
+            <div className="px-6 pt-7 pb-4 flex-shrink-0">
+              <h3 className="font-headline-md text-xl font-bold text-gray-900 mb-1">Submit Refund Payout Details</h3>
+              <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                Provide your UPI ID or Bank account details so that we can process your COD return refund manually.
+              </p>
+            </div>
+
+            {/* Form & Fields */}
+            <div className="overflow-y-auto flex-1 min-h-0 px-6 pb-4 space-y-4 overscroll-contain">
+              <form id="payout-form" onSubmit={handleSubmitPayoutDetails} className="space-y-4">
+                <div className="flex gap-2 p-1 bg-gray-50 border border-gray-200/80 rounded-xl mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setPayoutMethod('upi')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      payoutMethod === 'upi'
+                        ? 'bg-white text-primary shadow-sm border border-gray-200/40'
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    UPI ID
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPayoutMethod('bank')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      payoutMethod === 'bank'
+                        ? 'bg-white text-primary shadow-sm border border-gray-200/40'
+                        : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    Bank Account
+                  </button>
+                </div>
+
+                {payoutMethod === 'upi' ? (
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">UPI ID <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      placeholder="e.g. name@upi, name@okhdfcbank"
+                      value={upiId}
+                      onChange={(e) => setUpiId(e.target.value)}
+                      required={payoutMethod === 'upi'}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Bank Name <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="e.g. HDFC Bank, State Bank of India"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        required={payoutMethod === 'bank'}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account Holder Name <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="e.g. John Doe"
+                        value={accountHolder}
+                        onChange={(e) => setAccountHolder(e.target.value)}
+                        required={payoutMethod === 'bank'}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account Number <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 50100234567890"
+                          value={accountNumber}
+                          onChange={(e) => setAccountNumber(e.target.value)}
+                          required={payoutMethod === 'bank'}
+                          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">IFSC Code <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          placeholder="e.g. HDFC0000240"
+                          value={ifscCode}
+                          onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+                          required={payoutMethod === 'bank'}
+                          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors font-mono uppercase"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {payoutError && (
+                  <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{payoutError}</span>
+                  </div>
+                )}
+              </form>
+            </div>
+
+            {/* Sticky Footer */}
+            <div className="px-6 py-4 flex-shrink-0 border-t border-gray-100 bg-white flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPayoutModal(false);
+                  setPayoutError(null);
+                  setUpiId('');
+                  setBankName('');
+                  setAccountHolder('');
+                  setAccountNumber('');
+                  setIfscCode('');
+                }}
+                className="flex-1 border-2 border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                form="payout-form"
+                disabled={isSubmittingPayout}
+                className="flex-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg py-3 text-xs font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-md text-center"
+              >
+                {isSubmittingPayout && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isSubmittingPayout ? 'Submitting...' : 'Submit Details'}
               </button>
             </div>
           </div>

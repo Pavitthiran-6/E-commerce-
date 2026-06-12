@@ -57,11 +57,11 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
             log.info("Updating check constraint on orders.status to include all current OrderStatus values...");
             // Drop the stale constraint that only contained old/legacy status values
             jdbcTemplate.execute("ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check");
-            // Recreate with all current OrderStatus enum values
+            // Recreate with all current OrderStatus enum values including return lifecycle states
             jdbcTemplate.execute("ALTER TABLE orders ADD CONSTRAINT orders_status_check CHECK (status IN (" +
-                "'PLACED', 'CONFIRMED', 'PACKED', 'PROCESSING', 'SHIPPED', " +
+                "'PENDING_PAYMENT', 'PLACED', 'CONFIRMED', 'PACKED', 'PROCESSING', 'SHIPPED', " +
                 "'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', " +
-                "'RETURN_REQUESTED', 'RETURNED', 'REFUNDED'" +
+                "'RETURN_REQUESTED', 'RETURN_APPROVED', 'RETURN_PICKUP_SCHEDULED', 'RETURNED', 'REFUNDED'" +
                 "))");
             log.info("Database migration successfully updated orders_status_check constraint with all statuses!");
         } catch (Exception e) {
@@ -123,6 +123,45 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
             log.info("Database migration successfully updated test order refund amount!");
         } catch (Exception e) {
             log.warn("Database migration test order refund amount update failed: {}", e.getMessage());
+        }
+
+        try {
+            log.info("Adding Shiprocket fields to orders table...");
+            jdbcTemplate.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shiprocket_order_id VARCHAR(100)");
+            jdbcTemplate.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipment_id VARCHAR(100)");
+            jdbcTemplate.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS awb_code VARCHAR(100)");
+            jdbcTemplate.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_url TEXT");
+            jdbcTemplate.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipment_status VARCHAR(50)");
+            jdbcTemplate.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipment_created_at TIMESTAMP");
+            log.info("Database migration successfully added Shiprocket fields to orders table!");
+        } catch (Exception e) {
+            log.warn("Database migration orders table Shiprocket columns skipped or failed: {}", e.getMessage());
+        }
+
+        try {
+            log.info("Creating shipping_settings table...");
+            jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS shipping_settings (" +
+                                 "  id UUID PRIMARY KEY," +
+                                 "  free_shipping_threshold DECIMAL(10,2) NOT NULL," +
+                                 "  shipping_charge DECIMAL(10,2) NOT NULL," +
+                                 "  updated_at TIMESTAMP" +
+                                 ")");
+            log.info("Database migration successfully created/verified shipping_settings table!");
+            
+            // Sync/Update default shipping settings to 499 threshold
+            jdbcTemplate.execute("UPDATE shipping_settings SET free_shipping_threshold = 499.00 WHERE free_shipping_threshold = 999.00");
+            log.info("Database migration successfully synced free shipping threshold to ₹499!");
+        } catch (Exception e) {
+            log.warn("Database migration shipping_settings table creation skipped or failed: {}", e.getMessage());
+        }
+
+        try {
+            log.info("Adding shipping columns to products table...");
+            jdbcTemplate.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS shipping_charge DECIMAL(10,2)");
+            jdbcTemplate.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS weight DECIMAL(10,2) DEFAULT 0.5");
+            log.info("Database migration successfully added shipping_charge and weight columns to products table!");
+        } catch (Exception e) {
+            log.warn("Database migration products table columns skipped or failed: {}", e.getMessage());
         }
     }
 }

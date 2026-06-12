@@ -58,6 +58,7 @@ export const ENDPOINTS = {
   // Sale (public)
   SALE_SETTINGS: '/api/sales/settings',
   SALE_DEAL_OF_THE_DAY: '/api/sales/deal-of-the-day',
+  SHIPPING_SETTINGS: '/api/sales/shipping/settings',
 
   // Admin Sale
   ADMIN_SALE_SETTINGS: '/api/admin/sales/settings',
@@ -84,9 +85,21 @@ export const ENDPOINTS = {
   ADMIN_REJECT_REFUND: (id: string) => `/api/admin/refund-requests/${id}/reject`,
   ADMIN_RETRY_REFUND: (id: string) => `/api/admin/refund-requests/${id}/retry`,
   ADMIN_MARK_REFUND_PAID: (id: string) => `/api/admin/refund-requests/${id}/mark-paid`,
+  ADMIN_APPROVE_RETURN: (id: string) => `/api/admin/refund-requests/${id}/approve-return`,
+  ADMIN_SCHEDULE_RETURN_PICKUP: (id: string) => `/api/admin/refund-requests/${id}/schedule-return-pickup`,
+  ADMIN_MARK_RETURNED: (id: string) => `/api/admin/refund-requests/${id}/mark-returned`,
+  ADMIN_PROCESS_REFUND: (id: string) => `/api/admin/refund-requests/${id}/process-refund`,
+  ADMIN_REQUEST_PAYOUT_DETAILS: (id: string) => `/api/admin/refund-requests/${id}/request-payout-details`,
   ADMIN_UPDATE_ORDER_STATUS: (id: string) => `/api/admin/orders/${id}/status`,
   ADMIN_INVENTORY: '/api/admin/inventory',
   ADMIN_INVENTORY_ADJUST: '/api/admin/inventory/adjust',
   ADMIN_INVENTORY_REPORTS: '/api/admin/inventory/reports',
   ADMIN_INVENTORY_HISTORY: '/api/admin/inventory/history',
+
+  // Shiprocket Logistics and Shipping Settings
+  ADMIN_SHIPPING_SETTINGS: '/api/admin/shipping/settings',
+  ADMIN_CREATE_SHIPMENT: (id: string) => `/api/admin/orders/${id}/create-shipment`,
+  ADMIN_REQUEST_PICKUP: (id: string) => `/api/admin/orders/${id}/request-pickup`,
+  ADMIN_CANCEL_SHIPMENT: (id: string) => `/api/admin/orders/${id}/cancel-shipment`,
+  ADMIN_TRACK_SHIPMENT: (id: string) => `/api/admin/orders/${id}/track`,
 };

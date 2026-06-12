@@ -203,6 +203,9 @@ public class CartService {
                     .unitPrice(item.getPriceAtAddition())
                     .quantity(item.getQuantity())
                     .totalPrice(total)
+                    .freeShipping(item.getProduct().getFreeShipping())
+                    .shippingCharge(item.getProduct().getShippingCharge())
+                    .weight(item.getProduct().getWeight())
                     .build();
             }).collect(Collectors.toList());
 

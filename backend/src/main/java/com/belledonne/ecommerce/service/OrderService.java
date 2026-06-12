@@ -7,6 +7,7 @@ import com.belledonne.ecommerce.entity.*;
 import com.belledonne.ecommerce.enums.OrderStatus;
 import com.belledonne.ecommerce.enums.PaymentMethod;
 import com.belledonne.ecommerce.enums.PaymentStatus;
+import com.belledonne.ecommerce.enums.RefundStatus;
 import com.belledonne.ecommerce.exception.BadRequestException;
 import com.belledonne.ecommerce.exception.ResourceNotFoundException;
 import com.belledonne.ecommerce.repository.*;
@@ -45,6 +46,10 @@ public class OrderService {
     private final InventoryService inventoryService;
     private final InvoiceService invoiceService;
     private final NotificationService notificationService;
+    private final ShippingSettingsService shippingSettingsService;
+    private final ShiprocketService shiprocketService;
+    private final RefundRequestRepository refundRequestRepository;
+    private final AuditLogService auditLogService;
 
     @Autowired @Lazy
     private PaymentService paymentService;
@@ -104,11 +109,43 @@ public class OrderService {
             couponService.incrementUsage(request.getCouponCode());
         }
 
-        BigDecimal shippingCharge = PriceUtil.calculateShipping(subtotal.subtract(discount));
-        BigDecimal taxAmount = PriceUtil.calculateGst(subtotal.subtract(discount));
-        BigDecimal total = subtotal.subtract(discount).add(shippingCharge);
+        com.belledonne.ecommerce.entity.ShippingSettings shippingSettings = shippingSettingsService.getOrCreate();
+        BigDecimal subtotalAfterDiscount = subtotal.subtract(discount);
+        
+        BigDecimal shippingCharge = BigDecimal.ZERO;
+        boolean hasGlobalShippingItems = false;
+        
+        for (OrderItem item : orderItems) {
+            Product product = item.getProduct();
+            if (Boolean.TRUE.equals(product.getFreeShipping())) {
+                // Product-level free shipping
+                continue;
+            } else if (product.getShippingCharge() != null && product.getShippingCharge().compareTo(BigDecimal.ZERO) > 0) {
+                // Product-level custom shipping charge (multiplied by quantity)
+                BigDecimal itemShipping = product.getShippingCharge().multiply(BigDecimal.valueOf(item.getQuantity()));
+                shippingCharge = shippingCharge.add(itemShipping);
+            } else {
+                // Falls back to global settings
+                hasGlobalShippingItems = true;
+            }
+        }
+        
+        if (hasGlobalShippingItems) {
+            // Apply global flat charge if subtotal falls below the threshold
+            if (subtotalAfterDiscount.compareTo(shippingSettings.getFreeShippingThreshold()) < 0) {
+                shippingCharge = shippingCharge.add(shippingSettings.getShippingCharge());
+            }
+        }
+
+        BigDecimal taxAmount = PriceUtil.calculateGst(subtotalAfterDiscount);
+        BigDecimal total = subtotalAfterDiscount.add(shippingCharge);
 
         String orderNumber = generateOrderNumber();
+        PaymentMethod paymentMethod = PaymentMethod.valueOf(request.getPaymentMethod());
+        OrderStatus initialStatus = PaymentMethod.COD.equals(paymentMethod) 
+            ? OrderStatus.PENDING_PAYMENT 
+            : OrderStatus.PLACED;
+
         Order order = Order.builder()
             .orderNumber(orderNumber)
             .user(user).address(address)
@@ -116,9 +153,9 @@ public class OrderService {
             .taxAmount(taxAmount).discountAmount(discount)
             .totalAmount(PriceUtil.round(total))
             .couponCode(request.getCouponCode())
-            .paymentMethod(PaymentMethod.valueOf(request.getPaymentMethod()))
+            .paymentMethod(paymentMethod)
             .estimatedDelivery(LocalDate.now().plusDays(5))
-            .status(OrderStatus.PLACED)
+            .status(initialStatus)
             .build();
 
         Order saved = orderRepository.save(order);
@@ -173,7 +210,7 @@ public class OrderService {
             .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
         if (!order.getUser().getId().equals(principal.getId()))
             throw new ResourceNotFoundException("Order", "id", orderId);
-        if (order.getStatus() != OrderStatus.PLACED && order.getStatus() != OrderStatus.CONFIRMED)
+        if (order.getStatus() != OrderStatus.PLACED && order.getStatus() != OrderStatus.CONFIRMED && order.getStatus() != OrderStatus.PACKED)
             throw new BadRequestException("Order cannot be cancelled at this stage");
             
         // Block direct cancellation for paid online orders — they must submit a refund request
@@ -181,6 +218,17 @@ public class OrderService {
                 && order.getPaymentMethod() != PaymentMethod.COD
                 && order.getPaymentStatus() == PaymentStatus.SUCCESS) {
             throw new BadRequestException("Prepaid orders must be cancelled via the refund request workflow.");
+        }
+
+        // If a shipment exists on Shiprocket, attempt to cancel it automatically
+        if (order.getShiprocketOrderId() != null) {
+            try {
+                shiprocketService.cancelShipment(order.getShiprocketOrderId());
+                order.setShipmentStatus("CANCELLED");
+            } catch (Exception e) {
+                log.error("Failed to cancel Shiprocket shipment for order {} during customer cancellation: {}", 
+                    order.getOrderNumber(), e.getMessage());
+            }
         }
 
         order.setStatus(OrderStatus.CANCELLED);
@@ -201,6 +249,32 @@ public class OrderService {
             "/profile/orders"
         );
 
+        return toResponse(saved);
+    }
+
+    public OrderResponse cancelShipmentAdmin(UUID orderId, String adminEmail) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+        if (order.getShiprocketOrderId() != null) {
+            shiprocketService.cancelShipment(order.getShiprocketOrderId());
+        }
+        order.setShipmentStatus("CANCELLED");
+        order.setStatus(OrderStatus.CANCELLED);
+        order.getTrackingHistory().add(OrderTracking.builder()
+            .order(order).status("CANCELLED").message("Shipment cancelled by administrator").build());
+        
+        // Restore stock
+        inventoryService.restoreStock(order, "SHIPMENT_CANCELLED", adminEmail);
+        Order saved = orderRepository.save(order);
+        
+        try {
+            emailService.sendOrderStatusUpdateEmail(saved, "Cancelled", "Your order shipment has been cancelled by the administrator.");
+            notificationService.createNotification(saved.getUser().getId(), "Shipment Cancelled",
+                "Your shipment for order " + saved.getOrderNumber() + " has been cancelled.",
+                com.belledonne.ecommerce.enums.NotificationType.ORDER_CANCELLED, "/profile/orders");
+        } catch (Exception e) {
+            log.error("Failed to send cancellation notification: {}", e.getMessage());
+        }
         return toResponse(saved);
     }
 
@@ -240,13 +314,26 @@ public class OrderService {
             .couponCode(o.getCouponCode()).paymentMethod(o.getPaymentMethod() != null ? o.getPaymentMethod().name() : null)
             .paymentStatus(o.getPaymentStatus() != null ? o.getPaymentStatus().name() : null)
             .estimatedDelivery(o.getEstimatedDelivery()).deliveredAt(o.getDeliveredAt())
+            .paymentCollectedAt(o.getPaymentCollectedAt())
             .trackingNumber(o.getTrackingNumber())
             .courierName(o.getCourierName())
             .shipmentNotes(o.getShipmentNotes())
             .stockRestored(o.isStockRestored())
             .address(addressResponse).items(items).trackingHistory(tracking)
             .createdAt(o.getCreatedAt())
+            .shiprocketOrderId(o.getShiprocketOrderId())
+            .shipmentId(o.getShipmentId())
+            .awbCode(o.getAwbCode())
+            .trackingUrl(o.getTrackingUrl())
+            .shipmentStatus(o.getShipmentStatus())
+            .shipmentCreatedAt(o.getShipmentCreatedAt())
+            .deliveryTimestamp(o.getDeliveryTimestamp())
+            .courierDeliveryRemarks(o.getCourierDeliveryRemarks())
+            .receiverName(o.getReceiverName())
+            .deliveryConfirmationDetails(o.getDeliveryConfirmationDetails())
+            .proofOfDeliveryUrl(o.getProofOfDeliveryUrl())
             .cancellationReason(o.getRefundRequest() != null ? o.getRefundRequest().getCancellationReason() : null)
+            .additionalComments(o.getRefundRequest() != null ? o.getRefundRequest().getAdditionalComments() : null)
             .refundStatus(o.getRefundRequest() != null && o.getRefundRequest().getRefundStatus() != null ? o.getRefundRequest().getRefundStatus().name() : null)
             .refundRequestedAt(o.getRefundRequest() != null ? o.getRefundRequest().getRequestedAt() : null)
             .refundNotes(o.getRefundRequest() != null ? o.getRefundRequest().getAdminNotes() : null)
@@ -254,8 +341,140 @@ public class OrderService {
             .razorpayRefundId(o.getRefundRequest() != null ? o.getRefundRequest().getRazorpayRefundId() : null)
             .razorpayRefundFailureReason(o.getRefundRequest() != null ? o.getRefundRequest().getRazorpayRefundFailureReason() : null)
             .productImageUrl(o.getRefundRequest() != null ? o.getRefundRequest().getProductImageUrl() : null)
+            .productImageUrls(o.getRefundRequest() != null ? o.getRefundRequest().getProductImageUrls() : null)
             .bankDetails(o.getRefundRequest() != null ? o.getRefundRequest().getBankDetails() : null)
             .upiId(o.getRefundRequest() != null ? o.getRefundRequest().getUpiId() : null)
+            .payoutDetailsRequestedAt(o.getRefundRequest() != null ? o.getRefundRequest().getPayoutDetailsRequestedAt() : null)
+            .payoutDetailsProvidedAt(o.getRefundRequest() != null ? o.getRefundRequest().getPayoutDetailsProvidedAt() : null)
             .build();
+    }
+
+    @Transactional
+    public OrderResponse syncOrderTrackingStatus(String awbCode, String newShipmentStatus, String latestEvent, String estimatedDelivery) {
+        Order order = orderRepository.findByAwbCode(awbCode)
+            .orElseThrow(() -> new ResourceNotFoundException("Order", "awbCode", awbCode));
+
+        String oldStatus = order.getShipmentStatus();
+        if (newShipmentStatus != null && !newShipmentStatus.equalsIgnoreCase(oldStatus)) {
+            order.setShipmentStatus(newShipmentStatus);
+            
+            OrderStatus mappedOrderStatus = mapShiprocketStatus(newShipmentStatus);
+            if (mappedOrderStatus != null && mappedOrderStatus != order.getStatus()) {
+                order.setStatus(mappedOrderStatus);
+                if (mappedOrderStatus == OrderStatus.DELIVERED) {
+                    order.setDeliveredAt(LocalDateTime.now());
+                    order.setDeliveryTimestamp(LocalDateTime.now());
+                    try {
+                        ShiprocketService.TrackingData details = shiprocketService.trackShipment(awbCode);
+                        if (details != null) {
+                            if (details.getDeliveryTimestamp() != null && !details.getDeliveryTimestamp().isEmpty()) {
+                                try {
+                                    order.setDeliveryTimestamp(LocalDateTime.parse(details.getDeliveryTimestamp(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                                } catch (Exception e) {
+                                    log.warn("Failed to parse delivery timestamp: {}", details.getDeliveryTimestamp());
+                                }
+                            }
+                            order.setCourierDeliveryRemarks(details.getCourierRemarks());
+                            order.setReceiverName(details.getReceiverName() != null ? details.getReceiverName() : order.getAddress().getFullName());
+                            order.setProofOfDeliveryUrl(details.getProofOfDeliveryUrl());
+                            order.setDeliveryConfirmationDetails("Delivered via Shiprocket. Receiver: " + order.getReceiverName());
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to fetch detailed delivery proof from Shiprocket for AWB {}: {}", awbCode, e.getMessage());
+                    }
+                    // For COD orders, record when cash was collected
+                    if (order.getPaymentMethod() == com.belledonne.ecommerce.enums.PaymentMethod.COD) {
+                        order.setPaymentCollectedAt(order.getDeliveryTimestamp() != null ? order.getDeliveryTimestamp() : LocalDateTime.now());
+                        order.setPaymentStatus(com.belledonne.ecommerce.enums.PaymentStatus.PAID);
+                    }
+                    
+                    // Audit log
+                    auditLogService.log("system@belledonne.in", "SHIPMENT_DELIVERED", 
+                        "Order " + order.getOrderNumber() + " delivered. Receiver: " + order.getReceiverName() + ", POD URL: " + order.getProofOfDeliveryUrl(), 
+                        order.getId().toString(), null);
+                }
+                
+                if (mappedOrderStatus == OrderStatus.RETURNED) {
+                    // Update any associated refund request if present
+                    final com.belledonne.ecommerce.enums.PaymentMethod payMethod = order.getPaymentMethod();
+                    refundRequestRepository.findByOrderId(order.getId()).ifPresent(refundRequest -> {
+                        boolean isCod = payMethod == com.belledonne.ecommerce.enums.PaymentMethod.COD;
+                        refundRequest.setRefundStatus(isCod ? RefundStatus.PAYOUT_DETAILS_REQUESTED : RefundStatus.RETURN_APPROVED);
+                        refundRequestRepository.save(refundRequest);
+                    });
+                    // Trigger warehouse notification email
+                    emailService.sendWarehouseRtoNotificationEmail(order.getOrderNumber());
+                }
+                
+                order.getTrackingHistory().add(OrderTracking.builder()
+                    .order(order)
+                    .status(mappedOrderStatus.name())
+                    .message("Shipment status updated to " + newShipmentStatus + ". Latest event: " + latestEvent)
+                    .build());
+                
+                sendShipmentEmailForStatus(order, mappedOrderStatus);
+            } else {
+                order.getTrackingHistory().add(OrderTracking.builder()
+                    .order(order)
+                    .status(order.getStatus().name())
+                    .message("Shipment tracking update: " + latestEvent)
+                    .build());
+            }
+            
+            order = orderRepository.save(order);
+        }
+        return toResponse(order);
+    }
+
+    private OrderStatus mapShiprocketStatus(String status) {
+        if (status == null) return null;
+        switch (status.toLowerCase()) {
+            case "packed":
+            case "ready to ship":
+            case "awb assigned":
+            case "pickup scheduled":
+            case "pickup generated":
+                return OrderStatus.PACKED;
+            case "picked up":
+            case "in transit":
+            case "reached hub":
+            case "shipped":
+                return OrderStatus.SHIPPED;
+            case "out for delivery":
+                return OrderStatus.OUT_FOR_DELIVERY;
+            case "delivered":
+                return OrderStatus.DELIVERED;
+            case "cancelled":
+                return OrderStatus.CANCELLED;
+            case "rto delivered":
+            case "returned":
+            case "rto closed":
+                return OrderStatus.RETURNED;
+            default:
+                return null;
+        }
+    }
+
+    private void sendShipmentEmailForStatus(Order order, OrderStatus status) {
+        try {
+            if (status == OrderStatus.SHIPPED) {
+                emailService.sendShipmentCreatedEmail(order.getUser().getEmail(), order);
+                notificationService.createNotification(order.getUser().getId(), "Order Shipped 🚚",
+                    "Your order " + order.getOrderNumber() + " is on its way!",
+                    com.belledonne.ecommerce.enums.NotificationType.ORDER_SHIPPED, "/profile/orders");
+            } else if (status == OrderStatus.OUT_FOR_DELIVERY) {
+                emailService.sendShipmentOutEmail(order.getUser().getEmail(), order);
+                notificationService.createNotification(order.getUser().getId(), "Out for Delivery 📦",
+                    "Your order " + order.getOrderNumber() + " is out for delivery.",
+                    com.belledonne.ecommerce.enums.NotificationType.ORDER_OUT_FOR_DELIVERY, "/profile/orders");
+            } else if (status == OrderStatus.DELIVERED) {
+                emailService.sendShipmentDeliveredEmail(order.getUser().getEmail(), order);
+                notificationService.createNotification(order.getUser().getId(), "Order Delivered 🎉",
+                    "Your order " + order.getOrderNumber() + " has been delivered.",
+                    com.belledonne.ecommerce.enums.NotificationType.ORDER_DELIVERED, "/profile/orders");
+            }
+        } catch (Exception e) {
+            log.error("Failed to send shipment update email/notification: {}", e.getMessage());
+        }
     }
 }

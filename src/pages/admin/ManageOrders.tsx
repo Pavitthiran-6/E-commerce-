@@ -1,8 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { getOrders } from '../../services/orderService';
+import { 
+  getOrders, 
+  createShipmentAdmin, 
+  requestPickupAdmin, 
+  cancelShipmentAdmin, 
+  trackShipmentAdmin,
+  getShippingSettings,
+  updateShippingSettings,
+  type ShippingSettings
+} from '../../services/orderService';
 import axiosInstance from '../../api/axiosInstance';
 import type { Order } from '../../services/orderService';
-import { Loader2, Search, Truck, MapPin, X, ChevronRight, Package, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, Search, Truck, MapPin, X, ChevronRight, Package, CheckCircle2, AlertCircle, Settings } from 'lucide-react';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
   // New Statuses
@@ -70,6 +79,14 @@ export default function ManageOrders() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isUpdatingPaymentId, setIsUpdatingPaymentId] = useState<string | null>(null);
+
+  // Shiprocket states
+  const [isShiprocketLoading, setIsShiprocketLoading] = useState<Record<string, boolean>>({});
+  const [showShippingSettingsModal, setShowShippingSettingsModal] = useState(false);
+  const [shippingSettings, setShippingSettingsState] = useState<ShippingSettings | null>(null);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsThreshold, setSettingsThreshold] = useState('');
+  const [settingsCharge, setSettingsCharge] = useState('');
 
   // Fulfillment Modal Form State
   const [showFulfillmentModal, setShowFulfillmentModal] = useState(false);
@@ -163,6 +180,93 @@ export default function ManageOrders() {
     }
   };
 
+  const handleCreateShipment = async (orderId: string) => {
+    setIsShiprocketLoading(prev => ({ ...prev, [orderId]: true }));
+    try {
+      const updated = await createShipmentAdmin(orderId);
+      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      alert('Shipment successfully created on Shiprocket! AWB: ' + updated.awbCode);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to create shipment on Shiprocket.';
+      alert(msg);
+    } finally {
+      setIsShiprocketLoading(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
+
+  const handleRequestPickup = async (orderId: string) => {
+    setIsShiprocketLoading(prev => ({ ...prev, [orderId]: true }));
+    try {
+      const updated = await requestPickupAdmin(orderId);
+      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      alert('Pickup request scheduled successfully with courier partner!');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to request pickup.';
+      alert(msg);
+    } finally {
+      setIsShiprocketLoading(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
+
+  const handleCancelShipment = async (orderId: string) => {
+    if (!confirm('Are you sure you want to cancel this Shiprocket shipment? The order will also be cancelled.')) return;
+    setIsShiprocketLoading(prev => ({ ...prev, [orderId]: true }));
+    try {
+      const updated = await cancelShipmentAdmin(orderId);
+      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      alert('Shipment and order cancelled successfully.');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to cancel shipment.';
+      alert(msg);
+    } finally {
+      setIsShiprocketLoading(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
+
+  const handleTrackShipment = async (orderId: string) => {
+    setIsShiprocketLoading(prev => ({ ...prev, [orderId]: true }));
+    try {
+      const updated = await trackShipmentAdmin(orderId);
+      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      alert('Shipment tracking updated! Status: ' + updated.shipmentStatus);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to fetch tracking update.';
+      alert(msg);
+    } finally {
+      setIsShiprocketLoading(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
+
+  const handleOpenShippingSettings = async () => {
+    try {
+      const settings = await getShippingSettings();
+      setShippingSettingsState(settings);
+      setSettingsThreshold(String(settings.freeShippingThreshold));
+      setSettingsCharge(String(settings.shippingCharge));
+      setShowShippingSettingsModal(true);
+    } catch (err) {
+      alert('Failed to load shipping settings.');
+    }
+  };
+
+  const handleSaveShippingSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSettings(true);
+    try {
+      const updated = await updateShippingSettings({
+        freeShippingThreshold: parseFloat(settingsThreshold),
+        shippingCharge: parseFloat(settingsCharge)
+      });
+      setShippingSettingsState(updated);
+      alert('Shipping settings saved successfully!');
+      setShowShippingSettingsModal(false);
+    } catch (err) {
+      alert('Failed to save shipping settings.');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
   // Local filter for in-page search (secondary fallback filter)
   const filtered = orders.filter(o =>
     (o.orderNumber || o.id || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -174,9 +278,18 @@ export default function ManageOrders() {
 
       {/* ── Page Header ──────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Orders & Fulfillment</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage shipments, assign tracking numbers, and fulfill orders</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Orders & Fulfillment</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Manage shipments, assign tracking numbers, and fulfill orders</p>
+          </div>
+          <button
+            onClick={handleOpenShippingSettings}
+            className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-900 transition-colors mt-1"
+            title="Shipping Settings"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
         </div>
         {/* Status Legend */}
         <div className="flex flex-wrap gap-1.5">
@@ -426,7 +539,7 @@ export default function ManageOrders() {
                                         </span>
                                       </div>
 
-                                      {(order.courierName || order.trackingNumber || order.shipmentNotes) ? (
+                                      {(order.courierName || order.trackingNumber || order.shipmentNotes) && (
                                         <div className="border-t border-gray-100 pt-3 space-y-2">
                                           {order.courierName && (
                                             <div>
@@ -447,11 +560,102 @@ export default function ManageOrders() {
                                             </div>
                                           )}
                                         </div>
-                                      ) : (
-                                        <div className="border-t border-gray-100 pt-3 text-gray-400 italic">
-                                          No shipment tracking coordinates assigned yet.
+                                      )}
+
+                                      {/* Shiprocket Details */}
+                                      {(order.shiprocketOrderId || order.shipmentId || order.awbCode || order.shipmentStatus) && (
+                                        <div className="border-t border-gray-100 pt-3 space-y-2">
+                                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Shiprocket Details</p>
+                                          <div className="grid grid-cols-2 gap-2 text-[11px]">
+                                            {order.shiprocketOrderId && (
+                                              <div>
+                                                <span className="text-gray-400">Order ID: </span>
+                                                <span className="font-semibold text-gray-700">{order.shiprocketOrderId}</span>
+                                              </div>
+                                            )}
+                                            {order.shipmentId && (
+                                              <div>
+                                                <span className="text-gray-400">Shipment ID: </span>
+                                                <span className="font-semibold text-gray-700">{order.shipmentId}</span>
+                                              </div>
+                                            )}
+                                            {order.awbCode && (
+                                              <div>
+                                                <span className="text-gray-400">AWB Code: </span>
+                                                <span className="font-semibold text-gray-700 font-mono">{order.awbCode}</span>
+                                              </div>
+                                            )}
+                                            {order.shipmentStatus && (
+                                              <div>
+                                                <span className="text-gray-400">Status: </span>
+                                                <span className="font-bold text-indigo-600">{order.shipmentStatus}</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                          {order.trackingUrl && (
+                                            <div className="text-[11px] pt-1">
+                                              <span className="text-gray-400">Tracking Link: </span>
+                                              <a href={order.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium break-all">
+                                                {order.trackingUrl}
+                                              </a>
+                                            </div>
+                                          )}
                                         </div>
                                       )}
+
+                                      {/* Shiprocket Actions Panel */}
+                                      <div className="border-t border-gray-100 pt-3 space-y-2">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Shiprocket Actions</p>
+                                        <div className="flex flex-wrap gap-2 pt-1">
+                                          {!order.awbCode && order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleCreateShipment(order.id)}
+                                              disabled={isShiprocketLoading[order.id]}
+                                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors flex items-center gap-1 disabled:opacity-60"
+                                            >
+                                              {isShiprocketLoading[order.id] && <Loader2 className="w-3 h-3 animate-spin" />}
+                                              Create Shipment
+                                            </button>
+                                          )}
+
+                                          {order.shipmentId && !['Pickup Scheduled', 'Shipped', 'Delivered', 'Cancelled'].includes(order.shipmentStatus || '') && !['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status) && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleRequestPickup(order.id)}
+                                              disabled={isShiprocketLoading[order.id]}
+                                              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors flex items-center gap-1 disabled:opacity-60"
+                                            >
+                                              {isShiprocketLoading[order.id] && <Loader2 className="w-3 h-3 animate-spin" />}
+                                              Request Pickup
+                                            </button>
+                                          )}
+
+                                          {order.awbCode && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleTrackShipment(order.id)}
+                                              disabled={isShiprocketLoading[order.id]}
+                                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors flex items-center gap-1 disabled:opacity-60"
+                                            >
+                                              {isShiprocketLoading[order.id] && <Loader2 className="w-3 h-3 animate-spin" />}
+                                              Track Shipment
+                                            </button>
+                                          )}
+
+                                          {order.shiprocketOrderId && order.status !== 'CANCELLED' && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleCancelShipment(order.id)}
+                                              disabled={isShiprocketLoading[order.id]}
+                                              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors flex items-center gap-1 disabled:opacity-60"
+                                            >
+                                              {isShiprocketLoading[order.id] && <Loader2 className="w-3 h-3 animate-spin" />}
+                                              Cancel Shipment
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
 
                                     {order.paymentStatus !== 'SUCCESS' && order.paymentStatus !== 'PAID' && (
@@ -597,6 +801,76 @@ export default function ManageOrders() {
                 >
                   {updatingId === selectedOrderForFulfill.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   {updatingId === selectedOrderForFulfill.id ? 'Saving...' : 'Confirm Update'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* ── Shipping Settings Modal ── */}
+      {showShippingSettingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" data-lenis-prevent="true">
+          <div className="bg-white w-full max-w-md rounded-2xl border border-gray-100 shadow-2xl p-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-indigo-650"></div>
+            
+            <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+              <Settings className="w-5 h-5 text-gray-800" />
+              Configure Shipping Settings
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Set rules for free shipping thresholds and default flat delivery charges.
+            </p>
+
+            <form onSubmit={handleSaveShippingSettings} className="space-y-4">
+              {/* Free Shipping Threshold */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                  Free Shipping Threshold (₹)
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="0.01"
+                  value={settingsThreshold}
+                  onChange={e => setSettingsThreshold(e.target.value)}
+                  placeholder="e.g., 999"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-400 transition-colors"
+                />
+              </div>
+
+              {/* Shipping Charge */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                  Flat Shipping Charge (₹)
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="0.01"
+                  value={settingsCharge}
+                  onChange={e => setSettingsCharge(e.target.value)}
+                  placeholder="e.g., 79"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-400 transition-colors"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowShippingSettingsModal(false)}
+                  className="flex-1 border-2 border-gray-200 text-gray-600 rounded-xl py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingSettings}
+                  className="flex-1 bg-indigo-650 hover:bg-indigo-750 text-white rounded-xl py-2.5 text-xs font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-md disabled:opacity-60"
+                >
+                  {isSavingSettings && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {isSavingSettings ? 'Saving...' : 'Save Settings'}
                 </button>
               </div>
             </form>

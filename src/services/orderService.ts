@@ -65,6 +65,20 @@ export interface Order {
   productImageUrl?: string;
   bankDetails?: string;
   upiId?: string;
+
+  // Shiprocket fields
+  shiprocketOrderId?: string;
+  shipmentId?: string;
+  awbCode?: string;
+  trackingUrl?: string;
+  shipmentStatus?: string;
+  shipmentCreatedAt?: string;
+
+  deliveryTimestamp?: string;
+  courierDeliveryRemarks?: string;
+  receiverName?: string;
+  deliveryConfirmationDetails?: string;
+  proofOfDeliveryUrl?: string;
 }
 
 export const placeOrder = async (orderData: { addressId: number; paymentMethod: string; couponCode?: string; items?: { productId: string; variantId?: number; quantity: number }[] }): Promise<Order> => {
@@ -115,4 +129,60 @@ export const trackOrder = async (orderId: string): Promise<OrderTracking[]> => {
     console.error(`Error tracking order ${orderId}`, error);
     throw error;
   }
+};
+
+// Shiprocket Logistics Admin Operations
+export const createShipmentAdmin = async (orderId: string): Promise<Order> => {
+  const response = await axiosInstance.post(ENDPOINTS.ADMIN_CREATE_SHIPMENT(orderId));
+  return response.data.data;
+};
+
+export const requestPickupAdmin = async (orderId: string): Promise<Order> => {
+  const response = await axiosInstance.post(ENDPOINTS.ADMIN_REQUEST_PICKUP(orderId));
+  return response.data.data;
+};
+
+export const cancelShipmentAdmin = async (orderId: string): Promise<Order> => {
+  const response = await axiosInstance.post(ENDPOINTS.ADMIN_CANCEL_SHIPMENT(orderId));
+  return response.data.data;
+};
+
+export const trackShipmentAdmin = async (orderId: string): Promise<Order> => {
+  const response = await axiosInstance.get(ENDPOINTS.ADMIN_TRACK_SHIPMENT(orderId));
+  return response.data.data;
+};
+
+// Shipping Settings Admin Operations
+export interface ShippingSettings {
+  id?: string;
+  freeShippingThreshold: number;
+  shippingCharge: number;
+}
+
+export const getShippingSettings = async (): Promise<ShippingSettings> => {
+  const response = await axiosInstance.get(ENDPOINTS.ADMIN_SHIPPING_SETTINGS);
+  return response.data.data;
+};
+
+export const getPublicShippingSettings = async (): Promise<ShippingSettings> => {
+  const response = await axiosInstance.get(ENDPOINTS.SHIPPING_SETTINGS);
+  return response.data.data;
+};
+
+export const updateShippingSettings = async (settings: ShippingSettings): Promise<ShippingSettings> => {
+  const response = await axiosInstance.put(ENDPOINTS.ADMIN_SHIPPING_SETTINGS, settings);
+  return response.data.data;
+};
+
+export const updateDeliveryProof = async (
+  orderId: string,
+  data: {
+    deliveryRemarks?: string;
+    receiverName?: string;
+    deliveryConfirmationDetails?: string;
+    proofOfDeliveryUrl?: string;
+  }
+): Promise<Order> => {
+  const response = await axiosInstance.put(`/api/admin/orders/${orderId}/delivery-proof`, data);
+  return response.data.data;
 };

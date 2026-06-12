@@ -47,6 +47,8 @@ export interface Product {
   craftsmanshipTitle?: string;
   craftsmanshipContent?: string;
   freeShipping?: boolean;
+  shippingCharge?: number;
+  weight?: number;
   codAvailable?: boolean;
   easyReturns?: boolean;
   stockQuantity?: number;

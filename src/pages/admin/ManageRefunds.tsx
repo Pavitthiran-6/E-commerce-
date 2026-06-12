@@ -5,6 +5,11 @@ import {
   rejectRefundAdmin, 
   retryRefundAdmin,
   markRefundPaidAdmin,
+  approveReturnAdmin,
+  scheduleReturnPickupAdmin,
+  markReturnedAdmin,
+  processRefundAdmin,
+  requestPayoutDetailsAdmin,
   type RefundRequest 
 } from '../../services/refundService';
 import { 
@@ -26,12 +31,18 @@ import {
 } from 'lucide-react';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
-  REFUND_REQUESTED: { label: 'Pending Review',       color: 'bg-amber-50 text-amber-700 border border-amber-100',     dot: 'bg-amber-500' },
-  REFUND_APPROVED:  { label: 'Approved — Pay Now',   color: 'bg-orange-50 text-orange-700 border border-orange-200',  dot: 'bg-orange-500' },
-  REFUND_INITIATED: { label: 'Initiated',            color: 'bg-indigo-50 text-indigo-700 border border-indigo-100',  dot: 'bg-indigo-500' },
-  REFUNDED:         { label: 'Refunded',             color: 'bg-emerald-50 text-emerald-700 border border-emerald-100', dot: 'bg-emerald-500' },
-  REFUND_REJECTED:  { label: 'Rejected',             color: 'bg-red-50 text-red-700 border border-red-100',           dot: 'bg-red-500' },
-  REFUND_FAILED:    { label: 'Refund Failed',        color: 'bg-red-100 text-red-800 border border-red-200',          dot: 'bg-red-600' },
+  REFUND_REQUESTED:        { label: 'Pending Review',       color: 'bg-amber-50 text-amber-700 border border-amber-100',     dot: 'bg-amber-500' },
+  REFUND_APPROVED:         { label: 'Approved — Pay Now',   color: 'bg-orange-50 text-orange-700 border border-orange-200',  dot: 'bg-orange-500' },
+  REFUND_INITIATED:        { label: 'Initiated',            color: 'bg-indigo-50 text-indigo-700 border border-indigo-100',  dot: 'bg-indigo-500' },
+  REFUNDED:                { label: 'Refunded',             color: 'bg-emerald-50 text-emerald-700 border border-emerald-100', dot: 'bg-emerald-500' },
+  REFUND_REJECTED:         { label: 'Rejected',             color: 'bg-red-50 text-red-700 border border-red-100',           dot: 'bg-red-500' },
+  REFUND_FAILED:           { label: 'Refund Failed',        color: 'bg-red-100 text-red-800 border border-red-200',          dot: 'bg-red-600' },
+  RETURN_REQUESTED:        { label: 'Return Requested',     color: 'bg-amber-50 text-amber-700 border border-amber-100',     dot: 'bg-amber-500' },
+  RETURN_APPROVED:         { label: 'Return Approved',      color: 'bg-blue-50 text-blue-700 border border-blue-100',        dot: 'bg-blue-500' },
+  RETURN_PICKUP_SCHEDULED: { label: 'Pickup Scheduled',     color: 'bg-teal-50 text-teal-700 border border-teal-100',        dot: 'bg-teal-500' },
+  RETURNED:                { label: 'Returned to Warehouse', color: 'bg-purple-50 text-purple-700 border border-purple-100',  dot: 'bg-purple-500' },
+  PAYOUT_DETAILS_REQUESTED: { label: 'Payout Details Requested', color: 'bg-amber-50 text-amber-700 border border-amber-100', dot: 'bg-amber-500' },
+  PAYOUT_DETAILS_PROVIDED:  { label: 'Payout Details Provided',  color: 'bg-indigo-50 text-indigo-805 border border-indigo-100', dot: 'bg-indigo-650' },
 };
 
 const SkeletonRow = () => (
@@ -62,11 +73,19 @@ export default function ManageRefunds() {
   
   // Detail drawer & workflow states
   const [selectedRequest, setSelectedRequest] = useState<RefundRequest | null>(null);
-  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
+  const [actionType, setActionType] = useState<'approve' | 'reject' | 'process_refund' | 'warehouse_inspection' | null>(null);
   const [notes, setNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [isActionSubmitting, setIsActionSubmitting] = useState(false);
   const [actionError, setActionError] = useState('');
+
+  // Warehouse inspection checklist states
+  const [isProductDamaged, setIsProductDamaged] = useState(false);
+  const [isWrongProductReturned, setIsWrongProductReturned] = useState(false);
+  const [isMissingAccessories, setIsMissingAccessories] = useState(false);
+  const [isUsedProduct, setIsUsedProduct] = useState(false);
+  const [isPackagingMissing, setIsPackagingMissing] = useState(false);
+  const [isQualityIssueConfirmed, setIsQualityIssueConfirmed] = useState(false);
 
   const loadRequests = async (p = 0, s = search, filter = statusFilter) => {
     setIsLoading(true);
@@ -102,12 +121,29 @@ export default function ManageRefunds() {
       return;
     }
 
+    if (actionType === 'warehouse_inspection' && !notes.trim()) {
+      setActionError('Warehouse inspection notes are required.');
+      return;
+    }
+
     setIsActionSubmitting(true);
     setActionError('');
     try {
       let updated: RefundRequest;
       if (actionType === 'approve') {
         updated = await approveRefundAdmin(selectedRequest.id, notes);
+      } else if (actionType === 'process_refund') {
+        updated = await processRefundAdmin(selectedRequest.id, notes);
+      } else if (actionType === 'warehouse_inspection') {
+        updated = await markReturnedAdmin(selectedRequest.id, {
+          warehouseInspectionNotes: notes,
+          isProductDamaged,
+          isWrongProductReturned,
+          isMissingAccessories,
+          isUsedProduct,
+          isPackagingMissing,
+          isQualityIssueConfirmed
+        });
       } else {
         updated = await rejectRefundAdmin(selectedRequest.id, rejectionReason);
       }
@@ -120,7 +156,13 @@ export default function ManageRefunds() {
       setActionType(null);
       setNotes('');
       setRejectionReason('');
-      alert(`Refund request successfully ${actionType === 'approve' ? 'approved' : 'rejected'}.`);
+      setIsProductDamaged(false);
+      setIsWrongProductReturned(false);
+      setIsMissingAccessories(false);
+      setIsUsedProduct(false);
+      setIsPackagingMissing(false);
+      setIsQualityIssueConfirmed(false);
+      alert(`Refund/Return action successfully processed.`);
     } catch (err: any) {
       setActionError(err.response?.data?.message || 'Failed to submit action. Please try again.');
     } finally {
@@ -352,24 +394,52 @@ export default function ManageRefunds() {
 
               {/* Cancellation Reason Box */}
               <div>
-                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Cancellation Reason</h4>
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Cancellation / Return Reason</h4>
                 <div className="bg-red-50/50 border border-red-100 text-red-950 p-4 rounded-xl italic font-medium text-sm">
                   "{selectedRequest.cancellationReason || 'No reason specified'}"
                 </div>
               </div>
 
+              {/* Additional Comments */}
+              {selectedRequest.additionalComments && (
+                <div>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Additional Comments</h4>
+                  <div className="bg-gray-50 border border-gray-100 text-gray-800 p-4 rounded-xl text-sm leading-relaxed">
+                    {selectedRequest.additionalComments}
+                  </div>
+                </div>
+              )}
+
               {/* Product Image Proof */}
-              {selectedRequest.productImageUrl && (
+              {((selectedRequest.productImageUrls && selectedRequest.productImageUrls.length > 0) || selectedRequest.productImageUrl) && (
                 <div>
                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Product Image Proof</h4>
-                  <div className="w-36 h-36 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity">
-                    <img 
-                      src={selectedRequest.productImageUrl} 
-                      alt="Return proof" 
-                      className="w-full h-full object-cover cursor-pointer" 
-                      onClick={() => window.open(selectedRequest.productImageUrl, '_blank')}
-                      title="Click to view full image"
-                    />
+                  <div className="flex flex-wrap gap-2.5">
+                    {selectedRequest.productImageUrls && selectedRequest.productImageUrls.length > 0 ? (
+                      selectedRequest.productImageUrls.map((url, index) => (
+                        <div key={index} className="w-24 h-24 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity">
+                          <img 
+                            src={url} 
+                            alt={`Return proof ${index + 1}`} 
+                            className="w-full h-full object-cover cursor-pointer" 
+                            onClick={() => window.open(url, '_blank')}
+                            title="Click to view full image"
+                          />
+                        </div>
+                      ))
+                    ) : (
+                      selectedRequest.productImageUrl && (
+                        <div className="w-24 h-24 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity">
+                          <img 
+                            src={selectedRequest.productImageUrl} 
+                            alt="Return proof" 
+                            className="w-full h-full object-cover cursor-pointer" 
+                            onClick={() => window.open(selectedRequest.productImageUrl, '_blank')}
+                            title="Click to view full image"
+                          />
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
               )}
@@ -433,7 +503,114 @@ export default function ManageRefunds() {
               )}
 
               {/* Action Trail / Verification logs */}
-              {/* Action Trail / Verification logs */}
+              {/* Return & Refund SLA Tracker */}
+              {selectedRequest.returnRequestedAt && (
+                <div className="bg-gray-50 border border-gray-100 p-4 rounded-2xl space-y-2.5 text-xs">
+                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Return SLA Timeline</h4>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Return Requested:</span>
+                      <span className="font-semibold text-gray-800">{new Date(selectedRequest.returnRequestedAt).toLocaleString()}</span>
+                    </div>
+                    {selectedRequest.returnApprovedAt && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Return Approved:</span>
+                        <span className="font-semibold text-gray-800">{new Date(selectedRequest.returnApprovedAt).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {selectedRequest.returnPickupScheduledAt && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Pickup Scheduled:</span>
+                        <span className="font-semibold text-gray-800">{new Date(selectedRequest.returnPickupScheduledAt).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {selectedRequest.returnReceivedAt && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Received at Warehouse:</span>
+                        <span className="font-semibold text-gray-800">{new Date(selectedRequest.returnReceivedAt).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {selectedRequest.refundProcessedAt && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Refund Processed:</span>
+                        <span className="font-semibold text-gray-800">{new Date(selectedRequest.refundProcessedAt).toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Warehouse Inspection Checklist and Notes */}
+              {(selectedRequest.returnReceivedAt || selectedRequest.warehouseInspectionNotes) && (
+                <div className="bg-teal-50/40 border border-teal-100 p-4 rounded-2xl space-y-2.5 text-xs text-teal-950">
+                  <h4 className="text-[10px] font-bold text-teal-900 uppercase tracking-widest">Warehouse Inspection Report</h4>
+                  <div className="flex justify-between">
+                    <span>Received At:</span>
+                    <span className="font-semibold">{selectedRequest.returnReceivedAt ? new Date(selectedRequest.returnReceivedAt).toLocaleString() : 'N/A'}</span>
+                  </div>
+                  
+                  {/* Checklist Summary */}
+                  <div className="mt-2 border-t border-teal-100/50 pt-2">
+                    <p className="font-bold text-[10px] uppercase text-teal-900 mb-1">Checklist Details:</p>
+                    <div className="grid grid-cols-2 gap-1.5 font-medium text-gray-700">
+                      <span className={selectedRequest.isProductDamaged ? 'text-red-600 font-bold' : 'text-gray-400'}>
+                        {selectedRequest.isProductDamaged ? '✗ Damaged' : '✓ Intact'}
+                      </span>
+                      <span className={selectedRequest.isWrongProductReturned ? 'text-red-600 font-bold' : 'text-gray-400'}>
+                        {selectedRequest.isWrongProductReturned ? '✗ Wrong Product' : '✓ Correct Product'}
+                      </span>
+                      <span className={selectedRequest.isUsedProduct ? 'text-red-600 font-bold' : 'text-gray-400'}>
+                        {selectedRequest.isUsedProduct ? '✗ Used' : '✓ Unused'}
+                      </span>
+                      <span className={selectedRequest.isMissingAccessories ? 'text-red-600 font-bold' : 'text-gray-400'}>
+                        {selectedRequest.isMissingAccessories ? '✗ Missing Accessories' : '✓ Accessories Intact'}
+                      </span>
+                      <span className={selectedRequest.isPackagingMissing ? 'text-red-600 font-bold' : 'text-gray-400'}>
+                        {selectedRequest.isPackagingMissing ? '✗ Missing Packaging' : '✓ Packaging Intact'}
+                      </span>
+                      <span className={selectedRequest.isQualityIssueConfirmed ? 'text-red-600 font-bold' : 'text-gray-400'}>
+                        {selectedRequest.isQualityIssueConfirmed ? '✗ Quality Issue Confirmed' : '✓ Standard Quality'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {selectedRequest.warehouseInspectionNotes && (
+                    <div className="mt-2 border-t border-teal-100/50 pt-2">
+                      <p className="font-bold text-[10px] uppercase text-teal-900 mb-0.5">Inspector Notes:</p>
+                      <p className="italic text-gray-800 font-medium">"{selectedRequest.warehouseInspectionNotes}"</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Razorpay Refund Reconciliation Details */}
+              {(selectedRequest.razorpayRefundId || selectedRequest.razorpayRefundStatus) && (
+                <div className="bg-indigo-50/40 border border-indigo-100 p-4 rounded-2xl space-y-2.5 text-xs text-indigo-950">
+                  <h4 className="text-[10px] font-bold text-indigo-900 uppercase tracking-widest">Razorpay Reconciliation</h4>
+                  <div className="flex justify-between">
+                    <span>Refund ID:</span>
+                    <span className="font-mono bg-indigo-100 px-1 py-0.5 rounded text-indigo-900 font-bold">{selectedRequest.razorpayRefundId || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Refund Status:</span>
+                    <span className="font-semibold uppercase">{selectedRequest.razorpayRefundStatus || 'N/A'}</span>
+                  </div>
+                  {selectedRequest.razorpayRefundTimestamp && (
+                    <div className="flex justify-between">
+                      <span>Processed At:</span>
+                      <span>{new Date(selectedRequest.razorpayRefundTimestamp).toLocaleString()}</span>
+                    </div>
+                  )}
+                  {selectedRequest.razorpayRefundNotes && (
+                    <div className="mt-2 border-t border-indigo-100/50 pt-2">
+                      <p className="font-bold text-[10px] uppercase text-indigo-900 mb-0.5">Reconciliation Notes:</p>
+                      <p className="italic text-gray-800 font-medium">"{selectedRequest.razorpayRefundNotes}"</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Trail / Review audit log */}
               {selectedRequest.refundStatus !== 'REFUND_REQUESTED' && (
                 <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl space-y-2.5 text-xs text-blue-950">
                   <h4 className="text-[10px] font-bold text-blue-900 uppercase tracking-widest">Review Audit Log</h4>
@@ -524,6 +701,137 @@ export default function ManageRefunds() {
                 </div>
               )}
 
+              {/* Return Lifecycle Buttons */}
+              {selectedRequest.refundStatus === 'RETURN_REQUESTED' && !actionType && (
+                <div className="flex gap-4 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => setActionType('reject')}
+                    className="flex-1 border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors text-center inline-block"
+                  >
+                    Reject Return
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!confirm('Approve this return request?')) return;
+                      setIsActionSubmitting(true);
+                      setActionError('');
+                      try {
+                        const updated = await approveReturnAdmin(selectedRequest.id);
+                        setRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+                        setSelectedRequest(updated);
+                        alert('Return request approved successfully.');
+                      } catch (err: any) {
+                        setActionError(err.response?.data?.message || 'Failed to approve return.');
+                      } finally {
+                        setIsActionSubmitting(false);
+                      }
+                    }}
+                    disabled={isActionSubmitting}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors text-center inline-block shadow-sm"
+                  >
+                    Approve Return
+                  </button>
+                </div>
+              )}
+
+              {selectedRequest.refundStatus === 'RETURN_APPROVED' && !actionType && (
+                <div className="pt-4 border-t border-gray-100">
+                  <button
+                    onClick={async () => {
+                      if (!confirm('Schedule return courier pickup?')) return;
+                      setIsActionSubmitting(true);
+                      setActionError('');
+                      try {
+                        const updated = await scheduleReturnPickupAdmin(selectedRequest.id);
+                        setRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+                        setSelectedRequest(updated);
+                        alert('Return pickup scheduled successfully.');
+                      } catch (err: any) {
+                        setActionError(err.response?.data?.message || 'Failed to schedule return pickup.');
+                      } finally {
+                        setIsActionSubmitting(false);
+                      }
+                    }}
+                    disabled={isActionSubmitting}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors text-center shadow-sm flex items-center justify-center gap-2"
+                  >
+                    {isActionSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Schedule Return Pickup
+                  </button>
+                </div>
+              )}
+
+              {selectedRequest.refundStatus === 'RETURN_PICKUP_SCHEDULED' && !actionType && (
+                <div className="pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => {
+                      setActionType('warehouse_inspection');
+                      setNotes('');
+                      setActionError('');
+                    }}
+                    className="w-full bg-teal-600 hover:bg-teal-700 text-white rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors text-center shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    Mark as Returned (Inspect & Process)
+                  </button>
+                </div>
+              )}
+
+              {selectedRequest.refundStatus === 'RETURNED' && !actionType && (
+                <div className="pt-4 border-t border-gray-100">
+                  {selectedRequest.paymentMethod === 'COD' ? (
+                    <button
+                      onClick={async () => {
+                        if (!confirm('Request refund payout details (UPI/Bank) from the customer?')) return;
+                        setIsActionSubmitting(true);
+                        setActionError('');
+                        try {
+                          const updated = await requestPayoutDetailsAdmin(selectedRequest.id);
+                          setRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+                          setSelectedRequest(updated);
+                          alert('Payout details request sent to customer successfully.');
+                        } catch (err: any) {
+                          setActionError(err.response?.data?.message || 'Failed to request payout details.');
+                        } finally {
+                          setIsActionSubmitting(false);
+                        }
+                      }}
+                      disabled={isActionSubmitting}
+                      className="w-full bg-orange-650 hover:bg-orange-750 text-white rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors text-center shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {isActionSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                      Request Payout Details (COD)
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setActionType('process_refund')}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors text-center shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      Process Refund
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {selectedRequest.refundStatus === 'PAYOUT_DETAILS_REQUESTED' && !actionType && (
+                <div className="pt-4 border-t border-gray-100 text-center flex justify-center">
+                  <span className="inline-flex items-center gap-1.5 px-4 py-3 bg-amber-50 rounded-xl border border-dashed border-amber-200 text-xs font-semibold text-amber-800">
+                    <Clock className="w-4 h-4 animate-pulse text-amber-500" />
+                    Awaiting Payout Details from Customer
+                  </span>
+                </div>
+              )}
+
+              {selectedRequest.refundStatus === 'PAYOUT_DETAILS_PROVIDED' && !actionType && (
+                <div className="pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => setActionType('process_refund')}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-colors text-center shadow-sm flex items-center justify-center gap-2 animate-pulse cursor-pointer"
+                  >
+                    Process Refund (COD Payout Details Provided)
+                  </button>
+                </div>
+              )}
+
               {/* Mark as Paid button — shown for REFUND_APPROVED (COD manual transfer pending) */}
               {selectedRequest.refundStatus === 'REFUND_APPROVED' && !actionType && (
                 <div className="pt-4 border-t border-gray-100 space-y-3">
@@ -567,9 +875,13 @@ export default function ManageRefunds() {
                 <form onSubmit={handleAction} className="border-t border-gray-100 pt-4 space-y-4">
                   <div className="flex justify-between items-center">
                     <h5 className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
-                      {actionType === 'approve' ? (
+                      {actionType === 'approve' || actionType === 'process_refund' ? (
                         <>
-                          <CheckCircle className="w-4 h-4 text-emerald-600" /> Confirm Refund Approval
+                          <CheckCircle className="w-4 h-4 text-emerald-600" /> Confirm Refund {actionType === 'approve' ? 'Approval' : 'Processing'}
+                        </>
+                      ) : actionType === 'warehouse_inspection' ? (
+                        <>
+                          <CheckCircle className="w-4 h-4 text-teal-600" /> Warehouse Product Quality Inspection
                         </>
                       ) : (
                         <>
@@ -586,17 +898,80 @@ export default function ManageRefunds() {
                     </button>
                   </div>
 
-                  {actionType === 'approve' ? (
+                  {actionType === 'warehouse_inspection' && (
+                    <div className="space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                      <p className="text-[11px] text-gray-500 font-medium mb-1">Verify returned item status before updating inventory and authorizing refunds:</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={isProductDamaged} 
+                            onChange={e => setIsProductDamaged(e.target.checked)}
+                            className="rounded border-gray-300 text-teal-600 focus:ring-teal-500" 
+                          />
+                          Product Damaged
+                        </label>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={isWrongProductReturned} 
+                            onChange={e => setIsWrongProductReturned(e.target.checked)}
+                            className="rounded border-gray-300 text-teal-600 focus:ring-teal-500" 
+                          />
+                          Wrong Product
+                        </label>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={isUsedProduct} 
+                            onChange={e => setIsUsedProduct(e.target.checked)}
+                            className="rounded border-gray-300 text-teal-600 focus:ring-teal-500" 
+                          />
+                          Product Used
+                        </label>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={isMissingAccessories} 
+                            onChange={e => setIsMissingAccessories(e.target.checked)}
+                            className="rounded border-gray-300 text-teal-600 focus:ring-teal-500" 
+                          />
+                          Missing Accessories
+                        </label>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={isPackagingMissing} 
+                            onChange={e => setIsPackagingMissing(e.target.checked)}
+                            className="rounded border-gray-300 text-teal-600 focus:ring-teal-500" 
+                          />
+                          Packaging Missing
+                        </label>
+                        <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={isQualityIssueConfirmed} 
+                            onChange={e => setIsQualityIssueConfirmed(e.target.checked)}
+                            className="rounded border-gray-300 text-teal-600 focus:ring-teal-500" 
+                          />
+                          Quality Issue Confirmed
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {actionType === 'approve' || actionType === 'process_refund' || actionType === 'warehouse_inspection' ? (
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-                        Internal Notes (Optional)
+                        {actionType === 'warehouse_inspection' ? 'Warehouse Inspection Notes (Required)' : 'Internal Notes (Optional)'}
                       </label>
                       <textarea
                         value={notes}
                         onChange={e => setNotes(e.target.value)}
-                        placeholder="Add internal verification notes or comments..."
+                        placeholder={actionType === 'warehouse_inspection' ? 'Describe the product condition, serial numbers matched, or reason for validation...' : 'Add internal verification notes or comments...'}
                         rows={3}
-                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+                        required={actionType === 'warehouse_inspection'}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-teal-500 transition-colors resize-none"
                       />
                     </div>
                   ) : (
@@ -634,7 +1009,7 @@ export default function ManageRefunds() {
                       type="submit"
                       disabled={isActionSubmitting}
                       className={`flex-1 text-white rounded-xl py-3 text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm ${
-                        actionType === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+                        actionType === 'approve' || actionType === 'process_refund' ? 'bg-emerald-600 hover:bg-emerald-700' : actionType === 'warehouse_inspection' ? 'bg-teal-600 hover:bg-teal-700' : 'bg-red-600 hover:bg-red-700'
                       }`}
                     >
                       {isActionSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}

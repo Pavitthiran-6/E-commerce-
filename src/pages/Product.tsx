@@ -52,6 +52,9 @@ export default function Product() {
       quantity: 1,
       size: product.sizes?.[0] || 'Standard',
       color: product.colors?.[0] || 'Standard',
+      freeShipping: product.freeShipping,
+      shippingCharge: product.shippingCharge,
+      weight: product.weight,
     });
     showToast(`${product.name} added to cart!`, 'success', { label: 'View Cart', href: '/cart' });
   };

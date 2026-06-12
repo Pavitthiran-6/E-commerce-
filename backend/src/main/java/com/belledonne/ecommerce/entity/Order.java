@@ -92,6 +92,25 @@ public class Order {
     @Column(name = "delivered_at")
     private LocalDateTime deliveredAt;
 
+    /** For COD orders: timestamp when cash payment was physically collected by courier/agent. */
+    @Column(name = "payment_collected_at")
+    private LocalDateTime paymentCollectedAt;
+
+    @Column(name = "delivery_timestamp")
+    private LocalDateTime deliveryTimestamp;
+
+    @Column(name = "courier_delivery_remarks", columnDefinition = "TEXT")
+    private String courierDeliveryRemarks;
+
+    @Column(name = "receiver_name", length = 255)
+    private String receiverName;
+
+    @Column(name = "delivery_confirmation_details", columnDefinition = "TEXT")
+    private String deliveryConfirmationDetails;
+
+    @Column(name = "proof_of_delivery_url", columnDefinition = "TEXT")
+    private String proofOfDeliveryUrl;
+
     @Column(name = "tracking_number", length = 100)
     private String trackingNumber;
 
@@ -100,6 +119,24 @@ public class Order {
 
     @Column(name = "shipment_notes", columnDefinition = "TEXT")
     private String shipmentNotes;
+
+    @Column(name = "shiprocket_order_id", length = 100)
+    private String shiprocketOrderId;
+
+    @Column(name = "shipment_id", length = 100)
+    private String shipmentId;
+
+    @Column(name = "awb_code", length = 100)
+    private String awbCode;
+
+    @Column(name = "tracking_url", columnDefinition = "TEXT")
+    private String trackingUrl;
+
+    @Column(name = "shipment_status", length = 50)
+    private String shipmentStatus;
+
+    @Column(name = "shipment_created_at")
+    private LocalDateTime shipmentCreatedAt;
 
     @Column(name = "stock_restored", nullable = false)
     @Builder.Default

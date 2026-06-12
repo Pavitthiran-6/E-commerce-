@@ -68,6 +68,16 @@ public class ProductRequest {
 
     private Boolean freeShipping;
 
+    private BigDecimal shippingCharge;
+
+    private BigDecimal weight;
+
+    private BigDecimal length;
+
+    private BigDecimal width;
+
+    private BigDecimal height;
+
     private Boolean codAvailable;
 
     private Boolean easyReturns;

@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { CheckCircle2, Lock, ShieldCheck } from 'lucide-react';
 import { LoadingButton } from '../../components/LoadingButton';
 import { isFreeShippingCoupon } from '../../utils/couponLogic';
-import { placeOrder } from '../../services/orderService';
+import { placeOrder, getPublicShippingSettings } from '../../services/orderService';
 import { createPaymentOrder, verifyPayment, reportPaymentFailure } from '../../services/paymentService';
 import { getProductById } from '../../services/productService';
 
@@ -51,6 +51,20 @@ export default function CheckoutPayment() {
   const [method, setMethod] = useState<PayMethod>('online');
   const [codDisabled, setCodDisabled] = useState(false);
 
+  const [shippingThreshold, setShippingThreshold] = useState(999);
+  const [shippingChargeVal, setShippingChargeVal] = useState(79);
+
+  useEffect(() => {
+    getPublicShippingSettings()
+      .then((settings) => {
+        setShippingThreshold(settings.freeShippingThreshold);
+        setShippingChargeVal(settings.shippingCharge);
+      })
+      .catch((err) => {
+        console.warn('Failed to load shipping settings, using default fallback (999/79)', err);
+      });
+  }, []);
+
   useEffect(() => {
     const checkCodAvailability = async () => {
       try {
@@ -81,10 +95,28 @@ export default function CheckoutPayment() {
   const discountAmount = 0; // Backend calculates final discount at order placement
   const isFreeShipping = appliedCoupon ? isFreeShippingCoupon(appliedCoupon, []) : false;
 
-  const shipping = isFreeShipping ? 0 : ((subtotal - discountAmount) >= 999 ? 0 : 79);
-  const tax = Math.round((subtotal - discountAmount) * 18 / 118);
+  let productSpecificShipping = 0;
+  let hasFallbackItem = false;
+  
+  cartItems.forEach(item => {
+    if (item.freeShipping === true) {
+      // ships free
+    } else if (item.shippingCharge != null && item.shippingCharge > 0) {
+      productSpecificShipping += item.quantity * item.shippingCharge;
+    } else {
+      hasFallbackItem = true;
+    }
+  });
+
+  const subtotalAfterDiscount = subtotal - discountAmount;
+  const fallbackShipping = hasFallbackItem
+    ? (subtotalAfterDiscount >= shippingThreshold ? 0 : shippingChargeVal)
+    : 0;
+
+  const shipping = isFreeShipping ? 0 : (productSpecificShipping + fallbackShipping);
+  const tax = Math.round(subtotalAfterDiscount * 18 / 118);
   const codFee = method === 'cod' ? 49 : 0;
-  const total = (subtotal - discountAmount) + shipping + codFee;
+  const total = subtotalAfterDiscount + shipping + codFee;
 
   const ALL_METHODS: { id: PayMethod; label: string; icon: string }[] = [
     { id: 'online', label: 'Pay Online (UPI, Cards, Net Banking, Wallets, EMI)', icon: '💳' },

@@ -206,6 +206,11 @@ public class ProductService {
             .craftsmanshipTitle(p.getCraftsmanshipTitle())
             .craftsmanshipContent(p.getCraftsmanshipContent())
             .freeShipping(p.getFreeShipping())
+            .shippingCharge(p.getShippingCharge())
+            .weight(p.getWeight())
+            .length(p.getLength())
+            .width(p.getWidth())
+            .height(p.getHeight())
             .codAvailable(p.getCodAvailable())
             .easyReturns(p.getEasyReturns())
             .inStock(p.getInStock())
@@ -257,6 +262,11 @@ public class ProductService {
             .craftsmanshipTitle(request.getCraftsmanshipTitle() != null ? request.getCraftsmanshipTitle() : "CRAFTSMANSHIP")
             .craftsmanshipContent(request.getCraftsmanshipContent())
             .freeShipping(request.getFreeShipping() != null ? request.getFreeShipping() : true)
+            .shippingCharge(request.getShippingCharge())
+            .weight(request.getWeight() != null ? request.getWeight() : java.math.BigDecimal.valueOf(0.5))
+            .length(request.getLength() != null ? request.getLength() : java.math.BigDecimal.valueOf(10.0))
+            .width(request.getWidth() != null ? request.getWidth() : java.math.BigDecimal.valueOf(10.0))
+            .height(request.getHeight() != null ? request.getHeight() : java.math.BigDecimal.valueOf(10.0))
             .codAvailable(request.getCodAvailable() != null ? request.getCodAvailable() : true)
             .easyReturns(request.getEasyReturns() != null ? request.getEasyReturns() : true)
             .inStock(request.getInStock() != null ? request.getInStock() : true)
@@ -330,6 +340,11 @@ public class ProductService {
         product.setCraftsmanshipTitle(request.getCraftsmanshipTitle());
         product.setCraftsmanshipContent(request.getCraftsmanshipContent());
         product.setFreeShipping(request.getFreeShipping() != null ? request.getFreeShipping() : true);
+        product.setShippingCharge(request.getShippingCharge());
+        product.setWeight(request.getWeight() != null ? request.getWeight() : java.math.BigDecimal.valueOf(0.5));
+        if (request.getLength() != null) product.setLength(request.getLength());
+        if (request.getWidth() != null) product.setWidth(request.getWidth());
+        if (request.getHeight() != null) product.setHeight(request.getHeight());
         product.setCodAvailable(request.getCodAvailable() != null ? request.getCodAvailable() : true);
         product.setEasyReturns(request.getEasyReturns() != null ? request.getEasyReturns() : true);
         product.setInStock(request.getInStock() != null ? request.getInStock() : true);

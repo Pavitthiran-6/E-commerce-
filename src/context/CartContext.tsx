@@ -19,6 +19,9 @@ export interface CartItem {
   size: string;
   color: string;
   quantity: number;
+  freeShipping?: boolean;
+  shippingCharge?: number;
+  weight?: number;
 }
 
 interface CartContextType {
@@ -54,7 +57,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       image: item.productImage,
       size: item.size || '',
       color: item.color || '',
-      quantity: item.quantity
+      quantity: item.quantity,
+      freeShipping: item.freeShipping,
+      shippingCharge: item.shippingCharge,
+      weight: item.weight
     }));
   };
 

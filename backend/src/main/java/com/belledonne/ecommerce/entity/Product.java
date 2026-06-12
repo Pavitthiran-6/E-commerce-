@@ -155,6 +155,26 @@ public class Product {
     @Builder.Default
     private Boolean freeShipping = true;
 
+    @Column(name = "shipping_charge", precision = 10, scale = 2)
+    private BigDecimal shippingCharge;
+
+    @Column(name = "weight", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal weight = BigDecimal.valueOf(0.5);
+
+    // ─── Volumetric dimensions for Shiprocket (in cm) ────────────────────────────
+    @Column(name = "length", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal length = BigDecimal.valueOf(10.0);
+
+    @Column(name = "width", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal width = BigDecimal.valueOf(10.0);
+
+    @Column(name = "height", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal height = BigDecimal.valueOf(10.0);
+
     @Column(name = "cod_available")
     @Builder.Default
     private Boolean codAvailable = true;

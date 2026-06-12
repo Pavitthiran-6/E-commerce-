@@ -31,6 +31,20 @@ interface DashboardData {
   orderStatusBreakdown: Record<string, number>;
   monthlyRevenue: any[];
   dailyTrend: any[];
+
+  // Logistics & SLA analytics
+  avgReturnApprovalTimeHours: number;
+  avgRefundProcessingTimeHours: number;
+  avgReturnCompletionTimeHours: number;
+  logisticsAwaitingShipment: number;
+  logisticsPickupScheduled: number;
+  logisticsInTransit: number;
+  logisticsOutForDelivery: number;
+  logisticsDeliveredToday: number;
+  logisticsRtoOrders: number;
+  logisticsActiveReturnRequests: number;
+  logisticsPendingRefunds: number;
+  highReturnRiskCustomers: any[];
 }
 
 const ORDER_STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
@@ -559,6 +573,143 @@ export default function AdminDashboard() {
           >
             Open Review queue
           </Link>
+        </div>
+      </div>
+
+      {/* Row: Logistics Operations */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-gray-900">Logistics & Shipments Operations</h3>
+          <p className="text-[10px] text-gray-400">Real-time shipping milestones and returns tracking</p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 rounded-2xl border border-blue-100 bg-blue-50/20 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">Awaiting Shipment</p>
+              <p className="text-2xl font-black text-blue-900 mt-1">{data.logisticsAwaitingShipment}</p>
+            </div>
+            <Package className="w-8 h-8 text-blue-400 opacity-80" />
+          </div>
+          
+          <div className="p-4 rounded-2xl border border-indigo-100 bg-indigo-50/20 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">Pickup Scheduled</p>
+              <p className="text-2xl font-black text-indigo-900 mt-1">{data.logisticsPickupScheduled}</p>
+            </div>
+            <RefreshCw className="w-8 h-8 text-indigo-400 opacity-80" />
+          </div>
+
+          <div className="p-4 rounded-2xl border border-sky-100 bg-sky-50/20 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-sky-700 uppercase tracking-wider">In Transit</p>
+              <p className="text-2xl font-black text-sky-900 mt-1">{data.logisticsInTransit}</p>
+            </div>
+            <TrendingUp className="w-8 h-8 text-sky-400 opacity-80" />
+          </div>
+
+          <div className="p-4 rounded-2xl border border-orange-100 bg-orange-50/20 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-orange-700 uppercase tracking-wider">Out For Delivery</p>
+              <p className="text-2xl font-black text-orange-900 mt-1">{data.logisticsOutForDelivery}</p>
+            </div>
+            <ShoppingBag className="w-8 h-8 text-orange-400 opacity-80" />
+          </div>
+
+          <div className="p-4 rounded-2xl border border-emerald-100 bg-emerald-50/20 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Delivered Today</p>
+              <p className="text-2xl font-black text-emerald-900 mt-1">{data.logisticsDeliveredToday}</p>
+            </div>
+            <CheckCircle className="w-8 h-8 text-emerald-400 opacity-80" />
+          </div>
+
+          <div className="p-4 rounded-2xl border border-red-100 bg-red-50/20 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-red-700 uppercase tracking-wider">RTO Orders</p>
+              <p className="text-2xl font-black text-red-900 mt-1">{data.logisticsRtoOrders}</p>
+            </div>
+            <AlertTriangle className="w-8 h-8 text-red-400 opacity-80" />
+          </div>
+
+          <div className="p-4 rounded-2xl border border-purple-100 bg-purple-50/20 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-purple-700 uppercase tracking-wider">Active Returns</p>
+              <p className="text-2xl font-black text-purple-900 mt-1">{data.logisticsActiveReturnRequests}</p>
+            </div>
+            <RefreshCw className="w-8 h-8 text-purple-400 opacity-80" />
+          </div>
+
+          <div className="p-4 rounded-2xl border border-amber-100 bg-amber-50/20 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Pending Refunds</p>
+              <p className="text-2xl font-black text-amber-900 mt-1">{data.logisticsPendingRefunds}</p>
+            </div>
+            <Info className="w-8 h-8 text-amber-400 opacity-80" />
+          </div>
+        </div>
+      </div>
+
+      {/* Row: SLA Analytics & High Risk Customers */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* SLA Analytics Panel */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Return & Refund SLA Performance</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Average operational lifecycle resolution times</p>
+          </div>
+          <div className="divide-y divide-gray-150">
+            <div className="py-3 flex justify-between items-center text-xs">
+              <span className="text-gray-500 font-medium">Average Return Approval SLA</span>
+              <span className="font-bold text-gray-950 bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-150">
+                {data.avgReturnApprovalTimeHours ? `${data.avgReturnApprovalTimeHours.toFixed(1)} hrs` : 'N/A'}
+              </span>
+            </div>
+            <div className="py-3 flex justify-between items-center text-xs">
+              <span className="text-gray-500 font-medium">Average Refund Processing SLA</span>
+              <span className="font-bold text-gray-950 bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-150">
+                {data.avgRefundProcessingTimeHours ? `${data.avgRefundProcessingTimeHours.toFixed(1)} hrs` : 'N/A'}
+              </span>
+            </div>
+            <div className="py-3 flex justify-between items-center text-xs">
+              <span className="text-gray-500 font-medium">Average Return Completion SLA</span>
+              <span className="font-bold text-gray-950 bg-purple-50 text-purple-700 px-2.5 py-0.5 rounded-full border border-purple-150">
+                {data.avgReturnCompletionTimeHours ? `${data.avgReturnCompletionTimeHours.toFixed(1)} hrs` : 'N/A'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* High Return Risk Customers Panel */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">High Return Risk Customers</h3>
+            <p className="text-[10px] text-gray-400">Customers with return rates exceeding 40% for review</p>
+          </div>
+
+          <div className="divide-y divide-gray-100 flex-1 overflow-y-auto max-h-56 mt-4">
+            {(!data.highReturnRiskCustomers || data.highReturnRiskCustomers.length === 0) ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-1.5 h-full">
+                <Users className="w-8 h-8 text-gray-300" />
+                <p className="text-xs text-gray-400 italic">No customers flagged for high returns risk</p>
+              </div>
+            ) : (
+              data.highReturnRiskCustomers.map((user: any) => (
+                <div key={user.id} className="py-2.5 flex items-center justify-between text-xs gap-3">
+                  <div>
+                    <p className="font-bold text-gray-800">{user.name}</p>
+                    <p className="text-[10px] text-gray-400">{user.email}</p>
+                  </div>
+                  <div className="text-right whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2.5 py-0.5 rounded-full font-bold text-[10px] border border-red-150">
+                      <AlertTriangle className="w-2.5 h-2.5" />
+                      {user.returnPercentage.toFixed(1)}% Return Rate
+                    </span>
+                    <p className="text-[9px] text-gray-400 mt-0.5">{user.ordersCount} Orders / {user.totalReturns} Returns</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>

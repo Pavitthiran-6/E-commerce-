@@ -26,6 +26,13 @@ public class SaleController {
     private final SaleSettingsService saleSettingsService;
     private final ProductService productService;
     private final ProductRepository productRepository;
+    private final com.belledonne.ecommerce.service.ShippingSettingsService shippingSettingsService;
+
+    @GetMapping("/shipping/settings")
+    @Operation(summary = "Get current shipping configurations (public)")
+    public ResponseEntity<ApiResponse<?>> getShippingSettings() {
+        return ResponseEntity.ok(ApiResponse.success("Shipping settings fetched", shippingSettingsService.getOrCreate()));
+    }
 
     @GetMapping("/settings")
     @Operation(summary = "Get current sale banner settings (public)")

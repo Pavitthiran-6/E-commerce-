@@ -27,5 +27,8 @@ public class CartResponse {
         private BigDecimal unitPrice;
         private Integer quantity;
         private BigDecimal totalPrice;
+        private Boolean freeShipping;
+        private BigDecimal shippingCharge;
+        private BigDecimal weight;
     }
 }

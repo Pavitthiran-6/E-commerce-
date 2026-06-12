@@ -48,6 +48,11 @@ public class ProductResponse {
     private String craftsmanshipTitle;
     private String craftsmanshipContent;
     private Boolean freeShipping;
+    private BigDecimal shippingCharge;
+    private BigDecimal weight;
+    private BigDecimal length;
+    private BigDecimal width;
+    private BigDecimal height;
     private Boolean codAvailable;
     private Boolean easyReturns;
     private Boolean inStock;

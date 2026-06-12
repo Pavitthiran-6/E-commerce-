@@ -195,3 +195,75 @@ ALTER TABLE users ADD CONSTRAINT users_auth_provider_check CHECK (auth_provider 
 -- =============================================================================
 ALTER TABLE hero_sections ALTER COLUMN background_color TYPE TEXT;
 
+
+-- =============================================================================
+-- 8. Phase 8: Product Dimensions, COD Accounting & Return Flow Improvements
+-- =============================================================================
+
+-- Product volumetric dimensions for Shiprocket (in cm)
+ALTER TABLE products ADD COLUMN IF NOT EXISTS length NUMERIC(10,2) DEFAULT 10.0;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS width NUMERIC(10,2) DEFAULT 10.0;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS height NUMERIC(10,2) DEFAULT 10.0;
+
+-- COD accounting: when cash was physically collected by courier
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_collected_at TIMESTAMP WITHOUT TIME ZONE;
+
+-- Return flow improvements
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS additional_comments TEXT;
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS product_image_urls TEXT[];
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS payout_details_requested_at TIMESTAMP WITHOUT TIME ZONE;
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS payout_details_provided_at TIMESTAMP WITHOUT TIME ZONE;
+
+-- Backfill defaults for product dimensions (existing products will get 10x10x10 cm)
+UPDATE products SET length = 10.0 WHERE length IS NULL;
+UPDATE products SET width = 10.0 WHERE width IS NULL;
+UPDATE products SET height = 10.0 WHERE height IS NULL;
+
+-- =============================================================================
+-- 9. Phase 9: Hardening Audit — Delivery Verification, SLAs, Risk & Inspection
+-- =============================================================================
+
+-- Delivery Proof & POD Tracking fields for orders
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_timestamp TIMESTAMP WITHOUT TIME ZONE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS courier_delivery_remarks TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS receiver_name VARCHAR(255);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_confirmation_details TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS proof_of_delivery_url TEXT;
+
+-- Return & Refund SLA Analytics timestamps for refund_requests
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS return_requested_at TIMESTAMP WITHOUT TIME ZONE;
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS return_approved_at TIMESTAMP WITHOUT TIME ZONE;
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS return_pickup_scheduled_at TIMESTAMP WITHOUT TIME ZONE;
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS return_received_at TIMESTAMP WITHOUT TIME ZONE;
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS refund_processed_at TIMESTAMP WITHOUT TIME ZONE;
+
+-- Warehouse Inspection Checklist and Notes
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS warehouse_inspection_notes TEXT;
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS is_product_damaged BOOLEAN DEFAULT FALSE;
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS is_wrong_product_returned BOOLEAN DEFAULT FALSE;
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS is_missing_accessories BOOLEAN DEFAULT FALSE;
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS is_used_product BOOLEAN DEFAULT FALSE;
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS is_packaging_missing BOOLEAN DEFAULT FALSE;
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS is_quality_issue_confirmed BOOLEAN DEFAULT FALSE;
+
+-- Razorpay Refund Reconciliation details
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS razorpay_refund_status VARCHAR(50);
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS razorpay_refund_timestamp TIMESTAMP WITHOUT TIME ZONE;
+ALTER TABLE refund_requests ADD COLUMN IF NOT EXISTS razorpay_refund_notes TEXT;
+
+-- Audit trail for logistics events
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    admin_user VARCHAR(255) NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    timestamp TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT,
+    order_id VARCHAR(100),
+    refund_request_id VARCHAR(100)
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp);
+
+
+

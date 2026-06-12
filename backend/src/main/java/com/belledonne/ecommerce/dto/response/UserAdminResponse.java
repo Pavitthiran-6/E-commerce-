@@ -29,13 +29,19 @@ public class UserAdminResponse {
     private Boolean isLocked;
     private LocalDateTime lockedUntil;
 
+    private Long totalReturns;
+    private Long totalRefunds;
+    private Double returnPercentage;
+    private Boolean isHighReturnRisk;
+
     // Custom constructor for JpaRepository JPQL projection
     public UserAdminResponse(UUID id, String name, String email, String phone,
                              com.belledonne.ecommerce.enums.Role role,
                              LocalDateTime createdAt, LocalDateTime lastLoginAt,
                              Boolean isBlocked, String blockedReason,
                              Long ordersCount, BigDecimal totalAmountSpent,
-                             LocalDateTime accountLockedUntil) {
+                             LocalDateTime accountLockedUntil,
+                             Long totalReturns, Long totalRefunds) {
         this.id = id;
         this.name = name;
         this.email = email;
@@ -49,5 +55,13 @@ public class UserAdminResponse {
         this.totalAmountSpent = totalAmountSpent != null ? totalAmountSpent : BigDecimal.ZERO;
         this.lockedUntil = accountLockedUntil;
         this.isLocked = accountLockedUntil != null && accountLockedUntil.isAfter(LocalDateTime.now());
+        this.totalReturns = totalReturns != null ? totalReturns : 0L;
+        this.totalRefunds = totalRefunds != null ? totalRefunds : 0L;
+        if (this.ordersCount != null && this.ordersCount > 0) {
+            this.returnPercentage = (double) this.totalReturns * 100.0 / (double) this.ordersCount;
+        } else {
+            this.returnPercentage = 0.0;
+        }
+        this.isHighReturnRisk = this.returnPercentage > 40.0 && this.ordersCount > 0;
     }
 }

@@ -30,7 +30,9 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
            "u.id, u.name, u.email, u.phone, u.role, u.createdAt, u.lastLoginAt, u.isBlocked, u.blockedReason, " +
            "(SELECT COUNT(o) FROM Order o WHERE o.user.id = u.id), " +
            "(SELECT SUM(o.totalAmount) FROM Order o WHERE o.user.id = u.id), " +
-           "u.accountLockedUntil" +
+           "u.accountLockedUntil, " +
+           "(SELECT COUNT(rr) FROM RefundRequest rr WHERE rr.user.id = u.id AND rr.returnRequestedAt IS NOT NULL), " +
+           "(SELECT COUNT(rr) FROM RefundRequest rr WHERE rr.user.id = u.id AND rr.refundStatus = com.belledonne.ecommerce.enums.RefundStatus.REFUNDED)" +
            ") FROM User u " +
            "WHERE (:role IS NULL OR u.role = :role) AND " +
            "(:blocked IS NULL OR u.isBlocked = :blocked) AND " +
@@ -57,4 +59,16 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     long countByIsBlockedTrueAndRole(com.belledonne.ecommerce.enums.Role role);
 
     java.util.List<User> findByRole(com.belledonne.ecommerce.enums.Role role);
+
+    @Query("SELECT new com.belledonne.ecommerce.dto.response.UserAdminResponse(" +
+           "u.id, u.name, u.email, u.phone, u.role, u.createdAt, u.lastLoginAt, u.isBlocked, u.blockedReason, " +
+           "(SELECT COUNT(o) FROM Order o WHERE o.user.id = u.id), " +
+           "(SELECT SUM(o.totalAmount) FROM Order o WHERE o.user.id = u.id), " +
+           "u.accountLockedUntil, " +
+           "(SELECT COUNT(rr) FROM RefundRequest rr WHERE rr.user.id = u.id AND rr.returnRequestedAt IS NOT NULL), " +
+           "(SELECT COUNT(rr) FROM RefundRequest rr WHERE rr.user.id = u.id AND rr.refundStatus = com.belledonne.ecommerce.enums.RefundStatus.REFUNDED)" +
+           ") FROM User u " +
+           "WHERE (SELECT COUNT(o) FROM Order o WHERE o.user.id = u.id) > 0 AND " +
+           "((SELECT COUNT(rr) FROM RefundRequest rr WHERE rr.user.id = u.id AND rr.returnRequestedAt IS NOT NULL) * 100.0 / (SELECT COUNT(o) FROM Order o WHERE o.user.id = u.id)) > 40.0")
+    java.util.List<UserAdminResponse> findHighReturnRiskCustomers();
 }

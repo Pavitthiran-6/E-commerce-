@@ -22,6 +22,7 @@ public class RefundRequestResponse {
     private String customerName;
     private String customerEmail;
     private String cancellationReason;
+    private String additionalComments;
     private String refundStatus;
     private BigDecimal refundAmount;
     private String adminNotes;
@@ -31,11 +32,38 @@ public class RefundRequestResponse {
     private LocalDateTime reviewedAt;
     private String razorpayRefundId;
     private String razorpayRefundFailureReason;
+    // Legacy single image (kept for backward compatibility)
     private String productImageUrl;
+    // New multi-image array (1–5 images)
+    private String[] productImageUrls;
     private String bankDetails;
     private String upiId;
     private LocalDateTime requestedAt;
     private LocalDateTime updatedAt;
+    // COD Payout Details Collection timestamps
+    private LocalDateTime payoutDetailsRequestedAt;
+    private LocalDateTime payoutDetailsProvidedAt;
+
+    // Return & Refund SLA Analytics
+    private LocalDateTime returnRequestedAt;
+    private LocalDateTime returnApprovedAt;
+    private LocalDateTime returnPickupScheduledAt;
+    private LocalDateTime returnReceivedAt;
+    private LocalDateTime refundProcessedAt;
+
+    // Warehouse Inspection Checklist & Notes
+    private String warehouseInspectionNotes;
+    private Boolean isProductDamaged;
+    private Boolean isWrongProductReturned;
+    private Boolean isMissingAccessories;
+    private Boolean isUsedProduct;
+    private Boolean isPackagingMissing;
+    private Boolean isQualityIssueConfirmed;
+
+    // Razorpay Refund Reconciliation details
+    private String razorpayRefundStatus;
+    private LocalDateTime razorpayRefundTimestamp;
+    private String razorpayRefundNotes;
     
     // Order details denormalized or sent along for rich dashboard
     private BigDecimal orderTotalAmount;
