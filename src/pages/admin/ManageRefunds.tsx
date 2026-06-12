@@ -357,6 +357,22 @@ export default function ManageRefunds() {
                 </div>
               </div>
 
+              {/* Product Image Proof */}
+              {selectedRequest.productImageUrl && (
+                <div>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Product Image Proof</h4>
+                  <div className="w-36 h-36 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity">
+                    <img 
+                      src={selectedRequest.productImageUrl} 
+                      alt="Return proof" 
+                      className="w-full h-full object-cover cursor-pointer" 
+                      onClick={() => window.open(selectedRequest.productImageUrl, '_blank')}
+                      title="Click to view full image"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Products List */}
               <div className="space-y-3">
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b pb-2">Products in Order</h4>
