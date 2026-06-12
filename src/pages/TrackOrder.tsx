@@ -281,23 +281,23 @@ export default function TrackOrder() {
       case 'cancelled': {
         let desc = 'This order has been cancelled.';
         if (order?.paymentStatus === 'REFUND_REQUESTED') {
-          desc = `Order cancelled. Refund request of ₹${order.totalAmount.toLocaleString()} is pending admin review.`;
+          desc = `Order cancelled. Refund request of â‚¹${order.totalAmount.toLocaleString()} is pending admin review.`;
         } else if (order?.paymentStatus === 'REFUND_APPROVED') {
           desc = 'Order cancelled. Refund request has been approved and is being processed.';
         } else if (order?.paymentStatus === 'REFUND_INITIATED') {
-          desc = `Order cancelled. Refund of ₹${order.totalAmount.toLocaleString()} has been initiated via Razorpay.`;
+          desc = `Order cancelled. Refund of â‚¹${order.totalAmount.toLocaleString()} has been initiated via Razorpay.`;
         } else if (order?.paymentStatus === 'REFUNDED') {
-          desc = `Order cancelled. Refund of ₹${order.totalAmount.toLocaleString()} has been successfully credited.`;
+          desc = `Order cancelled. Refund of â‚¹${order.totalAmount.toLocaleString()} has been successfully credited.`;
         } else if (order?.paymentStatus === 'REFUND_REJECTED') {
           desc = `Order cancelled. Refund request was rejected. Reason: ${order.rejectionReason || 'Contact support.'}`;
         } else if (order?.paymentStatus === 'REFUND_FAILED' || order?.refundStatus === 'REFUND_FAILED') {
-          desc = `Order cancelled. Refund of ₹${order.totalAmount.toLocaleString()} failed. Our admin team will retry processing shortly.`;
+          desc = `Order cancelled. Refund of â‚¹${order.totalAmount.toLocaleString()} failed. Our admin team will retry processing shortly.`;
         }
         return { color: 'bg-red-50 text-red-800 border-red-200', icon: <XCircle className="w-6 h-6 text-red-600" />, title: 'Cancelled', desc };
       }
       case 'return_requested':
       case 'return requested': {
-        let desc = `Return request of ₹${order.totalAmount.toLocaleString()} is pending admin review.`;
+        let desc = `Return request of â‚¹${order.totalAmount.toLocaleString()} is pending admin review.`;
         if (order?.paymentStatus === 'REFUND_REJECTED') {
           desc = `Return request was rejected. Reason: ${order.rejectionReason || 'Contact support.'}`;
         }
@@ -306,12 +306,12 @@ export default function TrackOrder() {
       case 'returned': {
         let desc = 'This order has been returned.';
         if (order?.paymentStatus === 'REFUNDED') {
-          desc = `Order returned. Refund of ₹${order.totalAmount.toLocaleString()} has been successfully processed.`;
+          desc = `Order returned. Refund of â‚¹${order.totalAmount.toLocaleString()} has been successfully processed.`;
         }
         return { color: 'bg-gray-50 text-gray-800 border-gray-200', icon: <ArrowLeftRight className="w-6 h-6 text-gray-600" />, title: 'Returned', desc };
       }
       case 'refunded':
-        return { color: 'bg-gray-50 text-gray-800 border-gray-200', icon: <ArrowLeftRight className="w-6 h-6 text-gray-600" />, title: 'Refunded', desc: `Refund of ₹${order.totalAmount.toLocaleString()} has been successfully processed.` };
+        return { color: 'bg-gray-50 text-gray-800 border-gray-200', icon: <ArrowLeftRight className="w-6 h-6 text-gray-600" />, title: 'Refunded', desc: `Refund of â‚¹${order.totalAmount.toLocaleString()} has been successfully processed.` };
       default:
         return { color: 'bg-gray-50 text-gray-800 border-gray-200', icon: <AlertCircle className="w-6 h-6" />, title: 'Unknown', desc: 'Status unknown.' };
     }
@@ -416,7 +416,7 @@ export default function TrackOrder() {
           <h1 className="font-headline-display text-4xl mb-3">Track Your Order</h1>
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 text-on-surface-variant font-body-sm">
             <span className="font-mono text-warm-sand text-lg tracking-wider">Order #{order.orderNumber}</span>
-            <span className="hidden md:inline text-gray-500">•</span>
+            <span className="hidden md:inline text-gray-500">â€¢</span>
             <span>Placed on {new Date(order.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
@@ -620,7 +620,7 @@ export default function TrackOrder() {
                 )}
                 <div>
                   <span className="font-semibold text-gray-700">Refund Amount: </span>
-                  <span className="font-bold text-gray-900">₹{order.totalAmount.toLocaleString()}</span>
+                  <span className="font-bold text-gray-900">â‚¹{order.totalAmount.toLocaleString()}</span>
                 </div>
                 {order.razorpayRefundId && (
                   <div>
@@ -787,7 +787,7 @@ export default function TrackOrder() {
                       <p className="text-gray-500 mt-1">Qty: {item.quantity}</p>
                     </div>
                     <div className="text-sm font-bold text-right whitespace-nowrap">
-                      ₹{item.totalPrice.toLocaleString()}
+                      â‚¹{item.totalPrice.toLocaleString()}
                     </div>
                   </div>
                 ))}
@@ -796,25 +796,25 @@ export default function TrackOrder() {
               <div className="mt-6 pt-4 border-t border-gray-100 space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Subtotal</span>
-                  <span className="font-medium">₹{order.subtotal.toLocaleString()}</span>
+                  <span className="font-medium">â‚¹{order.subtotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Shipping</span>
-                  <span className="font-medium">{order.shippingCharge === 0 ? 'Free' : `₹${order.shippingCharge.toLocaleString()}`}</span>
+                  <span className="font-medium">{order.shippingCharge === 0 ? 'Free' : `â‚¹${order.shippingCharge.toLocaleString()}`}</span>
                 </div>
                 {order.discountAmount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount {order.couponCode ? `(${order.couponCode})` : ''}</span>
-                    <span className="font-medium">-₹{order.discountAmount.toLocaleString()}</span>
+                    <span className="font-medium">-â‚¹{order.discountAmount.toLocaleString()}</span>
                   </div>
                 )}
                 <div className="border-t border-gray-100 pt-2 mt-2">
                   <div className="flex justify-between font-bold text-charcoal-stone text-lg">
                     <span>Total</span>
-                    <span>₹{order.totalAmount.toLocaleString()}</span>
+                    <span>â‚¹{order.totalAmount.toLocaleString()}</span>
                   </div>
                   <p className="text-[11px] text-[#0C831F] font-semibold text-right leading-none mt-1">
-                    ✓ Prices include all applicable taxes
+                    âœ“ Prices include all applicable taxes
                   </p>
                 </div>
               </div>
@@ -853,7 +853,7 @@ export default function TrackOrder() {
                 Tax Invoice will be available after payment confirmation.
               </span>
             )}
-            {/* Cancel button — only shown for cancellable statuses (Placed, Confirmed, Packed, Processing) */}
+            {/* Cancel button â€” only shown for cancellable statuses (Placed, Confirmed, Packed, Processing) */}
             {['Placed', 'Confirmed', 'Packed', 'Processing'].includes(status) && (
               order.paymentMethod !== 'COD' && order.paymentStatus === 'SUCCESS' ? (
                 <button 
@@ -880,7 +880,7 @@ export default function TrackOrder() {
                 Order cannot be cancelled once shipped.
               </span>
             )}
-            {/* Return / Refund button — shown once order is Delivered and Paid */}
+            {/* Return / Refund button â€” shown once order is Delivered and Paid */}
             {status.toLowerCase() === 'delivered' && isPaid && !order.refundStatus && (
               <button 
                 onClick={() => setShowReturnModal(true)}
@@ -966,229 +966,231 @@ export default function TrackOrder() {
       {/* Return & Refund Request Modal */}
       {showReturnModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md rounded-2xl border border-gray-100 shadow-2xl p-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary to-primary/80"></div>
-            
-            <h3 className="font-headline-md text-2xl font-bold text-gray-900 mb-2">Request Return & Refund</h3>
-            <p className="text-sm text-gray-500 mb-6 font-medium">
-              You are requesting a return for order <span className="font-semibold text-gray-800">#{order.orderNumber}</span>. Please specify the reason for return. Once submitted, our team will review the request.
-            </p>
+          <div className="bg-white w-full max-w-md rounded-2xl border border-gray-100 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary to-primary/80" />
 
-            <div className="mb-4 max-h-36 overflow-y-auto space-y-3 bg-gray-50 p-3.5 rounded-xl border border-gray-100">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Items to Return</p>
-              {order.items.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-100 shadow-sm">
-                  <div className="w-10 h-10 rounded border border-gray-200/80 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                    <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover mix-blend-multiply" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-gray-800 truncate">{item.productName}</p>
-                    <p className="text-[9px] text-gray-500 mt-0.5">Qty: {item.quantity} {item.size && `• Size: ${item.size}`} {item.color && `• Color: ${item.color}`}</p>
-                  </div>
-                </div>
-              ))}
+            {/* â”€â”€ Sticky Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            <div className="px-6 pt-7 pb-4 flex-shrink-0">
+              <h3 className="font-headline-md text-xl font-bold text-gray-900 mb-1">Request Return & Refund</h3>
+              <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                You are requesting a return for order <span className="font-semibold text-gray-800">#{order.orderNumber}</span>. Please specify the reason for return. Once submitted, our team will review the request.
+              </p>
             </div>
 
-            <form onSubmit={handleRequestReturn} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-                  Reason for Return
-                </label>
-                <textarea
-                  value={returnReason}
-                  onChange={(e) => setReturnReason(e.target.value)}
-                  placeholder="Please specify a reason (e.g., product damaged, wrong size, item not as described)..."
-                  rows={4}
-                  required
-                  maxLength={500}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors resize-none"
-                />
-                <div className="text-[10px] text-gray-400 mt-1.5 flex justify-between">
-                  <span>Min 10 / Max 500 characters</span>
-                  <span className={returnReason.trim().length >= 10 && returnReason.trim().length <= 500 ? 'text-green-500 font-bold' : 'text-gray-400'}>
-                    {returnReason.trim().length}/500 chars
-                  </span>
-                </div>
+            {/* â”€â”€ Scrollable Body â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            <div className="overflow-y-auto flex-1 px-6 pb-2 space-y-4">
+
+              {/* Items to return */}
+              <div className="max-h-28 overflow-y-auto space-y-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Items to Return</p>
+                {order.items.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-100 shadow-sm">
+                    <div className="w-9 h-9 rounded border border-gray-200/80 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                      <img src={item.productImage} alt={item.productName} className="w-full h-full object-cover mix-blend-multiply" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-800 truncate">{item.productName}</p>
+                      <p className="text-[9px] text-gray-500 mt-0.5">Qty: {item.quantity} {item.size && `â€¢ Size: ${item.size}`} {item.color && `â€¢ Color: ${item.color}`}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-                  Upload Product Image Proof *
-                </label>
-                <div className="flex flex-col gap-3">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] || null;
-                      setReturnImage(file);
-                      if (file) {
-                        const url = URL.createObjectURL(file);
-                        setReturnImagePreview(url);
-                      } else {
-                        setReturnImagePreview(null);
-                      }
-                    }}
+              <form id="return-form" onSubmit={handleRequestReturn} className="space-y-4">
+                {/* Return reason */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                    Reason for Return
+                  </label>
+                  <textarea
+                    value={returnReason}
+                    onChange={(e) => setReturnReason(e.target.value)}
+                    placeholder="Please specify a reason (e.g., product damaged, wrong size, item not as described)..."
+                    rows={3}
                     required
-                    className="block w-full text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-primary/5 file:text-primary hover:file:bg-primary/10 file:transition-colors file:cursor-pointer cursor-pointer border border-gray-200 rounded-xl p-1.5 bg-gray-50/50"
+                    maxLength={500}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors resize-none"
                   />
-                  {returnImagePreview && (
-                    <div className="relative w-28 h-28 border border-gray-200 rounded-xl overflow-hidden bg-gray-50 shadow-sm flex items-center justify-center mt-1">
-                      <img src={returnImagePreview} alt="Proof preview" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setReturnImage(null);
+                  <div className="text-[10px] text-gray-400 mt-1 flex justify-between">
+                    <span>Min 10 / Max 500 characters</span>
+                    <span className={returnReason.trim().length >= 10 && returnReason.trim().length <= 500 ? 'text-green-500 font-bold' : 'text-gray-400'}>
+                      {returnReason.trim().length}/500 chars
+                    </span>
+                  </div>
+                </div>
+
+                {/* Image upload */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                    Upload Product Image Proof *
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setReturnImage(file);
+                        if (file) {
+                          const url = URL.createObjectURL(file);
+                          setReturnImagePreview(url);
+                        } else {
                           setReturnImagePreview(null);
-                        }}
-                        className="absolute top-1.5 right-1.5 bg-red-500/95 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow"
-                      >
-                        <XCircle className="w-4 h-4" />
-                      </button>
+                        }
+                      }}
+                      required
+                      className="block w-full text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-primary/5 file:text-primary hover:file:bg-primary/10 file:transition-colors file:cursor-pointer cursor-pointer border border-gray-200 rounded-xl p-1.5 bg-gray-50/50"
+                    />
+                    {returnImagePreview && (
+                      <div className="relative w-24 h-24 border border-gray-200 rounded-xl overflow-hidden bg-gray-50 shadow-sm flex items-center justify-center">
+                        <img src={returnImagePreview} alt="Proof preview" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReturnImage(null);
+                            setReturnImagePreview(null);
+                          }}
+                          className="absolute top-1 right-1 bg-red-500/95 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Payout Details */}
+                <div className="border-t border-gray-100 pt-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Refund Payout Option *</p>
+                  <div className="flex gap-2 p-1 bg-gray-50 border border-gray-200/80 rounded-xl mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setPayoutMethod('upi')}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                        payoutMethod === 'upi'
+                          ? 'bg-white text-primary shadow-sm border border-gray-200/40'
+                          : 'text-gray-500 hover:text-gray-800'
+                      }`}
+                    >
+                      UPI ID
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPayoutMethod('bank')}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                        payoutMethod === 'bank'
+                          ? 'bg-white text-primary shadow-sm border border-gray-200/40'
+                          : 'text-gray-500 hover:text-gray-800'
+                      }`}
+                    >
+                      Bank Account
+                    </button>
+                  </div>
+
+                  {payoutMethod === 'upi' ? (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">UPI ID</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. name@upi, name@okhdfcbank"
+                        value={upiId}
+                        onChange={(e) => setUpiId(e.target.value)}
+                        required={payoutMethod === 'upi'}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Bank Name</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. HDFC Bank, State Bank of India"
+                          value={bankName}
+                          onChange={(e) => setBankName(e.target.value)}
+                          required={payoutMethod === 'bank'}
+                          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account Holder Name</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. John Doe"
+                          value={accountHolder}
+                          onChange={(e) => setAccountHolder(e.target.value)}
+                          required={payoutMethod === 'bank'}
+                          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Account Number</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 50100234567890"
+                            value={accountNumber}
+                            onChange={(e) => setAccountNumber(e.target.value)}
+                            required={payoutMethod === 'bank'}
+                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">IFSC Code</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. HDFC0000240"
+                            value={ifscCode}
+                            onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+                            required={payoutMethod === 'bank'}
+                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors font-mono uppercase"
+                          />
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
-              </div>
 
-              {/* Payout Details Section */}
-              <div className="border-t border-gray-100 pt-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Refund Payout Option *</p>
-                <div className="flex gap-2 p-1 bg-gray-50 border border-gray-200/80 rounded-xl mb-3">
-                  <button
-                    type="button"
-                    onClick={() => setPayoutMethod('upi')}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      payoutMethod === 'upi'
-                        ? 'bg-white text-primary shadow-sm border border-gray-200/40'
-                        : 'text-gray-500 hover:text-gray-800'
-                    }`}
-                  >
-                    UPI ID
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPayoutMethod('bank')}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      payoutMethod === 'bank'
-                        ? 'bg-white text-primary shadow-sm border border-gray-200/40'
-                        : 'text-gray-500 hover:text-gray-800'
-                    }`}
-                  >
-                    Bank Account
-                  </button>
-                </div>
-
-                {payoutMethod === 'upi' ? (
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-                      UPI ID
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. name@upi, name@okhdfcbank"
-                      value={upiId}
-                      onChange={(e) => setUpiId(e.target.value)}
-                      required={payoutMethod === 'upi'}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-                        Bank Name
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. HDFC Bank, State Bank of India"
-                        value={bankName}
-                        onChange={(e) => setBankName(e.target.value)}
-                        required={payoutMethod === 'bank'}
-                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-                        Account Holder Name
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. John Doe"
-                        value={accountHolder}
-                        onChange={(e) => setAccountHolder(e.target.value)}
-                        required={payoutMethod === 'bank'}
-                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-                          Account Number
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 50100234567890"
-                          value={accountNumber}
-                          onChange={(e) => setAccountNumber(e.target.value)}
-                          required={payoutMethod === 'bank'}
-                          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-                          IFSC Code
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. HDFC0000240"
-                          value={ifscCode}
-                          onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
-                          required={payoutMethod === 'bank'}
-                          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-colors font-mono uppercase"
-                        />
-                      </div>
-                    </div>
+                {returnError && (
+                  <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{returnError}</span>
                   </div>
                 )}
-              </div>
+              </form>
+            </div>
 
-              {returnError && (
-                <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{returnError}</span>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowReturnModal(false);
-                    setReturnReason('');
-                    setReturnImage(null);
-                    setReturnImagePreview(null);
-                    setReturnError(null);
-                    setUpiId('');
-                    setBankName('');
-                    setAccountHolder('');
-                    setAccountNumber('');
-                    setIfscCode('');
-                    setPayoutMethod('upi');
-                  }}
-                  className="flex-1 border-2 border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingReturn || returnReason.trim().length < 10 || !returnImage}
-                  className="flex-1 bg-primary text-white rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-primary/95 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-md text-center"
-                >
-                  {isSubmittingReturn && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {isSubmittingReturn ? 'Submitting...' : 'Confirm Return'}
-                </button>
-              </div>
-            </form>
+            {/* â”€â”€ Sticky Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+            <div className="px-6 py-4 flex-shrink-0 border-t border-gray-100 bg-white flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReturnModal(false);
+                  setReturnReason('');
+                  setReturnImage(null);
+                  setReturnImagePreview(null);
+                  setReturnError(null);
+                  setUpiId('');
+                  setBankName('');
+                  setAccountHolder('');
+                  setAccountNumber('');
+                  setIfscCode('');
+                  setPayoutMethod('upi');
+                }}
+                className="flex-1 border-2 border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                form="return-form"
+                disabled={isSubmittingReturn || returnReason.trim().length < 10 || !returnImage}
+                className="flex-1 bg-primary text-white rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-primary/95 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-md text-center"
+              >
+                {isSubmittingReturn && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isSubmittingReturn ? 'Submitting...' : 'Confirm Return'}
+              </button>
+            </div>
           </div>
         </div>
       )}
