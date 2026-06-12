@@ -991,7 +991,7 @@ export default function TrackOrder() {
             </div>
 
             {/* â”€â”€ Scrollable Body â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-            <div className="overflow-y-auto flex-1 px-6 pb-2 space-y-4">
+            <div className="overflow-y-auto flex-1 min-h-0 px-6 pb-4 space-y-4">
 
               {/* Items to return */}
               <div className="max-h-28 overflow-y-auto space-y-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
