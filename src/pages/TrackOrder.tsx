@@ -41,11 +41,14 @@ export default function TrackOrder() {
   useEffect(() => {
     if (showRefundModal || showReturnModal) {
       document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     }
     return () => {
       document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     };
   }, [showRefundModal, showReturnModal]);
 
@@ -914,7 +917,7 @@ export default function TrackOrder() {
 
       {/* Cancellation & Refund Request Modal */}
       {showRefundModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" data-lenis-prevent>
           <div className="bg-white w-full max-w-md rounded-2xl border border-gray-100 shadow-2xl p-6 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-500 to-orange-500"></div>
             
@@ -978,8 +981,8 @@ export default function TrackOrder() {
       )}
       {/* Return & Refund Request Modal */}
       {showReturnModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md rounded-2xl border border-gray-100 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" data-lenis-prevent>
+          <div className="bg-white w-full max-w-md rounded-2xl border border-gray-100 shadow-2xl relative overflow-hidden flex flex-col h-[85vh]">
             <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary to-primary/80" />
 
             {/* â”€â”€ Sticky Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
@@ -991,7 +994,7 @@ export default function TrackOrder() {
             </div>
 
             {/* â”€â”€ Scrollable Body â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-            <div className="overflow-y-auto flex-1 min-h-0 px-6 pb-4 space-y-4">
+            <div className="overflow-y-auto flex-1 min-h-0 px-6 pb-4 space-y-4 overscroll-contain" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d1d5db transparent' }}>
 
               {/* Items to return */}
               <div className="max-h-28 overflow-y-auto space-y-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
