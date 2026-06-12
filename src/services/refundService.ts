@@ -59,6 +59,18 @@ export const cancelWithRefund = async (orderId: string, cancellationReason: stri
   }
 };
 
+export const requestReturn = async (orderId: string, cancellationReason: string): Promise<RefundRequest> => {
+  try {
+    const response = await axiosInstance.put(ENDPOINTS.RETURN_ORDER(orderId), {
+      cancellationReason
+    });
+    return response.data.data;
+  } catch (error) {
+    console.error(`Error submitting return request for order ${orderId}`, error);
+    throw error;
+  }
+};
+
 export const getRefundStatus = async (orderId: string): Promise<RefundRequest> => {
   try {
     const response = await axiosInstance.get(ENDPOINTS.REFUND_STATUS(orderId));

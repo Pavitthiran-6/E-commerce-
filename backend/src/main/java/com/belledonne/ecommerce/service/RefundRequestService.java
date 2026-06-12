@@ -165,6 +165,113 @@ public class RefundRequestService {
     }
 
     /**
+     * Submit a return request for a delivered order.
+     */
+    public RefundRequestResponse submitReturnRequest(UserPrincipal principal, UUID orderId, RefundRequestRequest request, String ipAddress, String userAgent) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+
+        // Enforce ownership
+        if (!order.getUser().getId().equals(principal.getId())) {
+            throw new UnauthorizedException("You do not have permission to access this order.");
+        }
+
+        // Validate status and payment status
+        if (order.getStatus() != OrderStatus.DELIVERED) {
+            throw new BadRequestException("Only delivered orders can be returned.");
+        }
+        if (order.getPaymentStatus() != PaymentStatus.SUCCESS && order.getPaymentStatus() != PaymentStatus.PAID) {
+            throw new BadRequestException("Only successfully paid orders can be returned.");
+        }
+
+        // Check if request already exists (idempotency)
+        Optional<RefundRequest> existing = refundRequestRepository.findByOrderId(orderId);
+        if (existing.isPresent()) {
+            log.info("Return request already exists for orderId={} — returning existing record", orderId);
+            return toResponse(existing.get());
+        }
+
+        // Update Order to RETURN_REQUESTED
+        order.setStatus(OrderStatus.RETURN_REQUESTED);
+        order.setPaymentStatus(PaymentStatus.REFUND_REQUESTED);
+        order.getTrackingHistory().add(OrderTracking.builder()
+                .order(order)
+                .status("RETURN_REQUESTED")
+                .message("Return & refund request submitted by customer. Reason: " + request.getCancellationReason())
+                .build());
+        orderRepository.save(order);
+
+        // Update Payment status to REFUND_REQUESTED if a payment record exists
+        Payment payment = paymentRepository.findByOrderId(orderId).orElse(null);
+        if (payment != null) {
+            payment.setStatus(PaymentStatus.REFUND_REQUESTED);
+            paymentRepository.save(payment);
+        }
+
+        // Create RefundRequest
+        RefundRequest refundRequest = RefundRequest.builder()
+                .order(order)
+                .user(order.getUser())
+                .cancellationReason(request.getCancellationReason())
+                .refundStatus(RefundStatus.REFUND_REQUESTED)
+                .refundAmount(order.getTotalAmount())
+                .build();
+
+        RefundRequest saved = refundRequestRepository.save(refundRequest);
+
+        // Audit log
+        securityAuditService.log(
+                principal.getId(),
+                principal.getEmail(),
+                SecurityAction.REFUND_REQUESTED,
+                ipAddress,
+                userAgent,
+                "SUCCESS",
+                "Return/Refund requested for Order " + order.getOrderNumber() + " with amount ₹" + order.getTotalAmount()
+        );
+
+        // Send Email notifications
+        try {
+            // Customer Acknowledgement (using the same email method or creating a new one)
+            emailService.sendRefundRequestReceivedEmail(
+                    order.getUser().getEmail(),
+                    order.getUser().getName(),
+                    order.getOrderNumber(),
+                    order.getTotalAmount(),
+                    request.getCancellationReason()
+            );
+
+            // Admin Notification
+            emailService.sendRefundRequestAdminNotification(
+                    order.getOrderNumber(),
+                    order.getUser().getName(),
+                    order.getUser().getEmail(),
+                    order.getTotalAmount(),
+                    request.getCancellationReason()
+            );
+        } catch (Exception e) {
+            log.error("Failed to send return request emails for orderId={}: {}", orderId, e.getMessage());
+        }
+
+        // In-app notifications
+        notificationService.createNotification(
+            order.getUser().getId(),
+            "Return Request Submitted",
+            "Your return request for order " + order.getOrderNumber() + " is being reviewed.",
+            com.belledonne.ecommerce.enums.NotificationType.REFUND_REQUESTED,
+            "/profile/orders"
+        );
+        notificationService.createAdminNotification(
+            "New Return Request 💰",
+            "Customer " + order.getUser().getName() + " requested a return/refund of ₹" + order.getTotalAmount() + " for order " + order.getOrderNumber(),
+            com.belledonne.ecommerce.enums.NotificationType.NEW_REFUND_REQUEST,
+            "/admin/refunds"
+        );
+
+        return toResponse(saved);
+    }
+
+    /**
      * Approve a refund request (triggers Razorpay Refund API).
      */
     public RefundRequestResponse approveRefund(UUID refundRequestId, UserPrincipal adminPrincipal, RefundApprovalRequest request, String ipAddress, String userAgent) {
@@ -179,21 +286,44 @@ public class RefundRequestService {
         inventoryService.restoreStock(refundRequest.getOrder(), "REFUND_APPROVED", adminPrincipal.getEmail());
 
         try {
-            // Trigger Razorpay Refund
-            String razorpayRefundId = paymentService.initiateRazorpayRefund(
-                    refundRequest.getOrder().getId(),
-                    refundRequest.getRefundAmount()
-            );
+            // Trigger Razorpay Refund for prepaid online orders, skip for COD
+            String razorpayRefundId = null;
+            if (refundRequest.getOrder().getPaymentMethod() != PaymentMethod.COD) {
+                razorpayRefundId = paymentService.initiateRazorpayRefund(
+                        refundRequest.getOrder().getId(),
+                        refundRequest.getRefundAmount()
+                );
+            }
 
             // Update RefundRequest entity
-            refundRequest.setRefundStatus(RefundStatus.REFUND_INITIATED);
-            refundRequest.setRazorpayRefundId(razorpayRefundId);
+            if (refundRequest.getOrder().getPaymentMethod() == PaymentMethod.COD) {
+                refundRequest.setRefundStatus(RefundStatus.REFUNDED);
+            } else {
+                refundRequest.setRefundStatus(RefundStatus.REFUND_INITIATED);
+                refundRequest.setRazorpayRefundId(razorpayRefundId);
+            }
             refundRequest.setRazorpayRefundFailureReason(null);
             refundRequest.setAdminNotes(request.getAdminNotes());
             refundRequest.setReviewedByAdminId(adminPrincipal.getId());
             refundRequest.setReviewedByAdminEmail(adminPrincipal.getEmail());
             refundRequest.setReviewedAt(LocalDateTime.now());
             
+            // If the order status was RETURN_REQUESTED, update it to RETURNED
+            Order order = refundRequest.getOrder();
+            if (order.getStatus() == OrderStatus.RETURN_REQUESTED) {
+                order.setStatus(OrderStatus.RETURNED);
+            }
+            if (refundRequest.getOrder().getPaymentMethod() == PaymentMethod.COD) {
+                order.setPaymentStatus(PaymentStatus.REFUNDED);
+                
+                Payment payment = paymentRepository.findByOrderId(order.getId()).orElse(null);
+                if (payment != null) {
+                    payment.setStatus(PaymentStatus.REFUNDED);
+                    paymentRepository.save(payment);
+                }
+            }
+            orderRepository.save(order);
+
             RefundRequest saved = refundRequestRepository.save(refundRequest);
 
             // Audit log
@@ -204,7 +334,8 @@ public class RefundRequestService {
                     ipAddress,
                     userAgent,
                     "SUCCESS",
-                    "Refund approved for Order " + refundRequest.getOrder().getOrderNumber() + " | Razorpay Refund ID: " + razorpayRefundId
+                    "Refund approved for Order " + refundRequest.getOrder().getOrderNumber() + 
+                    (razorpayRefundId != null ? " | Razorpay Refund ID: " + razorpayRefundId : " | COD manual refund recorded")
             );
 
             // Send Email to Customer
@@ -215,7 +346,7 @@ public class RefundRequestService {
                         refundRequest.getOrder().getOrderNumber(),
                         refundRequest.getRefundAmount(),
                         request.getAdminNotes(),
-                        razorpayRefundId
+                        razorpayRefundId != null ? razorpayRefundId : "COD-MANUAL"
                 );
             } catch (Exception e) {
                 log.error("Failed to send refund approved email for refundRequestId={}: {}", refundRequestId, e.getMessage());
@@ -225,7 +356,7 @@ public class RefundRequestService {
             notificationService.createNotification(
                 refundRequest.getUser().getId(),
                 "Refund Approved ✓",
-                "Your refund of ₹" + refundRequest.getRefundAmount() + " for order " + refundRequest.getOrder().getOrderNumber() + " has been approved and initiated.",
+                "Your refund of ₹" + refundRequest.getRefundAmount() + " for order " + refundRequest.getOrder().getOrderNumber() + " has been approved.",
                 com.belledonne.ecommerce.enums.NotificationType.REFUND_APPROVED,
                 "/profile/orders"
             );
@@ -339,13 +470,18 @@ public class RefundRequestService {
         RefundRequest saved = refundRequestRepository.save(refundRequest);
 
         Order order = refundRequest.getOrder();
+        if (order.getStatus() == OrderStatus.RETURN_REQUESTED) {
+            order.setStatus(OrderStatus.DELIVERED);
+        }
         order.setPaymentStatus(PaymentStatus.REFUND_REJECTED);
         orderRepository.save(order);
 
-        Payment payment = paymentRepository.findByOrderId(order.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Payment", "orderId", order.getId()));
-        payment.setStatus(PaymentStatus.REFUND_REJECTED);
-        paymentRepository.save(payment);
+        Optional<Payment> paymentOpt = paymentRepository.findByOrderId(order.getId());
+        if (paymentOpt.isPresent()) {
+            Payment payment = paymentOpt.get();
+            payment.setStatus(PaymentStatus.REFUND_REJECTED);
+            paymentRepository.save(payment);
+        }
 
         // Audit log
         securityAuditService.log(

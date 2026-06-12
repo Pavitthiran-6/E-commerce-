@@ -29,6 +29,7 @@ export const ENDPOINTS = {
   CANCEL_ORDER: (id: string) => `/api/orders/${id}/cancel`,
   TRACK_ORDER: (id: string) => `/api/orders/${id}/track`,
   CANCEL_WITH_REFUND: (id: string) => `/api/orders/${id}/cancel-with-refund`,
+  RETURN_ORDER: (id: string) => `/api/orders/${id}/return`,
   REFUND_STATUS: (id: string) => `/api/orders/${id}/refund-status`,
 
   // Payments

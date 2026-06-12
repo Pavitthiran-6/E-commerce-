@@ -4,7 +4,7 @@ import { Package, Truck, CheckCircle2, XCircle, Clock, MapPin, Download, HelpCir
 import { getOrderById, trackOrder, cancelOrder } from '../services/orderService';
 import type { Order, OrderTracking } from '../services/orderService';
 import { downloadInvoice } from '../services/paymentService';
-import { cancelWithRefund } from '../services/refundService';
+import { cancelWithRefund, requestReturn } from '../services/refundService';
 
 export default function TrackOrder() {
   const { orderId } = useParams<{ orderId?: string }>();
@@ -22,6 +22,10 @@ export default function TrackOrder() {
   const [cancellationReason, setCancellationReason] = useState('');
   const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
   const [refundError, setRefundError] = useState<string | null>(null);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
+  const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
+  const [returnError, setReturnError] = useState<string | null>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -143,6 +147,46 @@ export default function TrackOrder() {
     }
   };
 
+  const handleRequestReturn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+    if (!returnReason || returnReason.trim().length < 10) {
+      setReturnError('Please provide a detailed reason (at least 10 characters).');
+      return;
+    }
+
+    setIsSubmittingReturn(true);
+    setReturnError(null);
+    try {
+      const refundRequest = await requestReturn(order.id, returnReason);
+      
+      // Update local order state with the return and refund fields
+      setOrder(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          status: 'RETURN_REQUESTED',
+          paymentStatus: 'REFUND_REQUESTED',
+          cancellationReason: refundRequest.cancellationReason,
+          refundStatus: refundRequest.refundStatus,
+          refundRequestedAt: refundRequest.requestedAt,
+          refundNotes: refundRequest.adminNotes,
+          rejectionReason: refundRequest.rejectionReason,
+          razorpayRefundId: refundRequest.razorpayRefundId
+        };
+      });
+      
+      setShowReturnModal(false);
+      setReturnReason('');
+      alert('Return request submitted successfully.');
+    } catch (err: any) {
+      console.error(err);
+      setReturnError(err.response?.data?.message || 'Failed to submit return request. Please try again.');
+    } finally {
+      setIsSubmittingReturn(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center">
@@ -199,6 +243,23 @@ export default function TrackOrder() {
         }
         return { color: 'bg-red-50 text-red-800 border-red-200', icon: <XCircle className="w-6 h-6 text-red-600" />, title: 'Cancelled', desc };
       }
+      case 'return_requested':
+      case 'return requested': {
+        let desc = `Return request of ₹${order.totalAmount.toLocaleString()} is pending admin review.`;
+        if (order?.paymentStatus === 'REFUND_REJECTED') {
+          desc = `Return request was rejected. Reason: ${order.rejectionReason || 'Contact support.'}`;
+        }
+        return { color: 'bg-yellow-50 text-yellow-800 border-yellow-200', icon: <ArrowLeftRight className="w-6 h-6 text-yellow-600" />, title: 'Return Requested', desc };
+      }
+      case 'returned': {
+        let desc = 'This order has been returned.';
+        if (order?.paymentStatus === 'REFUNDED') {
+          desc = `Order returned. Refund of ₹${order.totalAmount.toLocaleString()} has been successfully processed.`;
+        }
+        return { color: 'bg-gray-50 text-gray-800 border-gray-200', icon: <ArrowLeftRight className="w-6 h-6 text-gray-600" />, title: 'Returned', desc };
+      }
+      case 'refunded':
+        return { color: 'bg-gray-50 text-gray-800 border-gray-200', icon: <ArrowLeftRight className="w-6 h-6 text-gray-600" />, title: 'Refunded', desc: `Refund of ₹${order.totalAmount.toLocaleString()} has been successfully processed.` };
       default:
         return { color: 'bg-gray-50 text-gray-800 border-gray-200', icon: <AlertCircle className="w-6 h-6" />, title: 'Unknown', desc: 'Status unknown.' };
     }
@@ -353,7 +414,7 @@ export default function TrackOrder() {
         )}
 
         {/* SECTION 3: Visual Progress Tracker */}
-        {status !== 'Cancelled' && (
+        {status !== 'Cancelled' && status !== 'Return requested' && status !== 'Return_requested' && status !== 'Returned' && status !== 'Refunded' && (
           <div className="bg-white rounded-xl border border-outline-variant/30 p-6 md:p-10 mb-8 shadow-sm overflow-hidden">
             <h3 className="font-headline-md text-xl mb-8">Delivery Progress</h3>
             
@@ -733,6 +794,16 @@ export default function TrackOrder() {
                 Order cannot be cancelled once shipped.
               </span>
             )}
+            {/* Return / Refund button — shown once order is Delivered and Paid */}
+            {status.toLowerCase() === 'delivered' && isPaid && !order.refundStatus && (
+              <button 
+                onClick={() => setShowReturnModal(true)}
+                className="flex-1 md:flex-none border-2 border-primary text-primary px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs hover:bg-primary/5 transition-colors flex items-center justify-center gap-2 shadow-sm"
+              >
+                <ArrowLeftRight className="w-4 h-4" />
+                Request Return / Refund
+              </button>
+            )}
           </div>
           
           <Link to="/contact" className="text-sm font-semibold text-primary hover:underline flex items-center gap-1.5 mt-4 md:mt-0 mx-auto md:mx-0">
@@ -800,6 +871,69 @@ export default function TrackOrder() {
                 >
                   {isSubmittingRefund && <Loader2 className="w-4 h-4 animate-spin" />}
                   {isSubmittingRefund ? 'Submitting...' : 'Confirm Cancel'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      {/* Return & Refund Request Modal */}
+      {showReturnModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-2xl border border-gray-100 shadow-2xl p-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary to-primary/80"></div>
+            
+            <h3 className="font-headline-md text-2xl font-bold text-gray-900 mb-2">Request Return & Refund</h3>
+            <p className="text-sm text-gray-500 mb-6 font-medium">
+              You are requesting a return for order <span className="font-semibold text-gray-800">#{order.orderNumber}</span>. Please specify the reason for return. Once submitted, our team will review the request.
+            </p>
+
+            <form onSubmit={handleRequestReturn} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                  Reason for Return
+                </label>
+                <textarea
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  placeholder="Please specify a reason (e.g., product damaged, wrong size, item not as described)..."
+                  rows={4}
+                  required
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors resize-none"
+                />
+                <div className="text-[10px] text-gray-400 mt-1.5 flex justify-between">
+                  <span>Minimum 10 characters required</span>
+                  <span className={returnReason.trim().length >= 10 ? 'text-green-500 font-bold' : 'text-gray-400'}>
+                    {returnReason.trim().length} chars
+                  </span>
+                </div>
+              </div>
+
+              {returnError && (
+                <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{returnError}</span>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowReturnModal(false);
+                    setReturnReason('');
+                    setReturnError(null);
+                  }}
+                  className="flex-1 border-2 border-gray-200 text-gray-600 rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-gray-50 transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingReturn || returnReason.trim().length < 10}
+                  className="flex-1 bg-primary text-white rounded-lg py-3 text-xs font-bold uppercase tracking-widest hover:bg-primary/95 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-md text-center"
+                >
+                  {isSubmittingReturn && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {isSubmittingReturn ? 'Submitting...' : 'Confirm Return'}
                 </button>
               </div>
             </form>

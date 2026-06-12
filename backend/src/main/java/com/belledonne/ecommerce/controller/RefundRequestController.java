@@ -42,6 +42,23 @@ public class RefundRequestController {
         return ResponseEntity.ok(ApiResponse.success("Refund request submitted successfully", response));
     }
 
+    @PutMapping("/{orderId}/return")
+    @Operation(summary = "Submit a return request for a delivered order")
+    public ResponseEntity<ApiResponse<RefundRequestResponse>> submitReturnRequest(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable UUID orderId,
+            @Valid @RequestBody RefundRequestRequest request,
+            HttpServletRequest httpServletRequest) {
+        
+        String ipAddress = SecurityAuditService.getClientIp(httpServletRequest);
+        String userAgent = httpServletRequest.getHeader("User-Agent");
+
+        RefundRequestResponse response = refundRequestService.submitReturnRequest(
+                principal, orderId, request, ipAddress, userAgent
+        );
+        return ResponseEntity.ok(ApiResponse.success("Return request submitted successfully", response));
+    }
+
     @GetMapping("/{orderId}/refund-status")
     @Operation(summary = "Get refund status for a cancelled order")
     public ResponseEntity<ApiResponse<RefundRequestResponse>> getRefundStatus(
