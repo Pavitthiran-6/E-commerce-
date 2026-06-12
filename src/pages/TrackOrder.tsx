@@ -64,8 +64,18 @@ export default function TrackOrder() {
   }, [orderIdParam]);
 
   const status = order?.status ? (order.status.replace(/_/g, ' ').charAt(0).toUpperCase() + order.status.replace(/_/g, ' ').slice(1).toLowerCase()) : 'Unknown';
-  const isPaid = order && (order.paymentStatus === 'SUCCESS' || order.paymentStatus === 'PAID');
-  const showInvoice = order && order.status !== 'cancelled' && order.status !== 'CANCELLED' && isPaid;
+  const isPaid = order && (
+    order.paymentStatus === 'SUCCESS' || 
+    order.paymentStatus === 'PAID' || 
+    order.paymentStatus === 'REFUND_REQUESTED' || 
+    order.paymentStatus === 'REFUNDED'
+  );
+  const showInvoice = order && 
+    order.status.toLowerCase() !== 'cancelled' && 
+    order.status.toLowerCase() !== 'return_requested' && 
+    order.status.toLowerCase() !== 'returned' && 
+    order.status.toLowerCase() !== 'refunded' && 
+    isPaid;
 
   const timelineRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -833,14 +843,18 @@ export default function TrackOrder() {
                 Invoice
               </button>
             )}
-            {!isPaid && order.status !== 'cancelled' && order.status !== 'CANCELLED' && (
+            {!isPaid && 
+              order.status.toLowerCase() !== 'cancelled' && 
+              order.status.toLowerCase() !== 'return_requested' && 
+              order.status.toLowerCase() !== 'returned' && 
+              order.status.toLowerCase() !== 'refunded' && (
               <span className="text-xs text-gray-500 font-semibold italic flex items-center gap-1.5 px-4 py-3 bg-gray-50 rounded-lg border border-dashed border-gray-200">
                 <AlertCircle className="w-4.5 h-4.5 text-amber-500 flex-shrink-0" />
                 Tax Invoice will be available after payment confirmation.
               </span>
             )}
-            {/* Cancel button — hidden once order is Shipped or beyond */}
-            {status !== 'Delivered' && status !== 'Cancelled' && status !== 'Shipped' && status !== 'Out for delivery' && (
+            {/* Cancel button — only shown for cancellable statuses (Placed, Confirmed, Packed, Processing) */}
+            {['Placed', 'Confirmed', 'Packed', 'Processing'].includes(status) && (
               order.paymentMethod !== 'COD' && order.paymentStatus === 'SUCCESS' ? (
                 <button 
                   onClick={() => setShowRefundModal(true)}
