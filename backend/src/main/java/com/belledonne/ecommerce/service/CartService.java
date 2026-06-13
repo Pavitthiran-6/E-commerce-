@@ -80,6 +80,7 @@ public class CartService {
             throw new BadRequestException("Item does not belong to your cart");
         }
         if (quantity <= 0) {
+            cart.getItems().remove(item);
             cartItemRepository.delete(item);
         } else {
             item.setQuantity(quantity);

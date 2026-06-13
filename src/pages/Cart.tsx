@@ -165,14 +165,14 @@ export default function Cart() {
                     {/* Stepper */}
                     <div className="flex items-center bg-[#F8F8F8] rounded-xl overflow-hidden border border-[#E8E8E8]">
                       <button
-                        onClick={() => updateQuantity(item.id, item.size, item.color, -1)}
+                        onClick={() => updateQuantity(item.id, item.size, item.color, item.quantity - 1)}
                         className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
                       <span className="w-8 text-center text-sm font-bold text-gray-900">{item.quantity}</span>
                       <button
-                        onClick={() => updateQuantity(item.id, item.size, item.color, 1)}
+                        onClick={() => updateQuantity(item.id, item.size, item.color, item.quantity + 1)}
                         className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors"
                       >
                         <Plus className="w-3 h-3" />
