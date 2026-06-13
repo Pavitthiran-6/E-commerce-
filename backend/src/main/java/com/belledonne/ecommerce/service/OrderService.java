@@ -54,7 +54,8 @@ public class OrderService {
     @Autowired @Lazy
     private PaymentService paymentService;
 
-    private static final AtomicInteger orderCounter = new AtomicInteger(1);
+    private String lastGeneratedDate = "";
+    private final AtomicInteger orderCounter = new AtomicInteger(1);
 
     public OrderResponse placeOrder(UserPrincipal principal, OrderRequest request) {
         User user = userRepository.findById(principal.getId())
@@ -278,9 +279,32 @@ public class OrderService {
         return toResponse(saved);
     }
 
-    private String generateOrderNumber() {
-        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        return "ORD-" + date + "-" + String.format("%04d", orderCounter.getAndIncrement());
+    private synchronized String generateOrderNumber() {
+        String today = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        if (!today.equals(lastGeneratedDate)) {
+            String prefix = "ORD-" + today + "-";
+            Optional<String> maxOrderOpt = orderRepository.findMaxOrderNumberByPrefix(prefix + "%");
+            int startSeq = 1;
+            if (maxOrderOpt.isPresent()) {
+                String maxOrder = maxOrderOpt.get();
+                try {
+                    String[] parts = maxOrder.split("-");
+                    if (parts.length >= 3) {
+                        String seqPart = parts[2];
+                        if (seqPart.matches("\\d+")) {
+                            startSeq = Integer.parseInt(seqPart) + 1;
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to parse max order number: {}, starting at 1", maxOrder, e);
+                }
+            }
+            orderCounter.set(startSeq);
+            lastGeneratedDate = today;
+        }
+
+        String randomSuffix = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        return "ORD-" + today + "-" + String.format("%04d", orderCounter.getAndIncrement()) + "-" + randomSuffix;
     }
 
     public OrderResponse toResponse(Order o) {

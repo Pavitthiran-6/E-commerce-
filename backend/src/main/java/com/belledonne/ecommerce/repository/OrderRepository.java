@@ -83,5 +83,8 @@ public interface OrderRepository extends JpaRepository<Order, UUID>, JpaSpecific
 
     @Query("SELECT COUNT(o) FROM Order o WHERE o.status = com.belledonne.ecommerce.enums.OrderStatus.RETURNED OR LOWER(o.shipmentStatus) LIKE '%rto%'")
     long countRtoOrders();
+
+    @Query("SELECT MAX(o.orderNumber) FROM Order o WHERE o.orderNumber LIKE :prefix")
+    java.util.Optional<String> findMaxOrderNumberByPrefix(@Param("prefix") String prefix);
 }
 
