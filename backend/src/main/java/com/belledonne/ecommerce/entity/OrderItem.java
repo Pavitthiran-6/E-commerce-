@@ -38,7 +38,7 @@ public class OrderItem {
     @Column(name = "product_name", nullable = false, length = 255)
     private String productName;
 
-    @Column(name = "product_image", length = 500)
+    @Column(name = "product_image", columnDefinition = "TEXT")
     private String productImage;
 
     @Column(length = 20)

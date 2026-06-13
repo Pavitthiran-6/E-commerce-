@@ -54,6 +54,14 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         }
 
         try {
+            // Upgrade order_items.product_image from VARCHAR(500) to TEXT to support base64 images/long URLs
+            jdbcTemplate.execute("ALTER TABLE order_items ALTER COLUMN product_image TYPE TEXT USING product_image::TEXT");
+            log.info("Database migration successfully upgraded order_items.product_image to TEXT!");
+        } catch (Exception e) {
+            log.warn("Database migration order_items.product_image alter skipped or not needed: {}", e.getMessage());
+        }
+
+        try {
             log.info("Updating check constraint on orders.status to include all current OrderStatus values...");
             // Drop the stale constraint that only contained old/legacy status values
             jdbcTemplate.execute("ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check");
