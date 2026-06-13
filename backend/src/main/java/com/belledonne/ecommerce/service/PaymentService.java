@@ -198,13 +198,6 @@ public class PaymentService {
      *  - Order confirmation email is sent (first time only).
      */
     public PaymentResponse verifyPayment(PaymentRequest request, UUID userId) {
-        // ── Signature verification FIRST — fail fast before any DB lookup ──
-        String payload = request.getRazorpayOrderId() + "|" + request.getRazorpayPaymentId();
-        if (!verifyHmacSignature(payload, request.getRazorpaySignature(), razorpayKeySecret)) {
-            log.warn("Signature verification failed for razorpayOrderId={}", request.getRazorpayOrderId());
-            throw new PaymentException("Payment signature verification failed. Possible fraud attempt.");
-        }
-
         Payment payment = paymentRepository.findByRazorpayOrderId(request.getRazorpayOrderId())
             .orElseThrow(() -> new ResourceNotFoundException("Payment", "razorpayOrderId", request.getRazorpayOrderId()));
 
@@ -213,8 +206,15 @@ public class PaymentService {
 
         // ── Idempotency: already confirmed via callback or webhook ──
         if (payment.getStatus() == PaymentStatus.SUCCESS || payment.getOrder().getPaymentStatus() == PaymentStatus.SUCCESS) {
-            log.info("Payment for Order {} already marked SUCCESS — skipping re-processing", payment.getOrder().getId());
+            log.info("Payment for Order {} already marked SUCCESS — skipping re-processing and signature check", payment.getOrder().getId());
             return toPaymentResponse(payment);
+        }
+
+        // ── Signature verification for first-time processing ──
+        String payload = request.getRazorpayOrderId() + "|" + request.getRazorpayPaymentId();
+        if (!verifyHmacSignature(payload, request.getRazorpaySignature(), razorpayKeySecret)) {
+            log.warn("Signature verification failed for razorpayOrderId={}", request.getRazorpayOrderId());
+            throw new PaymentException("Payment signature verification failed. Possible fraud attempt.");
         }
 
         // ── Mark SUCCESS ──
