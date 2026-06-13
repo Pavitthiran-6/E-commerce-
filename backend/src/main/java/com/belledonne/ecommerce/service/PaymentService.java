@@ -212,8 +212,8 @@ public class PaymentService {
         enforceOrderOwnership(payment.getOrder(), userId);
 
         // ── Idempotency: already confirmed via callback or webhook ──
-        if (payment.getStatus() == PaymentStatus.SUCCESS) {
-            log.info("Payment {} already marked SUCCESS — skipping re-processing", payment.getId());
+        if (payment.getStatus() == PaymentStatus.SUCCESS || payment.getOrder().getPaymentStatus() == PaymentStatus.SUCCESS) {
+            log.info("Payment for Order {} already marked SUCCESS — skipping re-processing", payment.getOrder().getId());
             return toPaymentResponse(payment);
         }
 
@@ -344,8 +344,8 @@ public class PaymentService {
             return;
         }
 
-        if (payment.getStatus() == PaymentStatus.SUCCESS) {
-            log.info("Webhook: payment {} already SUCCESS via frontend — skipping", payment.getId());
+        if (payment.getStatus() == PaymentStatus.SUCCESS || payment.getOrder().getPaymentStatus() == PaymentStatus.SUCCESS) {
+            log.info("Webhook: payment for Order {} already SUCCESS — skipping", payment.getOrder().getId());
             return;
         }
 

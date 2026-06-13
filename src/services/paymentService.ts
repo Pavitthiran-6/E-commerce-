@@ -30,16 +30,20 @@ export const createPaymentOrder = async (orderId: string): Promise<RazorpayOrder
  * Submits the Razorpay callback signature for server-side HMAC verification.
  */
 export const verifyPayment = async (
+  orderId: string,
   razorpayOrderId: string,
   razorpayPaymentId: string,
   razorpaySignature: string
 ): Promise<any> => {
+  const payload = {
+    orderId,
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
+  };
+  console.log("VERIFY PAYMENT PAYLOAD", payload);
   try {
-    const response = await axiosInstance.post(ENDPOINTS.VERIFY_PAYMENT, {
-      razorpayOrderId,
-      razorpayPaymentId,
-      razorpaySignature,
-    });
+    const response = await axiosInstance.post(ENDPOINTS.VERIFY_PAYMENT, payload);
     return response.data.data;
   } catch (error) {
     console.error('Error verifying payment', error);
@@ -112,6 +116,7 @@ export const retryPayment = async (
     handler: async function (response: any) {
       try {
         await verifyPayment(
+          orderId,
           response.razorpay_order_id,
           response.razorpay_payment_id,
           response.razorpay_signature

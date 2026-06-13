@@ -231,7 +231,7 @@ export default function CheckoutPayment() {
                       order_id: rzpOrder.razorpayOrderId,
                       handler: async function (response: any) {
                         try {
-                           await verifyPayment(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
+                           await verifyPayment(order.id, response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
                            navigate('/checkout/confirmation');
                         } catch (e) {
                            alert('Payment verification failed');

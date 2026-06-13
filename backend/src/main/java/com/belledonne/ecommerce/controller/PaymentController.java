@@ -56,7 +56,7 @@ public class PaymentController {
     public ResponseEntity<ApiResponse<?>> verifyPayment(
         @AuthenticationPrincipal UserPrincipal principal,
         @Valid @RequestBody PaymentRequest request) {
-
+        log.info("Verify Payment Request: {}", request);
         return ResponseEntity.ok(ApiResponse.success(
             "Payment verified successfully",
             paymentService.verifyPayment(request, principal.getId())));
