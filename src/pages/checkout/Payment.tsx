@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { CheckCircle2, Lock, ShieldCheck } from 'lucide-react';
 import { LoadingButton } from '../../components/LoadingButton';
 import { isFreeShippingCoupon } from '../../utils/couponLogic';
-import { placeOrder, getPublicShippingSettings } from '../../services/orderService';
+import { placeOrder, getPublicShippingSettings, getOrderById } from '../../services/orderService';
 import { createPaymentOrder, verifyPayment, reportPaymentFailure } from '../../services/paymentService';
 import { getProductById } from '../../services/productService';
 
@@ -231,9 +231,24 @@ export default function CheckoutPayment() {
                       order_id: rzpOrder.razorpayOrderId,
                       handler: async function (response: any) {
                         try {
-                           await verifyPayment(order.id, response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
+                           console.log("Before Verify");
+                           console.log("Order ID:", order?.id);
+                           const result = await verifyPayment(order.id, response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
+                           console.log("Verify Result:", result);
+                           console.log("Navigating to confirmation page");
                            navigate('/checkout/confirmation');
-                        } catch (e) {
+                        } catch (error) {
+                           console.error("verifyPayment failed, trying fallback:", error);
+                           try {
+                              const latestOrder = await getOrderById(order.id);
+                              if (latestOrder.paymentStatus === 'SUCCESS' || latestOrder.paymentStatus === 'PAID') {
+                                 console.log("Fallback: Webhook already marked order PAID/SUCCESS. Navigating to confirmation.");
+                                 navigate('/checkout/confirmation');
+                                 return;
+                              }
+                           } catch (fetchError) {
+                              console.error("Fallback order fetch failed:", fetchError);
+                           }
                            alert('Payment verification failed');
                         }
                       },
